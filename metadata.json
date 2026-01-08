@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Version finale définitive 1.3",
+  "description": "Système d'administration moderne pour les socios de Boca Juniors avec interface Liquid Glass et charte graphique officielle sans rouge.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

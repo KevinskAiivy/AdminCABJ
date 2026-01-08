@@ -1,0 +1,108 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#001d4a">
+    <meta name="description" content="Sistema de Gestión Oficial - Consulados Boca Juniors">
+    <title>Consulados CABJ | Panel Oficial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Oswald:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --boca-blue: #003B94;
+            --boca-blue-deep: #001d4a;
+            --boca-gold: #FCB131;
+            --boca-gold-bright: #FFD23F;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F0F4F8; 
+            background-image: 
+                radial-gradient(circle at 1px 1px, rgba(0, 59, 148, 0.05) 1px, transparent 0);
+            background-size: 20px 20px;
+            color: #001d4a;
+            overflow-x: hidden;
+            min-height: 100vh;
+            font-size: 14px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        .oswald { font-family: 'Oswald', sans-serif; }
+
+        /* --- SCROLLBAR PREMIUM --- */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 29, 74, 0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { 
+            background: rgba(0, 59, 148, 0.3); 
+            border-radius: 10px; 
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--boca-blue); }
+
+        /* --- LIQUID GLASS SYSTEM (IMPROVED) --- */
+        .liquid-glass {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 
+                0 8px 32px 0 rgba(0, 29, 74, 0.1),
+                inset 0 0 20px rgba(255, 255, 255, 0.7);
+        }
+
+        .liquid-glass-dark {
+            background: linear-gradient(145deg, rgba(0, 29, 74, 0.85), rgba(0, 59, 148, 0.75));
+            backdrop-filter: blur(30px) saturate(150%);
+            -webkit-backdrop-filter: blur(30px) saturate(150%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+        }
+
+        .liquid-glass-gold {
+            background: linear-gradient(135deg, rgba(252, 177, 49, 0.85), rgba(255, 210, 63, 0.75));
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #001d4a;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes boca-entrance {
+            0% { opacity: 0; transform: translateY(15px) scale(0.97); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .animate-boca-entrance {
+            animation: boca-entrance 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        /* --- NAV HOVER EFFECT (REMOVED) --- */
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react-dom": "https://esm.sh/react-dom@^19.2.3",
+    "react-router-dom": "https://esm.sh/react-router-dom@^6.23.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "jspdf": "https://esm.sh/jspdf@2.5.1",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@3.8.2",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>
