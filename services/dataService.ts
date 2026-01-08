@@ -201,27 +201,39 @@ const mapConsuladoToDB = (c: Partial<Consulado>) => {
     return payload;
 };
 
-const mapMatchFromDB = (db: any): Match => ({
-    id: db.id || 0,
-    rival: db.rival || '',
-    rivalShort: db.rival_short || '',
-    rivalCountry: db.rival_country || '',
-    competition: db.competition || '',
-    date: db.date || '',
-    hour: db.hour || '',
-    venue: db.venue || '',
-    city: db.city || '',
-    isHome: db.is_home !== undefined ? Boolean(db.is_home) : false,
-    isNeutral: db.is_neutral !== undefined ? Boolean(db.is_neutral) : false,
-    fechaJornada: db.fecha_jornada || '',
-    isSuspended: db.is_suspended !== undefined ? Boolean(db.is_suspended) : false,
-    aperturaDate: db.apertura_date || '',
-    aperturaHour: db.apertura_hour || '',
-    cierreDate: db.cierre_date || '',
-    cierreHour: db.cierre_hour || '',
-    competitionId: db.competition_id || undefined,
-    rivalId: db.rival_id || undefined
-});
+const mapMatchFromDB = (db: any): Match => {
+    // Helper pour convertir l'ID en number
+    const parseId = (id: any): number => {
+        if (typeof id === 'number') return id;
+        if (typeof id === 'string') {
+            const parsed = parseInt(id, 10);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+        return 0;
+    };
+
+    return {
+        id: parseId(db.id),
+        rival: db.rival || '',
+        rivalShort: db.rival_short || '',
+        rivalCountry: db.rival_country || '',
+        competition: db.competition || '',
+        date: db.date || '',
+        hour: db.hour || '',
+        venue: db.venue || '',
+        city: db.city || '',
+        isHome: db.is_home !== undefined ? Boolean(db.is_home) : false,
+        isNeutral: db.is_neutral !== undefined ? Boolean(db.is_neutral) : false,
+        fechaJornada: db.fecha_jornada || '',
+        isSuspended: db.is_suspended !== undefined ? Boolean(db.is_suspended) : false,
+        aperturaDate: db.apertura_date || '',
+        aperturaHour: db.apertura_hour || '',
+        cierreDate: db.cierre_date || '',
+        cierreHour: db.cierre_hour || '',
+        competitionId: db.competition_id || undefined,
+        rivalId: db.rival_id || undefined
+    };
+};
 
 const mapMatchToDB = (m: Partial<Match>) => {
     const payload: any = {};
@@ -229,20 +241,231 @@ const mapMatchToDB = (m: Partial<Match>) => {
     if (m.rivalShort !== undefined) payload.rival_short = m.rivalShort || '';
     if (m.rivalCountry !== undefined) payload.rival_country = m.rivalCountry || '';
     if (m.competition !== undefined) payload.competition = m.competition || '';
-    if (m.date !== undefined) payload.date = m.date || '';
-    if (m.hour !== undefined) payload.hour = m.hour || '';
-    if (m.venue !== undefined) payload.venue = m.venue || '';
-    if (m.city !== undefined) payload.city = m.city || '';
+    if (m.date !== undefined) payload.date = m.date || null;
+    if (m.hour !== undefined) payload.hour = m.hour || null;
+    if (m.venue !== undefined) payload.venue = m.venue || null;
+    if (m.city !== undefined) payload.city = m.city || null;
     if (m.isHome !== undefined) payload.is_home = Boolean(m.isHome);
-    if (m.isNeutral !== undefined) payload.is_neutral = Boolean(m.isNeutral);
-    if (m.fechaJornada !== undefined) payload.fecha_jornada = m.fechaJornada || '';
-    if (m.isSuspended !== undefined) payload.is_suspended = Boolean(m.isSuspended);
+    if (m.isNeutral !== undefined) payload.is_neutral = Boolean(m.isNeutral !== undefined ? m.isNeutral : false);
+    if (m.fechaJornada !== undefined) payload.fecha_jornada = m.fechaJornada || null;
+    if (m.isSuspended !== undefined) payload.is_suspended = Boolean(m.isSuspended !== undefined ? m.isSuspended : false);
     if (m.aperturaDate !== undefined) payload.apertura_date = m.aperturaDate || null;
     if (m.aperturaHour !== undefined) payload.apertura_hour = m.aperturaHour || null;
     if (m.cierreDate !== undefined) payload.cierre_date = m.cierreDate || null;
     if (m.cierreHour !== undefined) payload.cierre_hour = m.cierreHour || null;
     if (m.competitionId !== undefined) payload.competition_id = m.competitionId || null;
     if (m.rivalId !== undefined) payload.rival_id = m.rivalId || null;
+    return payload;
+};
+
+// Mapping pour Teams
+const mapTeamFromDB = (db: any): Team => ({
+    id: db.id || crypto.randomUUID(),
+    name: db.name || '',
+    shortName: db.short_name || db.shortName || '',
+    countryId: db.country_id || db.countryId || 'AR',
+    confederation: (db.confederation === 'CONMEBOL' || db.confederation === 'UEFA' || db.confederation === 'OTHER') 
+        ? db.confederation 
+        : 'CONMEBOL',
+    city: db.city || '',
+    stadium: db.stadium || '',
+    logo: db.logo || undefined
+});
+
+const mapTeamToDB = (t: Partial<Team>) => {
+    const payload: any = {};
+    if (t.name !== undefined) payload.name = t.name || '';
+    if (t.shortName !== undefined) payload.short_name = t.shortName || '';
+    if (t.countryId !== undefined) payload.country_id = t.countryId || 'AR';
+    if (t.confederation !== undefined) payload.confederation = t.confederation || 'CONMEBOL';
+    if (t.city !== undefined) payload.city = t.city || null;
+    if (t.stadium !== undefined) payload.stadium = t.stadium || null;
+    if (t.logo !== undefined) payload.logo = t.logo || null;
+    return payload;
+};
+
+// Mapping pour Competitions
+const mapCompetitionFromDB = (db: any): Competition => ({
+    id: db.id || crypto.randomUUID(),
+    name: db.name || '',
+    organization: db.organization || '',
+    type: db.type || '',
+    logo: db.logo || '',
+    category: (db.category === 'NACIONAL' || db.category === 'INTERNACIONAL') ? db.category : 'NACIONAL'
+});
+
+const mapCompetitionToDB = (c: Partial<Competition>) => {
+    const payload: any = {};
+    if (c.name !== undefined) payload.name = c.name || '';
+    if (c.organization !== undefined) payload.organization = c.organization || '';
+    if (c.type !== undefined) payload.type = c.type || '';
+    if (c.logo !== undefined) payload.logo = c.logo || '';
+    if (c.category !== undefined) payload.category = c.category || 'NACIONAL';
+    return payload;
+};
+
+// Mapping pour Mensajes
+const mapMensajeFromDB = (db: any): Mensaje => {
+    // Helper pour parser target_ids (peut être JSON string ou array)
+    const parseTargetIds = (value: any): string[] | undefined => {
+        if (!value) return undefined;
+        if (Array.isArray(value)) return value;
+        if (typeof value === 'string') {
+            try {
+                const parsed = JSON.parse(value);
+                return Array.isArray(parsed) ? parsed : undefined;
+            } catch {
+                return undefined;
+            }
+        }
+        return undefined;
+    };
+
+    return {
+        id: db.id || crypto.randomUUID(),
+        title: db.title || '',
+        body: db.body || '',
+        targetConsuladoId: db.target_consulado_id || 'ALL',
+        targetIds: parseTargetIds(db.target_ids),
+        targetConsuladoName: db.target_consulado_name || 'Todos',
+        type: (db.type === 'INSTITUCIONAL' || db.type === 'URGENTE' || db.type === 'CONSULAR') 
+            ? db.type 
+            : 'INSTITUCIONAL',
+        date: db.date || '',
+        startDate: db.start_date || undefined,
+        endDate: db.end_date || undefined,
+        created_at: db.created_at || Date.now(),
+        archived: db.archived !== undefined ? Boolean(db.archived) : false,
+        isAutomatic: db.is_automatic !== undefined ? Boolean(db.is_automatic) : false
+    };
+};
+
+const mapMensajeToDB = (m: Partial<Mensaje>) => {
+    const payload: any = {};
+    if (m.title !== undefined) payload.title = m.title || '';
+    if (m.body !== undefined) payload.body = m.body || '';
+    if (m.targetConsuladoId !== undefined) payload.target_consulado_id = m.targetConsuladoId || 'ALL';
+    if (m.targetIds !== undefined) payload.target_ids = m.targetIds && Array.isArray(m.targetIds) && m.targetIds.length > 0 ? m.targetIds : null;
+    if (m.targetConsuladoName !== undefined) payload.target_consulado_name = m.targetConsuladoName || 'Todos';
+    if (m.type !== undefined) payload.type = m.type || 'INSTITUCIONAL';
+    if (m.date !== undefined) payload.date = m.date || null;
+    if (m.startDate !== undefined) payload.start_date = m.startDate || null;
+    if (m.endDate !== undefined) payload.end_date = m.endDate || null;
+    if (m.created_at !== undefined) payload.created_at = m.created_at || Date.now();
+    if (m.archived !== undefined) payload.archived = Boolean(m.archived);
+    if (m.isAutomatic !== undefined) payload.is_automatic = Boolean(m.isAutomatic);
+    return payload;
+};
+
+// Mapping pour AgendaEvent
+const mapAgendaEventFromDB = (db: any): AgendaEvent => ({
+    id: db.id || crypto.randomUUID(),
+    title: db.title || '',
+    date: db.date || db.start_date || '',
+    startDate: db.start_date || db.date || undefined,
+    endDate: db.end_date || undefined,
+    type: (db.type === 'EFEMERIDE' || db.type === 'IDOLO' || db.type === 'INTERNACIONAL' || db.type === 'EVENTO' || db.type === 'ENCUENTRO' || db.type === 'CUMPLEAÑOS')
+        ? db.type
+        : 'EVENTO',
+    description: db.description || undefined,
+    location: db.location || undefined,
+    isSpecialDay: db.is_special_day !== undefined ? Boolean(db.is_special_day) : false
+});
+
+const mapAgendaEventToDB = (e: Partial<AgendaEvent>) => {
+    const payload: any = {};
+    if (e.title !== undefined) payload.title = e.title || '';
+    if (e.date !== undefined) payload.date = e.date || null;
+    if (e.startDate !== undefined) payload.start_date = e.startDate || null;
+    if (e.endDate !== undefined) payload.end_date = e.endDate || null;
+    if (e.type !== undefined) payload.type = e.type || 'EVENTO';
+    if (e.description !== undefined) payload.description = e.description || null;
+    if (e.location !== undefined) payload.location = e.location || null;
+    if (e.isSpecialDay !== undefined) payload.is_special_day = Boolean(e.isSpecialDay);
+    return payload;
+};
+
+// Mapping pour AppUser
+const mapAppUserFromDB = (db: any): AppUser => ({
+    id: db.id || crypto.randomUUID(),
+    username: db.username || '',
+    password: db.password || undefined,
+    email: db.email || '',
+    fullName: db.full_name || db.fullName || '',
+    role: (db.role === 'SUPERADMIN' || db.role === 'ADMIN' || db.role === 'PRESIDENTE' || db.role === 'REFERENTE' || db.role === 'SOCIO')
+        ? db.role
+        : 'SOCIO',
+    consuladoId: db.consulado_id || db.consuladoId || undefined,
+    active: db.active !== undefined ? Boolean(db.active) : true,
+    lastLogin: db.last_login || db.lastLogin || undefined,
+    avatar: db.avatar || undefined,
+    gender: (db.gender === 'M' || db.gender === 'F' || db.gender === 'X') ? db.gender : undefined
+});
+
+const mapAppUserToDB = (u: Partial<AppUser>) => {
+    const payload: any = {};
+    if (u.username !== undefined) payload.username = u.username || '';
+    if (u.password !== undefined && u.password.trim() !== '') payload.password = u.password;
+    if (u.email !== undefined) payload.email = u.email || '';
+    if (u.fullName !== undefined) payload.full_name = u.fullName || '';
+    if (u.role !== undefined) payload.role = u.role || 'SOCIO';
+    if (u.consuladoId !== undefined) payload.consulado_id = u.consuladoId || null;
+    if (u.active !== undefined) payload.active = Boolean(u.active);
+    if (u.lastLogin !== undefined) payload.last_login = u.lastLogin || null;
+    if (u.avatar !== undefined) payload.avatar = u.avatar || null;
+    if (u.gender !== undefined) payload.gender = u.gender || null;
+    return payload;
+};
+
+// Mapping pour Solicitud
+const mapSolicitudFromDB = (db: any): Solicitud => ({
+    id: db.id || crypto.randomUUID(),
+    matchId: db.match_id || db.matchId || 0,
+    socioId: db.socio_id || db.socioId || '',
+    socioName: db.socio_name || db.socioName || '',
+    socioDni: db.socio_dni || db.socioDni || '',
+    socioCategory: db.socio_category || db.socioCategory || '',
+    consulado: db.consulado || '',
+    status: (db.status === 'PENDING' || db.status === 'APPROVED' || db.status === 'REJECTED' || db.status === 'CANCELLATION_REQUESTED')
+        ? db.status
+        : 'PENDING',
+    timestamp: db.timestamp || db.created_at || new Date().toISOString()
+});
+
+const mapSolicitudToDB = (s: Partial<Solicitud>) => {
+    const payload: any = {};
+    if (s.matchId !== undefined) payload.match_id = s.matchId || null;
+    if (s.socioId !== undefined) payload.socio_id = s.socioId || '';
+    if (s.socioName !== undefined) payload.socio_name = s.socioName || '';
+    if (s.socioDni !== undefined) payload.socio_dni = s.socioDni || '';
+    if (s.socioCategory !== undefined) payload.socio_category = s.socioCategory || '';
+    if (s.consulado !== undefined) payload.consulado = s.consulado || '';
+    if (s.status !== undefined) payload.status = s.status || 'PENDING';
+    if (s.timestamp !== undefined) payload.timestamp = s.timestamp || new Date().toISOString();
+    return payload;
+};
+
+// Mapping pour AppNotification
+const mapNotificationFromDB = (db: any): AppNotification => ({
+    id: db.id || crypto.randomUUID(),
+    type: (db.type === 'TRANSFER' || db.type === 'SYSTEM' || db.type === 'ALERT') ? db.type : 'SYSTEM',
+    title: db.title || '',
+    message: db.message || '',
+    date: db.date || db.created_at || new Date().toISOString(),
+    read: db.read !== undefined ? Boolean(db.read) : false,
+    link: db.link || undefined,
+    data: db.data ? (typeof db.data === 'string' ? JSON.parse(db.data) : db.data) : undefined
+});
+
+const mapNotificationToDB = (n: Partial<AppNotification>) => {
+    const payload: any = {};
+    if (n.type !== undefined) payload.type = n.type || 'SYSTEM';
+    if (n.title !== undefined) payload.title = n.title || '';
+    if (n.message !== undefined) payload.message = n.message || '';
+    if (n.date !== undefined) payload.date = n.date || new Date().toISOString();
+    if (n.read !== undefined) payload.read = Boolean(n.read);
+    if (n.link !== undefined) payload.link = n.link || null;
+    if (n.data !== undefined) payload.data = n.data ? JSON.stringify(n.data) : null;
     return payload;
 };
 
@@ -305,7 +528,7 @@ class DataService {
 
       const startTime = performance.now();
       const isDevelopment = import.meta.env.DEV;
-      
+
       this.loadingMessage = "Connexion à la base de données...";
       try {
           // Charger les données en parallèle pour accélérer l'initialisation
@@ -323,8 +546,10 @@ class DataService {
 
           // Traitement des Users
           if (usersResult.data) {
-              this.users = usersResult.data.map((u: any) => ({ ...u, fullName: u.full_name, consuladoId: u.consulado_id }));
+              this.users = usersResult.data.map(mapAppUserFromDB);
               if (isDevelopment) console.log(`✅ ${this.users.length} utilisateurs chargés`);
+          } else if (usersResult.error) {
+              console.error("❌ Erreur lors du chargement des users:", usersResult.error);
           }
 
           // Traitement des Consulados (logs réduits)
@@ -416,19 +641,32 @@ class DataService {
               }
           }
           
-          if (allTeams.length > 0) {
-              this.teams = allTeams.map((t: any) => ({
-                  id: t.id,
-                  name: t.name || '',
-                  shortName: t.short_name || t.shortName || '',
-                  countryId: t.country_id || t.countryId || 'AR',
-                  confederation: t.confederation || 'CONMEBOL',
-                  city: t.city || '',
-                  stadium: t.stadium || '',
-                  logo: t.logo || ''
-              }));
-          }
+          this.teams = allTeams.map(mapTeamFromDB);
           if (isDevelopment) console.log(`✅ ${this.teams.length} équipes chargées`);
+
+          // 4. Charger Solicitudes et Notifications depuis Supabase (si la table existe)
+          this.loadingMessage = "Chargement des demandes...";
+          try {
+              const [solicitudesResult, notificationsResult] = await Promise.all([
+                  supabase.from('solicitudes').select('*').catch(() => ({ data: null, error: null })),
+                  supabase.from('notifications').select('*').catch(() => ({ data: null, error: null }))
+              ]);
+
+              // Traitement des Solicitudes
+              if (solicitudesResult.data && !solicitudesResult.error) {
+                  this.solicitudes = solicitudesResult.data.map(mapSolicitudFromDB);
+                  if (isDevelopment) console.log(`✅ ${this.solicitudes.length} solicitudes chargées`);
+              }
+
+              // Traitement des Notifications
+              if (notificationsResult.data && !notificationsResult.error) {
+                  this.notifications = notificationsResult.data.map(mapNotificationFromDB);
+                  if (isDevelopment) console.log(`✅ ${this.notifications.length} notifications chargées`);
+              }
+          } catch (error) {
+              // Les tables peuvent ne pas exister, ce n'est pas critique
+              if (isDevelopment) console.log("ℹ️ Tables solicitudes/notifications non disponibles");
+          }
 
           // Assigner SEDE CENTRAL en arrière-plan (ne bloque pas l'initialisation)
           this.assignSociosToSedeCentral().catch(() => {
@@ -439,39 +677,37 @@ class DataService {
           if (matchesResult.data) {
               this.matches = matchesResult.data.map(mapMatchFromDB);
               if (isDevelopment) console.log(`✅ ${this.matches.length} matchs chargés`);
+          } else if (matchesResult.error) {
+              console.error("❌ Erreur lors du chargement des matches:", matchesResult.error);
           }
 
           // Traitement des Competitions
           if (competitionsResult.data) {
-              this.competitions = competitionsResult.data;
+              this.competitions = competitionsResult.data.map(mapCompetitionFromDB);
               if (isDevelopment) console.log(`✅ ${this.competitions.length} compétitions chargées`);
+          } else if (competitionsResult.error) {
+              console.error("❌ Erreur lors du chargement des competitions:", competitionsResult.error);
           }
 
           // Traitement de l'Agenda
           if (agendaResult.data) {
-              this.agenda = agendaResult.data.map((a: any) => ({
-                  ...a, 
-                  startDate: a.start_date, 
-                  endDate: a.end_date, 
-                  isSpecialDay: a.is_special_day
-              }));
+              this.agenda = agendaResult.data.map(mapAgendaEventFromDB);
               if (isDevelopment) console.log(`✅ ${this.agenda.length} événements chargés`);
+          } else if (agendaResult.error) {
+              console.error("❌ Erreur lors du chargement de l'agenda:", agendaResult.error);
           }
 
           // Traitement des Mensajes
           if (mensajesResult.data) {
-              this.mensajes = mensajesResult.data.map((m: any) => ({
-                  ...m, 
-                  targetConsuladoId: m.target_consulado_id, 
-                  targetConsuladoName: m.target_consulado_name, 
-                  targetIds: m.target_ids
-              }));
+              this.mensajes = mensajesResult.data.map(mapMensajeFromDB);
               if (isDevelopment) console.log(`✅ ${this.mensajes.length} messages chargés`);
+          } else if (mensajesResult.error) {
+              console.error("❌ Erreur lors du chargement des mensajes:", mensajesResult.error);
           }
 
           const endTime = performance.now();
           const duration = ((endTime - startTime) / 1000).toFixed(2);
-          
+
           this.isConnected = true;
           this.connectionError = null;
           
@@ -806,163 +1042,589 @@ class DataService {
   }
 
   getMatches() { return this.matches; }
+  getMatchById(id: number) { return this.matches.find(m => m.id === id); }
   async addMatch(m: Match) { 
-      this.matches.push(m); this.notify();
-      const { error } = await supabase.from('matches').insert([mapMatchToDB(m)]);
-      if (error) throw new Error(error.message);
+      try {
+          const payload = mapMatchToDB(m);
+          // Ne pas inclure l'ID si c'est 0 (auto-généré par Supabase)
+          if (m.id !== undefined && m.id !== null && m.id !== 0) {
+              payload.id = m.id;
+          }
+          const { data, error } = await supabase.from('matches').insert([payload]).select().single();
+          if (error) {
+              console.error("❌ Erreur lors de l'ajout du match:", error);
+              throw new Error(error.message);
+          }
+          if (data) {
+              const mappedMatch = mapMatchFromDB(data);
+              // Vérifier si le match existe déjà (éviter les doublons)
+              const existingIndex = this.matches.findIndex(x => x.id === mappedMatch.id);
+              if (existingIndex >= 0) {
+                  this.matches[existingIndex] = mappedMatch;
+              } else {
+                  this.matches.push(mappedMatch);
+              }
+              this.notify();
+              return mappedMatch;
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de l'ajout du match:", error);
+          throw error;
+      }
   }
   async updateMatch(m: Match) { 
-      this.matches = this.matches.map(x => x.id === m.id ? m : x); this.notify();
-      const { error } = await supabase.from('matches').update(mapMatchToDB(m)).eq('id', m.id);
-      if (error) throw new Error(error.message);
+      try {
+          const payload = mapMatchToDB(m);
+          const { data, error } = await supabase.from('matches').update(payload).eq('id', m.id).select().single();
+          if (error) {
+              console.error("❌ Erreur lors de la mise à jour du match:", error);
+              throw new Error(error.message);
+          }
+          if (data) {
+              const mappedMatch = mapMatchFromDB(data);
+              this.matches = this.matches.map(x => x.id === m.id ? mappedMatch : x);
+              this.notify();
+              return mappedMatch;
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la mise à jour du match:", error);
+          throw error;
+      }
   }
   async deleteMatch(id: number) { 
-      this.matches = this.matches.filter(x => x.id !== id); this.notify();
+      try {
       const { error } = await supabase.from('matches').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+          if (error) {
+              console.error("❌ Erreur lors de la suppression du match:", error);
+              throw new Error(error.message);
+          }
+          this.matches = this.matches.filter(x => x.id !== id);
+          this.notify();
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la suppression du match:", error);
+          throw error;
+      }
   }
 
   getTeams() { return this.teams; }
+  getTeamById(id: string) { return this.teams.find(t => t.id === id); }
   async addTeam(t: Team) { 
-      this.teams.push(t); this.notify();
-      const payload: any = {
-          id: t.id || crypto.randomUUID(),
-          name: t.name || '',
-          short_name: t.shortName || '',
-          country_id: t.countryId || 'AR',
-          confederation: t.confederation || 'CONMEBOL',
-          city: t.city || '',
-          stadium: t.stadium || '',
-          logo: t.logo || null
-      };
-      const { error } = await supabase.from('teams').insert([payload]);
-      if (error) throw new Error(error.message);
+      try {
+          const payload = mapTeamToDB(t);
+          // S'assurer que l'ID est présent
+          if (!t.id) {
+              payload.id = crypto.randomUUID();
+          } else {
+              payload.id = t.id;
+          }
+          const { data, error } = await supabase.from('teams').insert([payload]).select().single();
+          if (error) {
+              console.error("❌ Erreur lors de l'ajout de l'équipe:", error);
+              throw new Error(error.message);
+          }
+          if (data) {
+              const mappedTeam = mapTeamFromDB(data);
+              // Vérifier si l'équipe existe déjà (éviter les doublons)
+              const existingIndex = this.teams.findIndex(x => x.id === mappedTeam.id);
+              if (existingIndex >= 0) {
+                  this.teams[existingIndex] = mappedTeam;
+              } else {
+                  this.teams.push(mappedTeam);
+              }
+              this.notify();
+              return mappedTeam;
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de l'ajout de l'équipe:", error);
+          throw error;
+      }
   }
   async updateTeam(t: Team) { 
-      this.teams = this.teams.map(x => x.id === t.id ? t : x); this.notify();
-      const payload: any = {
-          name: t.name || '',
-          short_name: t.shortName || '',
-          country_id: t.countryId || 'AR',
-          confederation: t.confederation || 'CONMEBOL',
-          city: t.city || '',
-          stadium: t.stadium || '',
-          logo: t.logo || null
-      };
-      const { error } = await supabase.from('teams').update(payload).eq('id', t.id);
-      if (error) throw new Error(error.message);
+      try {
+          const payload = mapTeamToDB(t);
+          const { data, error } = await supabase.from('teams').update(payload).eq('id', t.id).select().single();
+          if (error) {
+              console.error("❌ Erreur lors de la mise à jour de l'équipe:", error);
+              throw new Error(error.message);
+          }
+          if (data) {
+              const mappedTeam = mapTeamFromDB(data);
+              this.teams = this.teams.map(x => x.id === t.id ? mappedTeam : x);
+              this.notify();
+              return mappedTeam;
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la mise à jour de l'équipe:", error);
+          throw error;
+      }
   }
   async deleteTeam(id: string) { 
-      this.teams = this.teams.filter(x => x.id !== id); this.notify();
+      try {
       const { error } = await supabase.from('teams').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+          if (error) {
+              console.error("❌ Erreur lors de la suppression de l'équipe:", error);
+              throw new Error(error.message);
+          }
+          this.teams = this.teams.filter(x => x.id !== id);
+          this.notify();
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la suppression de l'équipe:", error);
+          throw error;
+      }
   }
 
   getCompetitions() { return this.competitions; }
+  getCompetitionById(id: string) { return this.competitions.find(c => c.id === id); }
   async addCompetition(c: Competition) { 
-      this.competitions.push(c); this.notify();
-      const { error } = await supabase.from('competitions').insert([c]);
-      if (error) throw new Error(error.message);
+      try {
+          const payload = mapCompetitionToDB(c);
+          // S'assurer que l'ID est présent
+          if (c.id) {
+              payload.id = c.id;
+          } else {
+              payload.id = crypto.randomUUID();
+          }
+          const { data, error } = await supabase.from('competitions').insert([payload]).select().single();
+          if (error) {
+              console.error("❌ Erreur lors de l'ajout de la compétition:", error);
+              throw new Error(error.message);
+          }
+          if (data) {
+              const mappedCompetition = mapCompetitionFromDB(data);
+              this.competitions.push(mappedCompetition);
+              this.notify();
+              return mappedCompetition;
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de l'ajout de la compétition:", error);
+          throw error;
+      }
   }
   async updateCompetition(c: Competition) { 
-      this.competitions = this.competitions.map(x => x.id === c.id ? c : x); this.notify();
-      const { error } = await supabase.from('competitions').update(c).eq('id', c.id);
-      if (error) throw new Error(error.message);
+      try {
+          const payload = mapCompetitionToDB(c);
+          const { data, error } = await supabase.from('competitions').update(payload).eq('id', c.id).select().single();
+          if (error) {
+              console.error("❌ Erreur lors de la mise à jour de la compétition:", error);
+              throw new Error(error.message);
+          }
+          if (data) {
+              const mappedCompetition = mapCompetitionFromDB(data);
+              this.competitions = this.competitions.map(x => x.id === c.id ? mappedCompetition : x);
+              this.notify();
+              return mappedCompetition;
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la mise à jour de la compétition:", error);
+          throw error;
+      }
   }
   async deleteCompetition(id: string) { 
-      this.competitions = this.competitions.filter(x => x.id !== id); this.notify();
+      try {
       const { error } = await supabase.from('competitions').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+          if (error) {
+              console.error("❌ Erreur lors de la suppression de la compétition:", error);
+              throw new Error(error.message);
+          }
+          this.competitions = this.competitions.filter(x => x.id !== id);
+          this.notify();
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la suppression de la compétition:", error);
+          throw error;
+      }
   }
 
   getAgendaEvents() { return this.agenda; }
+  getAgendaEventById(id: string) { return this.agenda.find(e => e.id === id); }
   async addAgendaEvent(e: AgendaEvent) { 
-      this.agenda.push(e); this.notify();
-      const { error } = await supabase.from('agenda').insert([{
-          id: e.id, title: e.title, date: e.date, start_date: e.startDate, 
-          end_date: e.endDate, type: e.type, description: e.description, 
-          location: e.location, is_special_day: e.isSpecialDay
-      }]);
-      if (error) throw new Error(error.message);
+      try {
+          const payload = mapAgendaEventToDB(e);
+          // S'assurer que l'ID est présent
+          if (e.id) {
+              payload.id = e.id;
+          } else {
+              payload.id = crypto.randomUUID();
+          }
+          const { data, error } = await supabase.from('agenda').insert([payload]).select().single();
+          if (error) {
+              console.error("❌ Erreur lors de l'ajout de l'événement:", error);
+              throw new Error(error.message);
+          }
+          if (data) {
+              const mappedEvent = mapAgendaEventFromDB(data);
+              this.agenda.push(mappedEvent);
+              this.notify();
+              return mappedEvent;
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de l'ajout de l'événement:", error);
+          throw error;
+      }
   }
   async updateAgendaEvent(e: AgendaEvent) { 
-      this.agenda = this.agenda.map(x => x.id === e.id ? e : x); this.notify();
-      const { error } = await supabase.from('agenda').update({
-          title: e.title, date: e.date, start_date: e.startDate, 
-          end_date: e.endDate, type: e.type, description: e.description, 
-          location: e.location, is_special_day: e.isSpecialDay
-      }).eq('id', e.id);
-      if (error) throw new Error(error.message);
+      try {
+          const payload = mapAgendaEventToDB(e);
+          const { data, error } = await supabase.from('agenda').update(payload).eq('id', e.id).select().single();
+          if (error) {
+              console.error("❌ Erreur lors de la mise à jour de l'événement:", error);
+              throw new Error(error.message);
+          }
+          if (data) {
+              const mappedEvent = mapAgendaEventFromDB(data);
+              this.agenda = this.agenda.map(x => x.id === e.id ? mappedEvent : x);
+              this.notify();
+              return mappedEvent;
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la mise à jour de l'événement:", error);
+          throw error;
+      }
   }
   async deleteAgendaEvent(id: string) { 
-      this.agenda = this.agenda.filter(x => x.id !== id); this.notify();
+      try {
       const { error } = await supabase.from('agenda').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+          if (error) {
+              console.error("❌ Erreur lors de la suppression de l'événement:", error);
+              throw new Error(error.message);
+          }
+          this.agenda = this.agenda.filter(x => x.id !== id);
+          this.notify();
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la suppression de l'événement:", error);
+          throw error;
+      }
   }
 
-  getMensajes(cId?: string) { return this.mensajes; }
+  getMensajes(cId?: string) { 
+      // Filtrer par consulado si spécifié
+      if (cId && cId !== 'ALL') {
+          return this.mensajes.filter(m => 
+              m.targetConsuladoId === cId || 
+              m.targetConsuladoId === 'ALL' ||
+              (m.targetIds && m.targetIds.includes(cId))
+          );
+      }
+      return this.mensajes; 
+  }
+  getMensajeById(id: string) { return this.mensajes.find(m => m.id === id); }
   async addMensaje(m: Mensaje) { 
-      this.mensajes.push(m); this.notify();
-      const { error } = await supabase.from('mensajes').insert([{
-          id: m.id, title: m.title, body: m.body, type: m.type, date: m.date,
-          target_consulado_id: m.targetConsuladoId, target_ids: m.targetIds,
-          target_consulado_name: m.targetConsuladoName, created_at: m.created_at
-      }]);
-      if (error) throw new Error(error.message);
+      try {
+          const payload = mapMensajeToDB(m);
+          // S'assurer que l'ID est présent
+          if (m.id) {
+              payload.id = m.id;
+          } else {
+              payload.id = crypto.randomUUID();
+          }
+          // S'assurer que created_at est défini
+          if (!payload.created_at) {
+              payload.created_at = Date.now();
+          }
+          const { data, error } = await supabase.from('mensajes').insert([payload]).select().single();
+          if (error) {
+              console.error("❌ Erreur lors de l'ajout du message:", error);
+              throw new Error(error.message);
+          }
+          if (data) {
+              const mappedMensaje = mapMensajeFromDB(data);
+              this.mensajes.push(mappedMensaje);
+              this.notify();
+              return mappedMensaje;
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de l'ajout du message:", error);
+          throw error;
+      }
   }
   async updateMensaje(m: Mensaje) { 
-      this.mensajes = this.mensajes.map(x => x.id === m.id ? m : x); this.notify();
-      const { error } = await supabase.from('mensajes').update({
-          title: m.title, body: m.body, type: m.type, target_ids: m.targetIds
-      }).eq('id', m.id);
-      if (error) throw new Error(error.message);
+      try {
+          const payload = mapMensajeToDB(m);
+          const { data, error } = await supabase.from('mensajes').update(payload).eq('id', m.id).select().single();
+          if (error) {
+              console.error("❌ Erreur lors de la mise à jour du message:", error);
+              throw new Error(error.message);
+          }
+          if (data) {
+              const mappedMensaje = mapMensajeFromDB(data);
+              this.mensajes = this.mensajes.map(x => x.id === m.id ? mappedMensaje : x);
+              this.notify();
+              return mappedMensaje;
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la mise à jour du message:", error);
+          throw error;
+      }
   }
   async deleteMensaje(id: string) { 
-      this.mensajes = this.mensajes.filter(x => x.id !== id); this.notify();
+      try {
       const { error } = await supabase.from('mensajes').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+          if (error) {
+              console.error("❌ Erreur lors de la suppression du message:", error);
+              throw new Error(error.message);
+          }
+          this.mensajes = this.mensajes.filter(x => x.id !== id);
+          this.notify();
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la suppression du message:", error);
+          throw error;
+      }
   }
 
   getUsers() { return this.users; }
+  getUserById(id: string) { return this.users.find(u => u.id === id); }
+  getUserByUsername(username: string) { return this.users.find(u => u.username.toLowerCase() === username.toLowerCase()); }
   async addUser(u: AppUser) { 
-      this.users.push(u); this.notify();
-      const { error } = await supabase.from('users').insert([{
-          id: u.id, username: u.username, password: u.password, email: u.email,
-          full_name: u.fullName, role: u.role, consulado_id: u.consuladoId, active: u.active
-      }]);
-      if (error) throw new Error(error.message);
+      try {
+          const payload = mapAppUserToDB(u);
+          // S'assurer que l'ID est présent
+          if (u.id) {
+              payload.id = u.id;
+          } else {
+              payload.id = crypto.randomUUID();
+          }
+          const { data, error } = await supabase.from('users').insert([payload]).select().single();
+          if (error) {
+              console.error("❌ Erreur lors de l'ajout de l'utilisateur:", error);
+              throw new Error(error.message);
+          }
+          if (data) {
+              const mappedUser = mapAppUserFromDB(data);
+              this.users.push(mappedUser);
+              this.notify();
+              return mappedUser;
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de l'ajout de l'utilisateur:", error);
+          throw error;
+      }
   }
   async updateUser(u: AppUser) { 
-      this.users = this.users.map(x => x.id === u.id ? u : x); this.notify();
-      const payload: any = {
-          username: u.username, email: u.email, full_name: u.fullName, 
-          role: u.role, consulado_id: u.consuladoId, active: u.active
-      };
-      if (u.password) payload.password = u.password;
-      const { error } = await supabase.from('users').update(payload).eq('id', u.id);
-      if (error) throw new Error(error.message);
+      try {
+          const payload = mapAppUserToDB(u);
+          // Ne pas mettre à jour le mot de passe s'il n'est pas fourni
+          if (!payload.password) {
+              delete payload.password;
+          }
+          const { data, error } = await supabase.from('users').update(payload).eq('id', u.id).select().single();
+          if (error) {
+              console.error("❌ Erreur lors de la mise à jour de l'utilisateur:", error);
+              throw new Error(error.message);
+          }
+          if (data) {
+              const mappedUser = mapAppUserFromDB(data);
+              this.users = this.users.map(x => x.id === u.id ? mappedUser : x);
+              this.notify();
+              return mappedUser;
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la mise à jour de l'utilisateur:", error);
+          throw error;
+      }
   }
   async deleteUser(id: string) { 
-      this.users = this.users.filter(x => x.id !== id); this.notify();
+      try {
       const { error } = await supabase.from('users').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+          if (error) {
+              console.error("❌ Erreur lors de la suppression de l'utilisateur:", error);
+              throw new Error(error.message);
+          }
+          this.users = this.users.filter(x => x.id !== id);
+          this.notify();
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la suppression de l'utilisateur:", error);
+          throw error;
+      }
   }
 
-  getSolicitudes(mId: number, cName?: string) { 
-      let res = this.solicitudes.filter(s => s.matchId === mId); 
-      if (cName) res = res.filter(s => s.consulado === cName);
+  getSolicitudes(mId?: number, cName?: string) { 
+      let res = this.solicitudes;
+      if (mId !== undefined) {
+          res = res.filter(s => s.matchId === mId);
+      }
+      if (cName) {
+          res = res.filter(s => s.consulado === cName);
+      }
       return res;
   }
+  getSolicitudById(id: string) { return this.solicitudes.find(s => s.id === id); }
   async createSolicitud(s: Solicitud) { 
-      this.solicitudes.push(s); this.notify(); 
+      try {
+          const payload = mapSolicitudToDB(s);
+          // S'assurer que l'ID est présent
+          if (s.id) {
+              payload.id = s.id;
+          } else {
+              payload.id = crypto.randomUUID();
+          }
+          // Ajouter localement immédiatement
+          const solicitud: Solicitud = { ...s, id: payload.id };
+          this.solicitudes.push(solicitud);
+          this.notify();
+          
+          // Sauvegarder dans Supabase (si la table existe)
+          try {
+              const { data, error } = await supabase.from('solicitudes').insert([payload]).select().single();
+              if (error) {
+                  console.error("❌ Erreur lors de la création de la solicitud:", error);
+                  // Ne pas bloquer si la table n'existe pas
+                  if (error.code !== '42P01') { // Table doesn't exist
+                      throw error;
+                  }
+              } else if (data) {
+                  const mappedSolicitud = mapSolicitudFromDB(data);
+                  // Mettre à jour avec les données de la DB
+                  this.solicitudes = this.solicitudes.map(x => x.id === solicitud.id ? mappedSolicitud : x);
+                  this.notify();
+                  return mappedSolicitud;
+              }
+          } catch (dbError: any) {
+              // Si la table n'existe pas, continuer avec la version locale
+              if (dbError.code === '42P01') {
+                  console.log("ℹ️ Table solicitudes non disponible, utilisation du stockage local");
+              }
+          }
+          
+          return solicitud;
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la création de la solicitud:", error);
+          throw error;
+      }
   }
-  async updateSolicitudStatus(id: string, status: any) { 
-      this.solicitudes = this.solicitudes.map(s => s.id === id ? { ...s, status } : s); this.notify(); 
+  async updateSolicitudStatus(id: string, status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLATION_REQUESTED') { 
+      try {
+          // Mettre à jour localement
+          this.solicitudes = this.solicitudes.map(s => s.id === id ? { ...s, status } : s);
+          this.notify();
+          
+          // Sauvegarder dans Supabase (si la table existe)
+          try {
+              const { error } = await supabase.from('solicitudes').update({ status }).eq('id', id);
+              if (error && error.code !== '42P01') {
+                  console.error("❌ Erreur lors de la mise à jour de la solicitud:", error);
+              }
+          } catch (dbError: any) {
+              // Ignorer si la table n'existe pas
+              if (dbError.code !== '42P01') {
+                  throw dbError;
+              }
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la mise à jour de la solicitud:", error);
+          throw error;
+      }
+  }
+  async deleteSolicitud(id: string) {
+      try {
+          // Supprimer localement
+          this.solicitudes = this.solicitudes.filter(s => s.id !== id);
+          this.notify();
+          
+          // Supprimer de Supabase (si la table existe)
+          try {
+              const { error } = await supabase.from('solicitudes').delete().eq('id', id);
+              if (error && error.code !== '42P01') {
+                  console.error("❌ Erreur lors de la suppression de la solicitud:", error);
+              }
+          } catch (dbError: any) {
+              // Ignorer si la table n'existe pas
+              if (dbError.code !== '42P01') {
+                  throw dbError;
+              }
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la suppression de la solicitud:", error);
+          throw error;
+      }
   }
 
-  async deleteNotification(id: string) { this.notifications = this.notifications.filter(n => n.id !== id); this.notify(); }
-  getNotificationsForUser(u: any) { return this.notifications; }
-  markNotificationAsRead(id: string) { this.notifications = this.notifications.map(n => n.id === id ? {...n, read: true} : n); this.notify(); }
+  getNotificationsForUser(u: any) { 
+      // Filtrer par utilisateur si nécessaire
+      return this.notifications.filter(n => !n.read || true); // Toutes les notifications pour l'instant
+  }
+  getNotificationById(id: string) { return this.notifications.find(n => n.id === id); }
+  async addNotification(n: AppNotification) {
+      try {
+          const payload = mapNotificationToDB(n);
+          // S'assurer que l'ID est présent
+          if (n.id) {
+              payload.id = n.id;
+          } else {
+              payload.id = crypto.randomUUID();
+          }
+          // Ajouter localement immédiatement
+          const notification: AppNotification = { ...n, id: payload.id };
+          this.notifications.push(notification);
+          this.notify();
+          
+          // Sauvegarder dans Supabase (si la table existe)
+          try {
+              const { data, error } = await supabase.from('notifications').insert([payload]).select().single();
+              if (error) {
+                  if (error.code !== '42P01') { // Table doesn't exist
+                      console.error("❌ Erreur lors de l'ajout de la notification:", error);
+                  }
+              } else if (data) {
+                  const mappedNotification = mapNotificationFromDB(data);
+                  this.notifications = this.notifications.map(x => x.id === notification.id ? mappedNotification : x);
+                  this.notify();
+                  return mappedNotification;
+              }
+          } catch (dbError: any) {
+              if (dbError.code !== '42P01') {
+                  throw dbError;
+              }
+          }
+          
+          return notification;
+      } catch (error: any) {
+          console.error("❌ Erreur lors de l'ajout de la notification:", error);
+          throw error;
+      }
+  }
+  async markNotificationAsRead(id: string) { 
+      try {
+          // Mettre à jour localement
+          this.notifications = this.notifications.map(n => n.id === id ? {...n, read: true} : n);
+          this.notify();
+          
+          // Sauvegarder dans Supabase (si la table existe)
+          try {
+              const { error } = await supabase.from('notifications').update({ read: true }).eq('id', id);
+              if (error && error.code !== '42P01') {
+                  console.error("❌ Erreur lors de la mise à jour de la notification:", error);
+              }
+          } catch (dbError: any) {
+              if (dbError.code !== '42P01') {
+                  throw dbError;
+              }
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la mise à jour de la notification:", error);
+          throw error;
+      }
+  }
+  async deleteNotification(id: string) { 
+      try {
+          // Supprimer localement
+          this.notifications = this.notifications.filter(n => n.id !== id);
+          this.notify();
+          
+          // Supprimer de Supabase (si la table existe)
+          try {
+              const { error } = await supabase.from('notifications').delete().eq('id', id);
+              if (error && error.code !== '42P01') {
+                  console.error("❌ Erreur lors de la suppression de la notification:", error);
+              }
+          } catch (dbError: any) {
+              if (dbError.code !== '42P01') {
+                  throw dbError;
+              }
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la suppression de la notification:", error);
+          throw error;
+      }
+  }
   
   getBirthdays(c: string, d: number) { return []; }
   getTransfers(consuladoId: string) { return { incoming: [], outgoing: [] }; }
