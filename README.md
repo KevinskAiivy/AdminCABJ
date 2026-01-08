@@ -87,7 +87,56 @@ VITE_SUPABASE_ANON_KEY=votre_clé_anon
 
 ## 🚢 Déploiement
 
-### Sur GitHub Pages
+### Option 1 : Vercel (Recommandé)
+
+1. **Créer un compte** sur [Vercel](https://vercel.com)
+
+2. **Connecter votre dépôt GitHub** :
+   - Allez sur [Vercel Dashboard](https://vercel.com/dashboard)
+   - Cliquez sur "Add New Project"
+   - Sélectionnez votre dépôt `AdminCABJ`
+   - Vercel détectera automatiquement Vite
+
+3. **Configurer les variables d'environnement** :
+   - Dans les paramètres du projet, allez dans "Environment Variables"
+   - Ajoutez :
+     - `VITE_SUPABASE_URL` : Votre URL Supabase
+     - `VITE_SUPABASE_ANON_KEY` : Votre clé anonyme Supabase
+   - (Optionnel) `GEMINI_API_KEY` si vous utilisez Gemini
+
+4. **Déployer** :
+   - Cliquez sur "Deploy"
+   - Vercel déploiera automatiquement à chaque push sur `main`
+
+5. **Votre application sera disponible** sur : `https://votre-projet.vercel.app`
+
+### Option 2 : Netlify
+
+1. **Créer un compte** sur [Netlify](https://netlify.com)
+
+2. **Connecter votre dépôt GitHub** :
+   - Allez sur [Netlify Dashboard](https://app.netlify.com)
+   - Cliquez sur "Add new site" → "Import an existing project"
+   - Sélectionnez votre dépôt `AdminCABJ`
+
+3. **Configurer le build** :
+   - Build command : `npm run build`
+   - Publish directory : `dist`
+   - Netlify détectera automatiquement le fichier `netlify.toml`
+
+4. **Configurer les variables d'environnement** :
+   - Dans "Site settings" → "Environment variables"
+   - Ajoutez :
+     - `VITE_SUPABASE_URL` : Votre URL Supabase
+     - `VITE_SUPABASE_ANON_KEY` : Votre clé anonyme Supabase
+
+5. **Déployer** :
+   - Cliquez sur "Deploy site"
+   - Netlify déploiera automatiquement à chaque push sur `main`
+
+6. **Votre application sera disponible** sur : `https://votre-projet.netlify.app`
+
+### Option 3 : GitHub Pages
 
 1. Installer `gh-pages` :
 ```bash
@@ -109,11 +158,10 @@ npm install --save-dev gh-pages
 npm run deploy
 ```
 
-### Sur Vercel / Netlify
-
-1. Connecter votre dépôt GitHub
-2. Configurer les variables d'environnement
-3. Déployer automatiquement
+**Note** : Pour GitHub Pages, vous devrez configurer la base URL dans `vite.config.ts` :
+```typescript
+base: '/AdminCABJ/'
+```
 
 ## 📝 Notes
 
