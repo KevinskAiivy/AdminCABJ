@@ -303,72 +303,61 @@ class DataService {
           return;
       }
 
+      const startTime = performance.now();
+      const isDevelopment = import.meta.env.DEV;
+      
       this.loadingMessage = "Connexion à la base de données...";
       try {
-          // 1. Fetch Users
-          const { data: usersData, error: usersError } = await supabase.from('users').select('*');
-          if (usersData) this.users = usersData.map((u: any) => ({ ...u, fullName: u.full_name, consuladoId: u.consulado_id }));
-
-          // 2. Fetch Consulados
-          console.log("🔍 Début du chargement des consulados...");
-          const { data: consuladosData, error: consuladosError } = await supabase.from('consulados').select('*');
+          // Charger les données en parallèle pour accélérer l'initialisation
+          this.loadingMessage = "Chargement des données...";
           
-          if (consuladosError) {
-              console.error("❌ Error fetching consulados:", consuladosError);
-              console.error("Détails de l'erreur:", JSON.stringify(consuladosError, null, 2));
+          // 1. Requêtes parallèles pour les tables principales (non paginées)
+          const [usersResult, consuladosResult, matchesResult, competitionsResult, agendaResult, mensajesResult] = await Promise.all([
+              supabase.from('users').select('*'),
+              supabase.from('consulados').select('*'),
+              supabase.from('matches').select('*'),
+              supabase.from('competitions').select('*'),
+              supabase.from('agenda').select('*'),
+              supabase.from('mensajes').select('*')
+          ]);
+
+          // Traitement des Users
+          if (usersResult.data) {
+              this.users = usersResult.data.map((u: any) => ({ ...u, fullName: u.full_name, consuladoId: u.consulado_id }));
+              if (isDevelopment) console.log(`✅ ${this.users.length} utilisateurs chargés`);
+          }
+
+          // Traitement des Consulados (logs réduits)
+          if (consuladosResult.error) {
+              console.error("❌ Error fetching consulados:", consuladosResult.error);
           }
           
-          console.log(`📊 Données brutes reçues de Supabase:`, {
-              count: consuladosData?.length || 0,
-              isArray: Array.isArray(consuladosData),
-              data: consuladosData
-          });
-          
-          if (consuladosData && Array.isArray(consuladosData)) {
-              console.log(`✅ ${consuladosData.length} consulados trouvés dans la base de données`);
+          if (consuladosResult.data && Array.isArray(consuladosResult.data)) {
+              this.consulados = consuladosResult.data.map(mapConsuladoFromDB);
               
-              this.consulados = consuladosData.map((db: any, index: number) => {
-                  console.log(`📝 Mapping consulado ${index + 1}:`, {
-                      id: db.id,
-                      name: db.name,
-                      rawData: db
-                  });
-                  
-                  const mapped = mapConsuladoFromDB(db);
-                  
-                  console.log(`✅ Consulado mappé ${index + 1}:`, {
-                      id: mapped.id,
-                      name: mapped.name,
-                      city: mapped.city,
-                      country: mapped.country
-                  });
-                  
-                  // Log de débogage pour les consulados avec des données problématiques
-                  if (!mapped.name || !mapped.id) {
-                      console.warn("⚠️ Consulado avec données incomplètes mappé:", { 
-                          index: index + 1,
-                          db, 
-                          mapped 
-                      });
+              // Vérifier les consulados incomplets seulement en dev
+              if (isDevelopment) {
+                  const incomplete = this.consulados.filter(c => !c.name || !c.id);
+                  if (incomplete.length > 0) {
+                      console.warn("⚠️ Consulados incomplets:", incomplete.length);
                   }
-                  
-                  return mapped;
+              }
+              
+              if (isDevelopment) console.log(`✅ ${this.consulados.length} consulados chargés`);
+              
+              // Créer SEDE CENTRAL de manière asynchrone (ne bloque pas)
+              this.ensureSedeCentralExists().catch(err => {
+                  console.error("Erreur lors de la création de SEDE CENTRAL:", err);
               });
-              
-              console.log(`✅ Total de ${this.consulados.length} consulados chargés et mappés`);
-              console.log("📋 Liste des consulados mappés:", this.consulados.map(c => ({ id: c.id, name: c.name })));
-              
-              // Vérifier et créer "SEDE CENTRAL" s'il n'existe pas
-              await this.ensureSedeCentralExists();
           } else {
-              console.warn("⚠️ No consulados data received from database ou format invalide");
-              console.warn("Type de données reçues:", typeof consuladosData);
               this.consulados = [];
-              // Créer SEDE CENTRAL même si aucun consulado n'existe
-              await this.ensureSedeCentralExists();
+              this.ensureSedeCentralExists().catch(err => {
+                  console.error("Erreur lors de la création de SEDE CENTRAL:", err);
+              });
           }
 
-          // 3. Fetch Socios (with pagination to get all records - no limit)
+          // 2. Chargement paginé des Socios (peut être long)
+          this.loadingMessage = "Chargement des socios...";
           let allSocios: any[] = [];
           let sociosFrom = 0;
           const sociosPageSize = 1000;
@@ -388,7 +377,6 @@ class DataService {
               
               if (sociosData && sociosData.length > 0) {
                   allSocios = [...allSocios, ...sociosData];
-                  // If we got less than sociosPageSize, we've reached the end
                   sociosHasMore = sociosData.length === sociosPageSize;
                   sociosFrom += sociosPageSize;
               } else {
@@ -397,20 +385,11 @@ class DataService {
           }
           
           this.socios = allSocios.map(mapSocioFromDB);
-          console.log(`Loaded ${this.socios.length} socios from database`);
-          
-          // Assigner "SEDE CENTRAL" aux socios sans consulado
-          await this.assignSociosToSedeCentral();
+          if (isDevelopment) console.log(`✅ ${this.socios.length} socios chargés`);
 
-          // 4. Fetch Matches
-          const { data: matchesData } = await supabase.from('matches').select('*');
-          if (matchesData) this.matches = matchesData.map(mapMatchFromDB);
-
-          // 5. Fetch Competitions & Teams
-          const { data: compsData } = await supabase.from('competitions').select('*');
-          if (compsData) this.competitions = compsData;
+          // 3. Chargement paginé des Teams (séquentiel mais optimisé)
+          this.loadingMessage = "Chargement des équipes...";
           
-          // Fetch Teams with pagination to get all records
           let allTeams: any[] = [];
           let teamsFrom = 0;
           const teamsPageSize = 1000;
@@ -449,25 +428,58 @@ class DataService {
                   logo: t.logo || ''
               }));
           }
-          console.log(`Loaded ${this.teams.length} teams from database`);
+          if (isDevelopment) console.log(`✅ ${this.teams.length} équipes chargées`);
 
-          // 6. Fetch Agenda & Mensajes
-          const { data: agendaData } = await supabase.from('agenda').select('*');
-          if (agendaData) this.agenda = agendaData.map((a: any) => ({...a, startDate: a.start_date, endDate: a.end_date, isSpecialDay: a.is_special_day}));
+          // Assigner SEDE CENTRAL en arrière-plan (ne bloque pas l'initialisation)
+          this.assignSociosToSedeCentral().catch(() => {
+              // Erreurs silencieuses pour ne pas ralentir
+          });
 
-          const { data: msgsData } = await supabase.from('mensajes').select('*');
-          if (msgsData) this.mensajes = msgsData.map((m: any) => ({...m, targetConsuladoId: m.target_consulado_id, targetConsuladoName: m.target_consulado_name, targetIds: m.target_ids}));
+          // Traitement des Matches
+          if (matchesResult.data) {
+              this.matches = matchesResult.data.map(mapMatchFromDB);
+              if (isDevelopment) console.log(`✅ ${this.matches.length} matchs chargés`);
+          }
 
+          // Traitement des Competitions
+          if (competitionsResult.data) {
+              this.competitions = competitionsResult.data;
+              if (isDevelopment) console.log(`✅ ${this.competitions.length} compétitions chargées`);
+          }
+
+          // Traitement de l'Agenda
+          if (agendaResult.data) {
+              this.agenda = agendaResult.data.map((a: any) => ({
+                  ...a, 
+                  startDate: a.start_date, 
+                  endDate: a.end_date, 
+                  isSpecialDay: a.is_special_day
+              }));
+              if (isDevelopment) console.log(`✅ ${this.agenda.length} événements chargés`);
+          }
+
+          // Traitement des Mensajes
+          if (mensajesResult.data) {
+              this.mensajes = mensajesResult.data.map((m: any) => ({
+                  ...m, 
+                  targetConsuladoId: m.target_consulado_id, 
+                  targetConsuladoName: m.target_consulado_name, 
+                  targetIds: m.target_ids
+              }));
+              if (isDevelopment) console.log(`✅ ${this.mensajes.length} messages chargés`);
+          }
+
+          const endTime = performance.now();
+          const duration = ((endTime - startTime) / 1000).toFixed(2);
+          
           this.isConnected = true;
           this.connectionError = null;
-          console.log('✅ Initialisation des données terminée avec succès');
+          
+          console.log(`✅ Initialisation terminée en ${duration}s`);
       } catch (error: any) {
           console.error("❌ Erreur lors de l'initialisation Supabase:", error);
           this.connectionError = error.message || 'Erreur de connexion à la base de données';
           this.isConnected = false;
-          
-          // Ne pas bloquer l'application complètement en cas d'erreur
-          // L'utilisateur peut toujours se connecter et voir les données en cache
           console.warn('⚠️ Mode dégradé : Les données peuvent ne pas être à jour');
       } finally {
           this.loadingMessage = '';
@@ -644,33 +656,28 @@ class DataService {
       }
   }
 
-  // Assigner "SEDE CENTRAL" aux socios qui n'ont pas de consulado
+  // Assigner "SEDE CENTRAL" aux socios qui n'ont pas de consulado (en arrière-plan, ne bloque pas)
   private async assignSociosToSedeCentral() {
       const sedeCentralName = 'SEDE CENTRAL';
-      // Vérifier dans la liste actuelle ou dans getConsulados() qui inclut le virtuel
       const allConsulados = this.getConsulados();
       const sedeCentral = allConsulados.find(
           c => c.name && c.name.toUpperCase() === sedeCentralName.toUpperCase()
       );
 
       if (!sedeCentral) {
-          console.warn("⚠️ SEDE CENTRAL n'existe pas, impossible d'assigner les socios");
-          return;
+          return; // Ne pas logger en production pour éviter les logs inutiles
       }
 
-      // Trouver les socios sans consulado ou avec consulado vide/null
+      // Trouver les socios sans consulado
       const sociosWithoutConsulado = this.socios.filter(
           s => !s.consulado || s.consulado.trim() === ''
       );
 
       if (sociosWithoutConsulado.length === 0) {
-          console.log("✅ Tous les socios ont déjà un consulado assigné");
           return;
       }
 
-      console.log(`🔄 Assignation de ${sociosWithoutConsulado.length} socio(s) à SEDE CENTRAL...`);
-
-      // Mettre à jour les socios localement
+      // Mettre à jour localement immédiatement pour l'affichage
       const updatedSocios = this.socios.map(s => {
           if (!s.consulado || s.consulado.trim() === '') {
               return { ...s, consulado: sedeCentralName };
@@ -680,33 +687,35 @@ class DataService {
       this.socios = updatedSocios;
       this.notify();
 
-      // Mettre à jour dans la base de données (en batch pour éviter trop de requêtes)
-      const batchSize = 50;
-      for (let i = 0; i < sociosWithoutConsulado.length; i += batchSize) {
-          const batch = sociosWithoutConsulado.slice(i, i + batchSize);
-          const updates = batch.map(socio => ({
-              id: socio.id,
-              consulado_name: sedeCentralName
-          }));
+      // Mettre à jour la DB en arrière-plan (ne bloque pas l'initialisation)
+      // Utiliser Promise.all pour paralléliser les updates
+      const updatePromises = sociosWithoutConsulado.slice(0, 100).map(socio => 
+          supabase
+              .from('socios')
+              .update({ consulado_name: sedeCentralName })
+              .eq('id', socio.id)
+      );
 
-          try {
-              // Mettre à jour chaque socio individuellement (Supabase ne supporte pas les updates multiples avec différentes conditions)
-              for (const update of updates) {
-                  const { error } = await supabase
-                      .from('socios')
-                      .update({ consulado_name: sedeCentralName })
-                      .eq('id', update.id);
-                  
-                  if (error) {
-                      console.error(`❌ Erreur lors de la mise à jour du socio ${update.id}:`, error);
-                  }
-              }
-          } catch (error: any) {
-              console.error(`❌ Erreur lors de la mise à jour du batch de socios:`, error);
-          }
+      // Exécuter les updates en parallèle (max 100 à la fois pour éviter de surcharger)
+      Promise.all(updatePromises).catch(err => {
+          console.error("Erreur lors de l'assignation des socios à SEDE CENTRAL:", err);
+      });
+      
+      // Si plus de 100 socios, traiter le reste en arrière-plan
+      if (sociosWithoutConsulado.length > 100) {
+          setTimeout(() => {
+              const remaining = sociosWithoutConsulado.slice(100);
+              remaining.forEach((socio, index) => {
+                  setTimeout(() => {
+                      supabase
+                          .from('socios')
+                          .update({ consulado_name: sedeCentralName })
+                          .eq('id', socio.id)
+                          .catch(() => {}); // Ignorer les erreurs silencieusement
+                  }, index * 50); // Espacer les requêtes de 50ms
+              });
+          }, 1000);
       }
-
-      console.log(`✅ ${sociosWithoutConsulado.length} socio(s) assigné(s) à SEDE CENTRAL`);
   }
 
   getConsulados() { 
