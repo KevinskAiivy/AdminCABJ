@@ -54,27 +54,40 @@ export const App: React.FC = () => {
   // Initial Load
   useEffect(() => {
     const initApp = async () => {
-        // 1. Settings
-        const settings = dataService.getAppSettings();
-        if (settings) {
-            if (settings.primaryColor) document.documentElement.style.setProperty('--boca-blue', settings.primaryColor);
-            if (settings.secondaryColor) document.documentElement.style.setProperty('--boca-gold', settings.secondaryColor);
-        }
+        try {
+            // 1. Settings
+            const settings = dataService.getAppSettings();
+            if (settings) {
+                if (settings.primaryColor) document.documentElement.style.setProperty('--boca-blue', settings.primaryColor);
+                if (settings.secondaryColor) document.documentElement.style.setProperty('--boca-gold', settings.secondaryColor);
+            }
 
-        // 2. Auth Check
-        const storedUser = localStorage.getItem('cabj_session');
-        if (storedUser) {
-          try {
-            const parsedUser = JSON.parse(storedUser);
-            // Simulate Token Validation / Data Fetch
-            await dataService.initializeData(parsedUser.name === 'Modo Offline');
-            setUser(parsedUser);
-          } catch (error) {
-            console.error("Session Error:", error);
-            localStorage.removeItem('cabj_session');
-          }
+            // 2. Always initialize data service (même sans utilisateur pour que le login fonctionne)
+            console.log('🚀 Initialisation de l\'application...');
+            const storedUser = localStorage.getItem('cabj_session');
+            const isOfflineMode = storedUser ? JSON.parse(storedUser).name === 'Modo Offline' : false;
+            
+            await dataService.initializeData(isOfflineMode);
+            console.log('✅ DataService initialisé');
+
+            // 3. Auth Check - Restaurer la session si elle existe
+            if (storedUser) {
+              try {
+                const parsedUser = JSON.parse(storedUser);
+                setUser(parsedUser);
+                console.log('✅ Session utilisateur restaurée:', parsedUser.name);
+              } catch (error) {
+                console.error("❌ Erreur lors de la restauration de la session:", error);
+                localStorage.removeItem('cabj_session');
+              }
+            } else {
+              console.log('ℹ️ Aucune session utilisateur trouvée - Affichage de la page de login');
+            }
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'initialisation de l\'application:', error);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
     initApp();
   }, []);

@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { GlassCard } from '../components/GlassCard';
 import { 
   Search, UserPlus, Edit2, Trash2, MapPin, 
@@ -16,16 +17,29 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
 export const Socios = ({ user }: { user?: any }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [socios, setSocios] = useState<Socio[]>(dataService.getSocios());
   const [consulados, setConsulados] = useState(dataService.getConsulados());
   const [searchQuery, setSearchQuery] = useState('');
   
+  // Récupérer le consulado depuis l'URL au chargement
+  const consuladoFromUrl = searchParams.get('consulado');
+  
   // Filters
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
-  const [filterConsulado, setFilterConsulado] = useState<string>('ALL');
+  const [filterConsulado, setFilterConsulado] = useState<string>(consuladoFromUrl || 'ALL');
   const [filterRole, setFilterRole] = useState<string>('ALL');
   const [filterCuotaStatus, setFilterCuotaStatus] = useState<string>('ALL');
+  
+  // Initialiser le filtre consulado depuis l'URL si présent
+  useEffect(() => {
+    if (consuladoFromUrl && filterConsulado !== consuladoFromUrl) {
+      setFilterConsulado(consuladoFromUrl);
+      // Réinitialiser la page à 1 quand le filtre change
+      setCurrentPage(1);
+    }
+  }, [consuladoFromUrl]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
@@ -137,7 +151,10 @@ export const Socios = ({ user }: { user?: any }) => {
       const dynamicStatus = calculateSocioStatus(s.lastMonthPaid || '').label;
       const matchesStatus = filterStatus === 'ALL' || dynamicStatus === filterStatus;
       const matchesCategory = filterCategory === 'ALL' || s.category === filterCategory;
-      const matchesConsulado = filterConsulado === 'ALL' || (filterConsulado === 'SEDE CENTRAL' ? (!s.consulado || s.consulado === 'Sede Central') : s.consulado === filterConsulado);
+      const matchesConsulado = filterConsulado === 'ALL' || 
+        (filterConsulado === 'SEDE CENTRAL' || filterConsulado?.toUpperCase() === 'SEDE CENTRAL' 
+          ? (!s.consulado || s.consulado?.toUpperCase() === 'SEDE CENTRAL' || s.consulado?.toUpperCase() === 'SEDE CENTRAL')
+          : s.consulado === filterConsulado || s.consulado?.toUpperCase() === filterConsulado?.toUpperCase());
       const matchesRole = filterRole === 'ALL' || (filterRole === '' ? !s.role || s.role === '' : s.role === filterRole);
       const matchesCuotaStatus = filterCuotaStatus === 'ALL' || dynamicStatus === filterCuotaStatus;
 

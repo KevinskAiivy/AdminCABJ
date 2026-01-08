@@ -459,11 +459,18 @@ class DataService {
           if (msgsData) this.mensajes = msgsData.map((m: any) => ({...m, targetConsuladoId: m.target_consulado_id, targetConsuladoName: m.target_consulado_name, targetIds: m.target_ids}));
 
           this.isConnected = true;
+          this.connectionError = null;
+          console.log('✅ Initialisation des données terminée avec succès');
       } catch (error: any) {
-          console.error("Supabase Init Error:", error);
-          this.connectionError = error.message;
+          console.error("❌ Erreur lors de l'initialisation Supabase:", error);
+          this.connectionError = error.message || 'Erreur de connexion à la base de données';
           this.isConnected = false;
+          
+          // Ne pas bloquer l'application complètement en cas d'erreur
+          // L'utilisateur peut toujours se connecter et voir les données en cache
+          console.warn('⚠️ Mode dégradé : Les données peuvent ne pas être à jour');
       } finally {
+          this.loadingMessage = '';
           this.notify();
       }
   }
