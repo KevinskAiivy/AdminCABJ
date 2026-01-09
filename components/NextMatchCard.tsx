@@ -128,25 +128,60 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
     calculateTimeLeft();
     const timer = setInterval(calculateTimeLeft, 1000);
 
-    // 2. Timezone Conversion Logic (Strict HH:mm)
+    // 2. Timezone Conversion Logic - Convertir l'heure du match (UTC-3 Buenos Aires) vers l'heure locale du consulado
     const [h, min] = match.hour.split(':').map(Number);
     
-    if (userTimezone && userTimezone !== 'UTC-3 (Buenos Aires)') {
-        const offsetMatch = userTimezone.match(/UTC([+-]\d{1,2}):/);
-        const offsetHours = offsetMatch ? parseInt(offsetMatch[1]) : -3;
-        const diffHours = offsetHours - (-3); // Match is normally UTC-3
+    // Parser le timezone du consulado (format: "UTC-03:00 (Buenos Aires)" ou "UTC+01:00 (Madrid/París)")
+    let displayTimeStr = '';
+    let displayFlagStr = '🇦🇷';
+    
+    if (userTimezone && userTimezone.trim() !== '' && userTimezone !== 'UTC-03:00 (Buenos Aires)' && userTimezone !== 'UTC-3 (Buenos Aires)') {
+        // Extraire l'offset du timezone (format: UTC-03:00 ou UTC+01:00)
+        const offsetMatch = userTimezone.match(/UTC([+-])(\d{1,2}):?(\d{2})?/);
         
-        let newH = h + diffHours;
-        // Handle simple overflow
-        if (newH >= 24) newH -= 24;
-        if (newH < 0) newH += 24;
-
-        setDisplayTime(`${newH.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')} hs`);
-        setDisplayFlag(getFlag(userCountryCode || ''));
+        if (offsetMatch) {
+            const sign = offsetMatch[1] === '+' ? 1 : -1;
+            const hours = parseInt(offsetMatch[2] || '0');
+            const minutes = offsetMatch[3] ? parseInt(offsetMatch[3]) : 0;
+            
+            // L'heure du match est en UTC-3 (Buenos Aires)
+            const matchOffsetMinutes = -3 * 60; // -180 minutes
+            
+            // Calculer l'offset du consulado en minutes
+            const consuladoOffsetMinutes = sign * (hours * 60 + minutes);
+            
+            // Calculer la différence en minutes entre le timezone du consulado et UTC-3
+            const diffMinutes = consuladoOffsetMinutes - matchOffsetMinutes;
+            
+            // Convertir l'heure du match en minutes totales
+            const matchTotalMinutes = h * 60 + min;
+            
+            // Ajouter la différence
+            let newTotalMinutes = matchTotalMinutes + diffMinutes;
+            
+            // Gérer les cas où on dépasse 24h ou on est en négatif
+            while (newTotalMinutes < 0) newTotalMinutes += 24 * 60;
+            while (newTotalMinutes >= 24 * 60) newTotalMinutes -= 24 * 60;
+            
+            // Convertir en heures et minutes
+            const newH = Math.floor(newTotalMinutes / 60);
+            const newM = newTotalMinutes % 60;
+            
+            displayTimeStr = `${newH.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')} hs`;
+            displayFlagStr = getFlag(userCountryCode || '');
+        } else {
+            // Si le parsing échoue, utiliser l'heure originale
+            displayTimeStr = `${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')} hs`;
+            displayFlagStr = '🇦🇷';
+        }
     } else {
-        setDisplayTime(`${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')} hs`);
-        setDisplayFlag('🇦🇷');
+        // Pas de conversion nécessaire (déjà en UTC-3)
+        displayTimeStr = `${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')} hs`;
+        displayFlagStr = '🇦🇷';
     }
+    
+    setDisplayTime(displayTimeStr);
+    setDisplayFlag(displayFlagStr);
 
     // S'abonner aux mises à jour des données pour recharger les logos
     const unsubscribe = dataService.subscribe(updateLogos);
