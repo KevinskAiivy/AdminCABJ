@@ -58,11 +58,11 @@ export const SociosPresident = ({ consuladoId }: { consuladoId: string }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredSocios.map(socio => (
                 <GlassCard key={socio.id} className="p-5 flex items-start gap-4 bg-white border border-[#003B94]/10 hover:shadow-lg transition-all">
-                    <div className={`w-12 h-12 rounded-full ${socio.avatarColor || 'bg-gray-300'} flex items-center justify-center text-white font-black text-sm shadow-md`}>
-                        {socio.firstName[0]}{socio.lastName[0]}
+                    <div className={`w-12 h-12 rounded-full ${socio.avatar_color || 'bg-gray-300'} flex items-center justify-center text-white font-black text-sm shadow-md`}>
+                        {socio.first_name[0]}{socio.last_name[0]}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <h4 className="oswald text-base font-bold text-[#001d4a] truncate leading-tight">{socio.lastName} {socio.firstName}</h4>
+                        <h4 className="oswald text-base font-bold text-[#001d4a] truncate leading-tight">{socio.last_name} {socio.first_name}</h4>
                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mb-1.5">{socio.category} • {socio.dni}</p>
                         <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${socio.status === 'AL DÍA' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
                             {socio.status}

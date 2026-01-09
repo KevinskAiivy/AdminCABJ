@@ -37,7 +37,7 @@ export const Agenda = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<Partial<AgendaEvent>>({
-      title: '', date: '', startDate: '', endDate: '', type: 'EVENTO', description: '', location: '', isSpecialDay: false
+      title: '', date: '', start_date: '', end_date: '', type: 'EVENTO', description: '', location: '', is_special_day: false
   });
   
   const [dateError, setDateError] = useState<string | null>(null);
@@ -51,7 +51,7 @@ export const Agenda = () => {
 
   const handleCreate = () => {
       setEditingId(null);
-      setFormData({ title: '', date: '', startDate: '', endDate: '', type: 'EVENTO', description: '', location: '', isSpecialDay: false });
+      setFormData({ title: '', date: '', start_date: '', end_date: '', type: 'EVENTO', description: '', location: '', is_special_day: false });
       setDateError(null);
       setIsModalOpen(true);
   };
@@ -70,8 +70,8 @@ export const Agenda = () => {
   };
 
   const requestSave = () => {
-      if (!formData.title || !formData.startDate) return;
-      if (formData.endDate && formData.startDate > formData.endDate) {
+      if (!formData.title || !formData.start_date) return;
+      if (formData.end_date && formData.start_date > formData.end_date) {
           setDateError("La fecha final debe ser posterior a la inicial");
           return;
       }
@@ -79,13 +79,13 @@ export const Agenda = () => {
       const payload: AgendaEvent = { 
           id: editingId || crypto.randomUUID(),
           title: formData.title || '',
-          date: formData.startDate || formData.date || '', // Ensure main date sort field matches start
-          startDate: formData.startDate || undefined,
-          endDate: formData.endDate || undefined,
+          date: formData.start_date || formData.date || '', // Ensure main date sort field matches start
+          start_date: formData.start_date || undefined,
+          end_date: formData.end_date || undefined,
           type: formData.type || 'EVENTO',
           description: formData.description || undefined,
           location: formData.location || undefined,
-          isSpecialDay: formData.isSpecialDay !== undefined ? formData.isSpecialDay : false
+          is_special_day: formData.is_special_day !== undefined ? formData.is_special_day : false
       };
 
       if (editingId) {
@@ -140,7 +140,7 @@ export const Agenda = () => {
                             const Icon = typeConfig.icon;
                             return (
                                 <GlassCard key={evt.id} className="p-3 bg-white border border-gray-100 hover:border-[#003B94]/30 hover:shadow-md transition-all group relative overflow-hidden">
-                                    {evt.isSpecialDay && <div className="absolute top-0 right-0 w-8 h-8 bg-[#FCB131]/10 rounded-bl-xl flex items-center justify-center"><Star size={10} className="text-[#FCB131] fill-[#FCB131]" /></div>}
+                                    {evt.is_special_day && <div className="absolute top-0 right-0 w-8 h-8 bg-[#FCB131]/10 rounded-bl-xl flex items-center justify-center"><Star size={10} className="text-[#FCB131] fill-[#FCB131]" /></div>}
                                     
                                     <div className="mb-2">
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${evt.type === 'EFEMERIDE' ? 'bg-[#FCB131]/10 text-[#FCB131]' : 'bg-[#003B94]/5 text-[#003B94]'}`}>
@@ -151,7 +151,7 @@ export const Agenda = () => {
                                     </div>
 
                                     <div className="pt-2 border-t border-gray-50 flex items-center justify-between text-[8px] font-bold text-gray-400">
-                                        <span className="flex items-center gap-1"><Clock size={8}/> {formatDateCard(evt.startDate)}</span>
+                                        <span className="flex items-center gap-1"><Clock size={8}/> {formatDateCard(evt.start_date || evt.date)}</span>
                                         {evt.location && <MapPin size={8} className="text-gray-300" />}
                                     </div>
 
@@ -204,11 +204,11 @@ export const Agenda = () => {
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                             <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1">Inicio</label>
-                            <input type="date" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94] transition-all text-[#001d4a] h-10" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value, date: e.target.value})} />
+                            <input type="date" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94] transition-all text-[#001d4a] h-10" value={formData.start_date || ''} onChange={e => setFormData({...formData, start_date: e.target.value, date: e.target.value})} />
                         </div>
                         <div className="space-y-1 relative">
                             <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1">Fin (Opcional)</label>
-                            <input type="date" className={`w-full bg-gray-50 border rounded-xl px-3 font-bold text-xs outline-none transition-all text-[#001d4a] h-10 ${dateError ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:bg-white focus:border-[#003B94]'}`} value={formData.endDate} min={formData.startDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
+                            <input type="date" className={`w-full bg-gray-50 border rounded-xl px-3 font-bold text-xs outline-none transition-all text-[#001d4a] h-10 ${dateError ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:bg-white focus:border-[#003B94]'}`} value={formData.end_date || ''} min={formData.start_date || ''} onChange={e => setFormData({...formData, end_date: e.target.value})} />
                         </div>
                     </div>
                     {dateError && <div className="text-red-500 text-[9px] font-bold flex items-center gap-1"><AlertTriangle size={10} /> {dateError}</div>}
@@ -220,7 +220,7 @@ export const Agenda = () => {
                         </div>
                         <div className="space-y-1">
                             <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1 text-center block">Especial</label>
-                            <div onClick={() => setFormData({...formData, isSpecialDay: !formData.isSpecialDay})} className={`flex items-center justify-center px-4 rounded-xl border cursor-pointer transition-all h-10 w-14 ${formData.isSpecialDay ? 'bg-[#FCB131]/10 border-[#FCB131]' : 'bg-gray-50 border-gray-200'}`}><Star size={16} className={formData.isSpecialDay ? 'text-[#FCB131] fill-[#FCB131]' : 'text-gray-300'} /></div>
+                            <div onClick={() => setFormData({...formData, is_special_day: !formData.is_special_day})} className={`flex items-center justify-center px-4 rounded-xl border cursor-pointer transition-all h-10 w-14 ${formData.is_special_day ? 'bg-[#FCB131]/10 border-[#FCB131]' : 'bg-gray-50 border-gray-200'}`}><Star size={16} className={formData.is_special_day ? 'text-[#FCB131] fill-[#FCB131]' : 'text-gray-300'} /></div>
                         </div>
                     </div>
 

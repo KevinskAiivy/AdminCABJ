@@ -135,7 +135,7 @@ export const Socios = ({ user }: { user?: any }) => {
   const stats = useMemo(() => {
     let alDiaCount = 0, deudaCount = 0, bajaCount = 0;
     socios.forEach(s => {
-        const computed = calculateSocioStatus(s.lastMonthPaid || '');
+        const computed = calculateSocioStatus(s.last_month_paid || '');
         if (computed.label === 'AL DÍA') alDiaCount++;
         else if (computed.label === 'EN DEUDA') deudaCount++;
         else if (computed.label === 'DE BAJA') bajaCount++;
@@ -148,7 +148,7 @@ export const Socios = ({ user }: { user?: any }) => {
       const q = searchQuery.toLowerCase();
       const matchesSearch = s.name.toLowerCase().includes(q) || s.dni.includes(q) || s.id.includes(q) || (s.consulado && s.consulado.toLowerCase().includes(q));
       
-      const dynamicStatus = calculateSocioStatus(s.lastMonthPaid || '').label;
+      const dynamicStatus = calculateSocioStatus(s.last_month_paid || '').label;
       const matchesStatus = filterStatus === 'ALL' || dynamicStatus === filterStatus;
       const matchesCategory = filterCategory === 'ALL' || s.category === filterCategory;
       const matchesConsulado = filterConsulado === 'ALL' || 
@@ -201,17 +201,17 @@ export const Socios = ({ user }: { user?: any }) => {
           const cName = s.consulado || 'Sede Central';
           if (isAll) return true;
           return exportSelection.has(cName);
-      }).sort((a,b) => a.lastName.localeCompare(b.lastName));
+      }).sort((a,b) => a.last_name.localeCompare(b.last_name));
 
       const tableData = dataToExport.map(s => {
-          const status = calculateSocioStatus(s.lastMonthPaid);
+          const status = calculateSocioStatus(s.last_month_paid);
           return [
-              `${s.lastName.toUpperCase()}, ${s.firstName}`,
+              `${s.last_name.toUpperCase()}, ${s.first_name}`,
               s.dni,
               s.id,
               s.category,
               s.consulado || 'Sede Central',
-              formatLastPaymentDate(s.lastMonthPaid),
+              formatLastPaymentDate(s.last_month_paid),
               status.label
           ];
       });
@@ -254,9 +254,9 @@ export const Socios = ({ user }: { user?: any }) => {
     const today = new Date();
     const formattedToday = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
     setFormData({
-        firstName: '', lastName: '', dni: '', category: 'ACTIVO', status: 'AL DÍA',
-        email: '', phone: '+54 ', gender: 'M', birthDate: '', joinDate: '',
-        lastMonthPaid: formattedToday, consulado: '', role: 'SOCIO'
+        first_name: '', last_name: '', dni: '', category: 'ACTIVO', status: 'AL DÍA',
+        email: '', phone: '+54 ', gender: 'M', birth_date: '', join_date: '',
+        last_month_paid: formattedToday, consulado: '', role: 'SOCIO', avatar_color: 'bg-blue-500', expiration_date: ''
     });
     setPendingConsulado(null); setConsuladoSelection(''); setPendingIdChange(null);
     setIsIdLocked(true); setTempId(Date.now().toString().slice(-10)); setIdStatus('IDLE');
@@ -265,19 +265,19 @@ export const Socios = ({ user }: { user?: any }) => {
 
   const handleEdit = (socio: Socio) => {
     setSelectedSocio(socio);
-    let paidDate = socio.lastMonthPaid || '';
+    let paidDate = socio.last_month_paid || '';
     if (paidDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
         const [y, m, d] = paidDate.split('-');
         paidDate = `${d}/${m}/${y}`; 
     } else if (paidDate.length === 7) {
         paidDate = `01/${paidDate}`;
     }
-    let birthDateFormatted = socio.birthDate || '';
+    let birthDateFormatted = socio.birth_date || '';
     if (birthDateFormatted.match(/^\d{4}-\d{2}-\d{2}$/)) {
         const [y, m, d] = birthDateFormatted.split('-');
         birthDateFormatted = `${d}/${m}/${y}`;
     }
-    setFormData({ ...socio, lastMonthPaid: paidDate, birthDate: birthDateFormatted });
+    setFormData({ ...socio, last_month_paid: paidDate, birth_date: birthDateFormatted });
     setPendingConsulado(null); setConsuladoSelection(socio.consulado || '');
     setPendingIdChange(null); setIsIdLocked(true); setTempId(socio.id);
     setIdStatus('IDLE'); setSocioTransfers(dataService.getSocioTransfers(socio.id));
@@ -286,8 +286,8 @@ export const Socios = ({ user }: { user?: any }) => {
 
   const executeSave = async () => {
     setIsSaving(true);
-    const finalStatus = calculateSocioStatus(formData.lastMonthPaid || '');
-    let dbPaymentDate = formData.lastMonthPaid || '';
+    const finalStatus = calculateSocioStatus(formData.last_month_paid || '');
+    let dbPaymentDate = formData.last_month_paid || '';
     if (dbPaymentDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
         const [d, m, y] = dbPaymentDate.split('/');
         dbPaymentDate = `${y}-${m}-${d}`;
@@ -297,7 +297,7 @@ export const Socios = ({ user }: { user?: any }) => {
     let finalId = selectedSocio ? selectedSocio.id : tempId;
     if (pendingIdChange) finalId = pendingIdChange.new;
 
-    let dbBirthDate = formData.birthDate || '';
+    let dbBirthDate = formData.birth_date || '';
     if (dbBirthDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
         const [d, m, y] = dbBirthDate.split('/');
         dbBirthDate = `${y}-${m}-${d}`;
@@ -314,31 +314,26 @@ export const Socios = ({ user }: { user?: any }) => {
 
     const finalData: Socio = {
         id: finalId || tempId || crypto.randomUUID().slice(-10),
-        firstName: formData.firstName || '',
-        lastName: formData.lastName || '',
-        name: `${formData.firstName || ''} ${formData.lastName || ''}`.trim(),
-        numeroSocio: formData.numeroSocio || finalId || tempId || '',
+        first_name: formData.first_name || '',
+        last_name: formData.last_name || '',
+        name: `${formData.first_name || ''} ${formData.last_name || ''}`.trim(),
+        numero_socio: formData.numero_socio || finalId || tempId || '',
         dni: formData.dni || '',
         category: formData.category || 'ADHERENTE',
         status: finalStatus.label as any || 'AL DÍA',
         email: formData.email || '',
-        phone: formData.phone || '',
-        phoneSecondary: formData.phoneSecondary || undefined,
+        phone: formData.phone || '', // Format international avec indicatif
         gender: (formData.gender === 'M' || formData.gender === 'F' || formData.gender === 'X') ? formData.gender : 'M',
         nationality: formData.nationality || undefined,
-        birthDate: dbBirthDate || '',
-        joinDate: formData.joinDate || '',
-        lastMonthPaid: dbPaymentDate || '',
-        emergencyContact: formData.emergencyContact || undefined,
+        birth_date: dbBirthDate || '',
+        join_date: formData.join_date || '',
+        last_month_paid: dbPaymentDate || '',
         consulado: pendingConsulado !== null ? pendingConsulado : (formData.consulado || undefined),
         role: finalRole || 'SOCIO',
-        avatarColor: formData.avatarColor || 'bg-blue-500',
-        expirationDate: formData.expirationDate || '',
-        instagram: formData.instagram || undefined,
-        facebook: formData.facebook || undefined,
+        avatar_color: formData.avatar_color || 'bg-blue-500',
+        expiration_date: formData.expiration_date || '',
         twitter: formData.twitter || undefined,
-        youtube: formData.youtube || undefined,
-        avatar: formData.avatar || undefined
+        youtube: formData.youtube || undefined
     };
 
     try {
@@ -455,7 +450,7 @@ export const Socios = ({ user }: { user?: any }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 min-h-[500px]">
         {currentItems.map((socio) => {
             const isPresident = socio.role === 'PRESIDENTE';
-            const computedStatus = calculateSocioStatus(socio.lastMonthPaid || '');
+            const computedStatus = calculateSocioStatus(socio.last_month_paid || '');
             let containerClass = "bg-white border-[#003B94]/10";
             if (isPresident) containerClass = "bg-gradient-to-br from-[#FCB131] to-[#FFD23F] border-[#001d4a]/20 shadow-[0_0_25px_rgba(252,177,49,0.3)]";
             else if (computedStatus.label === 'EN DEUDA') containerClass = "bg-gradient-to-br from-white to-amber-50 border-amber-200 border-2";
@@ -464,12 +459,12 @@ export const Socios = ({ user }: { user?: any }) => {
             return (
             <GlassCard key={socio.id} onClick={() => setViewSocio(socio)} className={`flex flex-col group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 ${containerClass} p-0`}>
                 <div className="p-5 pb-3 flex items-start gap-4">
-                    <div className={`w-14 h-14 rounded-full ${socio.avatarColor || 'bg-gray-300'} flex items-center justify-center text-white text-lg font-black shadow-md shrink-0 relative border-2 border-white`}>
-                        {socio.firstName.charAt(0)}{socio.lastName.charAt(0)}
+                    <div className={`w-14 h-14 rounded-full ${socio.avatar_color || 'bg-gray-300'} flex items-center justify-center text-white text-lg font-black shadow-md shrink-0 relative border-2 border-white`}>
+                        {socio.first_name.charAt(0)}{socio.last_name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
                         <h4 className="oswald text-lg tracking-tight leading-none mb-1 truncate text-[#001d4a]">
-                            <span className="font-black">{socio.lastName.toUpperCase()}</span> <span className="font-medium">{socio.firstName}</span>
+                            <span className="font-black">{socio.last_name.toUpperCase()}</span> <span className="font-medium">{socio.first_name}</span>
                         </h4>
                         <div className="flex flex-wrap gap-2 items-center">
                             <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border bg-gray-100 text-gray-500 border-gray-200">{getGenderRoleLabel(socio.role || 'SOCIO', socio.gender)}</span>
@@ -484,11 +479,11 @@ export const Socios = ({ user }: { user?: any }) => {
                     </div>
                     <div className="text-[9px] font-bold flex items-center justify-between border-t border-[#003B94]/5 pt-2 text-[#001d4a]">
                         <span className="uppercase opacity-70">Ultimo Pago:</span>
-                        <span className="text-[#003B94]">{formatLastPaymentDate(socio.lastMonthPaid)}</span>
+                        <span className="text-[#003B94]">{formatLastPaymentDate(socio.last_month_paid)}</span>
                     </div>
                 </div>
                 <div className="mt-auto px-5 py-3 border-t border-black/5 bg-white/50 flex justify-between items-center">
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">N° Socio: {socio.numeroSocio || socio.id}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">N° Socio: {socio.numero_socio || socio.id}</span>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
                         <button onClick={(e) => { e.stopPropagation(); handleEdit(socio); }} className="p-1.5 bg-[#003B94]/10 text-[#003B94] rounded hover:bg-[#003B94] hover:text-white"><Edit2 size={12} /></button>
                         <button onClick={(e) => { e.stopPropagation(); setSelectedSocio(socio); setIsDeleteModalOpen(true); }} className="p-1.5 bg-red-50 text-red-500 rounded hover:bg-red-500 hover:text-white"><Trash2 size={12} /></button>
@@ -513,11 +508,11 @@ export const Socios = ({ user }: { user?: any }) => {
                 <div className="relative bg-gradient-to-r from-[#003B94] to-[#001d4a] p-4 text-white shrink-0 overflow-hidden">
                     <div className="flex items-center gap-4 relative z-10">
                         <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 shadow-inner flex items-center justify-center text-xl font-black text-[#FCB131]">
-                            {formData.firstName ? `${formData.firstName[0]}${formData.lastName ? formData.lastName[0] : ''}` : <User size={24}/>}
+                            {formData.first_name ? `${formData.first_name[0]}${formData.last_name ? formData.last_name[0] : ''}` : <User size={24}/>}
                         </div>
                         <div>
                             <h2 className="oswald text-2xl font-black uppercase tracking-tight leading-none mb-0.5">{selectedSocio ? `Editar ${getGenderLabel('Socio', formData.gender)}` : `Nuevo ${getGenderLabel('Socio', formData.gender)}`}</h2>
-                            <div className="flex items-center gap-2"><p className="text-[#FCB131] text-[9px] font-bold uppercase tracking-widest">{selectedSocio ? `N° Socio: ${selectedSocio.numeroSocio || selectedSocio.id}` : 'Alta en Proceso'}</p></div>
+                            <div className="flex items-center gap-2"><p className="text-[#FCB131] text-[9px] font-bold uppercase tracking-widest">{selectedSocio ? `N° Socio: ${selectedSocio.numero_socio || selectedSocio.id}` : 'Alta en Proceso'}</p></div>
                         </div>
                     </div>
                     <X onClick={() => setIsEditModalOpen(false)} className="cursor-pointer opacity-60 hover:opacity-100 p-1.5 hover:bg-white/10 rounded-full transition-colors absolute top-4 right-4 z-20" size={24} />
@@ -527,8 +522,8 @@ export const Socios = ({ user }: { user?: any }) => {
                     <div className="space-y-3">
                         <h3 className="text-[#003B94] font-black uppercase text-[10px] tracking-widest border-b border-[#003B94]/10 pb-1.5 flex items-center gap-1.5"><User size={12}/> {getGenderLabel('Datos del Socio', formData.gender)}</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Apellido</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 uppercase text-[#001d4a]" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value.toUpperCase()})}/></div>
-                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Nombre</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 capitalize text-[#001d4a]" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})}/></div>
+                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Apellido</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 uppercase text-[#001d4a]" value={formData.last_name || ''} onChange={e => setFormData({...formData, last_name: e.target.value.toUpperCase()})}/></div>
+                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Nombre</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 capitalize text-[#001d4a]" value={formData.first_name || ''} onChange={e => setFormData({...formData, first_name: e.target.value})}/></div>
                             <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Género</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value as any})}><option value="M">Masculino</option><option value="F">Femenino</option><option value="X">X (No binario)</option></select></div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -550,12 +545,12 @@ export const Socios = ({ user }: { user?: any }) => {
                                     className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest" 
                                     placeholder="DD/MM/AAAA" 
                                     value={(() => {
-                                        if (!formData.birthDate) return '';
-                                        if (formData.birthDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                                            const [y, m, d] = formData.birthDate.split('-');
+                                        if (!formData.birth_date) return '';
+                                        if (formData.birth_date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                                            const [y, m, d] = formData.birth_date.split('-');
                                             return `${d}/${m}/${y}`;
                                         }
-                                        return formData.birthDate;
+                                        return formData.birth_date;
                                     })()}
                                     onChange={e => {
                                         let value = e.target.value.replace(/\D/g, '');
@@ -571,9 +566,9 @@ export const Socios = ({ user }: { user?: any }) => {
                                         }
                                         if (formatted.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
                                             const [d, m, y] = formatted.split('/');
-                                            setFormData({...formData, birthDate: `${y}-${m}-${d}`});
+                                            setFormData({...formData, birth_date: `${y}-${m}-${d}`});
                                         } else {
-                                            setFormData({...formData, birthDate: formatted});
+                                            setFormData({...formData, birth_date: formatted});
                                         }
                                     }}
                                     maxLength={10}
@@ -632,15 +627,15 @@ export const Socios = ({ user }: { user?: any }) => {
                                     type="text" 
                                     className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest" 
                                     placeholder="DD/MM/AAAA" 
-                                    value={formData.joinDate || ''} 
-                                    onChange={e => setFormData({...formData, joinDate: e.target.value})}
+                                    value={formData.join_date || ''} 
+                                    onChange={e => setFormData({...formData, join_date: e.target.value})}
                                 />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
                                     Último Pago
                                     {(() => {
-                                        const status = calculateSocioStatus(formData.lastMonthPaid || '');
+                                        const status = calculateSocioStatus(formData.last_month_paid || '');
                                         return (
                                             <span className={`px-1.5 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest ${status.color}`}>
                                                 {status.label}
@@ -652,8 +647,8 @@ export const Socios = ({ user }: { user?: any }) => {
                                     type="text" 
                                     className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none text-[#001d4a] tracking-widest" 
                                     placeholder="DD/MM/AAAA" 
-                                    value={formData.lastMonthPaid || ''} 
-                                    onChange={e => setFormData({...formData, lastMonthPaid: e.target.value})}
+                                    value={formData.last_month_paid || ''} 
+                                    onChange={e => setFormData({...formData, last_month_paid: e.target.value})}
                                 />
                             </div>
                         </div>

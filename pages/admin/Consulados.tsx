@@ -2,7 +2,7 @@
 // ... existing imports
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { GlassCard } from '../../components/GlassCard';
-import { Search, MapPin, Globe, Users, Building2, ChevronRight, ChevronLeft, X, Mail, Phone, Instagram, Facebook, Twitter, Link as LinkIcon, Filter, Plus, Edit2, Trash2, Save, Star, Upload, Image as ImageIcon, Check, AlertTriangle, Youtube, Clock, ShieldCheck, Video, ChevronUp, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Search, MapPin, Globe, Users, Building2, ChevronRight, ChevronLeft, X, Mail, Phone, Instagram, Facebook, Twitter, Link as LinkIcon, Filter, Plus, Edit2, Trash2, Save, Star, Upload, Image as ImageIcon, Check, AlertTriangle, Youtube, Clock, ShieldCheck, Video, ChevronUp, ChevronDown, CheckCircle2, FileUp, Loader2 } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { Consulado, Socio } from '../../types';
 import { COUNTRIES, TIMEZONES, WORLD_CITIES } from '../../constants';
@@ -128,6 +128,12 @@ export const Consulados = () => {
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
   
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
+  const [importResults, setImportResults] = useState<{ success: number; errors: number; duplicates: number }>({ success: 0, errors: 0, duplicates: 0 });
+  const [showImportModal, setShowImportModal] = useState(false);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -241,17 +247,17 @@ export const Consulados = () => {
           return sConsulado === targetName;
       }).map(s => ({
           value: s.name,
-          label: `${s.lastName.toUpperCase()}, ${s.firstName} (${s.id})`
+          label: `${s.last_name.toUpperCase()}, ${s.first_name} (${s.id})`
       })).sort((a, b) => a.label.localeCompare(b.label));
   }, [allSocios, editingConsulado.name]);
 
   const handleCreate = () => {
       setEditingConsulado({
           id: crypto.randomUUID(),
-          name: '', city: '', country: 'Argentina', isOfficial: false,
-          socialInstagram: '', socialFacebook: '', socialX: '', socialYouTube: '', socialTikTok: '', website: '',
+          name: '', city: '', country: 'Argentina', is_official: false,
+          social_instagram: '', social_facebook: '', social_x: '', social_youtube: '', social_tiktok: '', website: '',
           address: '', logo: '', banner: '',
-          president: '', vicePresident: '', secretary: '', treasurer: '', referente: '', vocal: ''
+          president: '', vice_president: '', secretary: '', treasurer: '', referente: '', vocal: ''
       });
       setActiveTab('INFO');
       setIsEditModalOpen(true);
@@ -325,6 +331,206 @@ export const Consulados = () => {
       setEditingConsulado(prev => ({ ...prev, [field]: '' }));
   };
 
+  // CSV Import Functions
+  const parseCSV = (csvText: string): Array<Record<string, string>> => {
+      const lines = csvText.split('\n').filter(line => line.trim());
+      if (lines.length === 0) return [];
+      
+      const headers = lines[0].split(';').map(h => h.trim().toLowerCase());
+      const rows: Array<Record<string, string>> = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(';');
+          if (values.length === 0 || values.every(v => !v.trim())) continue; // Skip empty rows
+          
+          const row: Record<string, string> = {};
+          headers.forEach((header, index) => {
+              row[header] = (values[index] || '').trim();
+          });
+          rows.push(row);
+      }
+      
+      return rows;
+  };
+
+  const mapCSVRowToConsulado = (row: Record<string, string>): Partial<Consulado> | null => {
+      const name = row.name?.trim();
+      if (!name) return null;
+
+      // Check if consulado already exists (case-insensitive)
+      const existing = consulados.find(c => c.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+          return null; // Will be handled as duplicate
+      }
+
+      // Map country code from country name
+      const getCountryCode = (country: string): string => {
+          const countryMap: Record<string, string> = {
+              'Estados Unidos': 'US',
+              'Brasil': 'BR',
+              'Canadá': 'CA',
+              'Hungría': 'HU',
+              'Suiza': 'CH',
+              'Irlanda': 'IE',
+              'Bolivia': 'BO',
+              'Reino Unido': 'GB',
+              'España': 'ES',
+              'Chile': 'CL',
+              'Uruguay': 'UY',
+              'Polonia': 'PL',
+              'México': 'MX',
+              'Suecia': 'SE',
+              'Italia': 'IT',
+              'Ecuador': 'EC',
+              'Australia': 'AU',
+              'Colombia': 'CO',
+              'Panamá': 'PA',
+              'Paraguay': 'PY',
+              'Perú': 'PE',
+              'Austria': 'AT',
+              'Bélgica': 'BE',
+              'Dinamarca': 'DK',
+              'Portugal': 'PT',
+              'República Checa': 'CZ',
+              'Francia': 'FR',
+              'Israel': 'IL',
+              'EAU': 'AE',
+              'Costa Rica': 'CR',
+              'Japón': 'JP',
+              'China': 'CN',
+              'Alemania': 'DE',
+              'Países Bajos': 'NL',
+              'Venezuela': 'VE'
+          };
+          return countryMap[country] || '';
+      };
+
+      const country = row.country?.trim() || '';
+      const foundationYearRaw = row.foundation_year?.trim() || '';
+      // Extract year from date format (YYYY-MM-DD) or use as-is if just a year
+      let foundationYear = '';
+      if (foundationYearRaw) {
+          const dateMatch = foundationYearRaw.match(/^(\d{4})/);
+          foundationYear = dateMatch ? dateMatch[1] : foundationYearRaw;
+      }
+      
+      const timezone = row.timezone?.trim() || '';
+      
+      // Estimate timezone from city/country if not provided
+      const estimatedTimezone = timezone || estimateTimezone(row.city?.trim() || '', country);
+
+      const consulado: Partial<Consulado> = {
+          id: crypto.randomUUID(),
+          name: name,
+          city: row.city?.trim() || '',
+          country: country,
+          countryCode: row.country_code?.trim() || getCountryCode(country),
+          president: row.president?.trim() || '',
+          referente: row.referente?.trim() || '',
+          address: row.address?.trim() || '',
+          logo: row.logo?.trim() || '',
+          banner: row.banner?.trim() || '',
+          timezone: estimatedTimezone,
+          foundationYear: foundationYear,
+          isOfficial: row.is_official?.toLowerCase() === 'true' || row.is_official === '1' || row.is_official === 'TRUE' || false,
+          email: '',
+          phone: '',
+          socialInstagram: '',
+          socialFacebook: '',
+          socialX: '',
+          socialYouTube: '',
+          socialTikTok: '',
+          website: '',
+          vicePresident: '',
+          secretary: '',
+          treasurer: '',
+          vocal: '',
+          vocales: []
+      };
+
+      return consulado;
+  };
+
+  const handleCSVImport = async (file: File) => {
+      setIsImporting(true);
+      setImportProgress({ current: 0, total: 0 });
+      setImportResults({ success: 0, errors: 0, duplicates: 0 });
+
+      try {
+          const text = await file.text();
+          const rows = parseCSV(text);
+          
+          if (rows.length === 0) {
+              alert('Le fichier CSV est vide ou invalide.');
+              setIsImporting(false);
+              return;
+          }
+
+          setImportProgress({ current: 0, total: rows.length });
+          
+          let successCount = 0;
+          let errorCount = 0;
+          let duplicateCount = 0;
+
+          // Import sequentially to avoid overwhelming the database
+          for (let i = 0; i < rows.length; i++) {
+              const row = rows[i];
+              const consuladoData = mapCSVRowToConsulado(row);
+              
+              setImportProgress({ current: i + 1, total: rows.length });
+
+              if (!consuladoData) {
+                  // Check if it's a duplicate
+                  const name = row.name?.trim();
+                  if (name && consulados.find(c => c.name.toLowerCase() === name.toLowerCase())) {
+                      duplicateCount++;
+                  } else {
+                      errorCount++;
+                  }
+                  continue;
+              }
+
+              try {
+                  await dataService.addConsulado(consuladoData as Consulado);
+                  successCount++;
+              } catch (error) {
+                  console.error(`Erreur lors de l'import du consulado ${consuladoData.name}:`, error);
+                  errorCount++;
+              }
+          }
+
+          setImportResults({ success: successCount, errors: errorCount, duplicates: duplicateCount });
+          setConsulados(dataService.getConsulados());
+          
+          // Show results
+          alert(
+              `Import terminé!\n\n` +
+              `✅ Succès: ${successCount}\n` +
+              `🔄 Doublons ignorés: ${duplicateCount}\n` +
+              `❌ Erreurs: ${errorCount}`
+          );
+          
+      } catch (error) {
+          console.error('Erreur lors de l\'import CSV:', error);
+          alert('Une erreur est survenue lors de l\'import du fichier CSV.');
+      } finally {
+          setIsImporting(false);
+          if (csvInputRef.current) csvInputRef.current.value = '';
+      }
+  };
+
+  const handleCSVFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          if (!file.name.endsWith('.csv')) {
+              alert('Veuillez sélectionner un fichier CSV (.csv)');
+              e.target.value = '';
+              return;
+          }
+          handleCSVImport(file);
+      }
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 px-4 animate-boca-entrance">
       
@@ -346,6 +552,11 @@ export const Consulados = () => {
                 <input type="text" placeholder="Buscar consulado..." className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-4 outline-none text-xs font-bold text-white placeholder:text-white/40 transition-all focus:bg-white focus:text-[#001d4a]" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }} />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-[#001d4a]" size={16} />
             </div>
+            <label className="bg-[#001d4a] text-white px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center gap-2 hover:bg-[#003B94] transition-all whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" title="Importer un fichier CSV">
+                {isImporting ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
+                {isImporting ? `Import ${importProgress.current}/${importProgress.total}` : 'Import CSV'}
+                <input type="file" ref={csvInputRef} accept=".csv" onChange={handleCSVFileSelect} className="hidden" disabled={isImporting} />
+            </label>
             <button onClick={handleCreate} className="bg-[#FCB131] text-[#001d4a] px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center gap-2 hover:bg-[#FFD23F] transition-all whitespace-nowrap ml-2"><Plus size={16} /> Nuevo</button>
         </div>
       </div>
@@ -355,14 +566,14 @@ export const Consulados = () => {
             const memberCount = allSocios.filter(s => s.consulado === consulado.name).length;
             return (
             <div key={consulado.id} className="relative group">
-                <GlassCard className={`p-0 overflow-hidden h-full flex flex-col rounded-[2.5rem] border transition-all duration-500 hover:-translate-y-2 backdrop-blur-xl ${consulado.isOfficial ? 'bg-gradient-to-br from-[#FCB131] via-[#FFD23F] to-[#E6A800] border-[#001d4a]/20 shadow-[0_20px_50px_-10px_rgba(252,177,49,0.3)]' : 'bg-gradient-to-br from-white/90 via-white/70 to-white/40 border-white/60 shadow-[0_15px_40px_-5px_rgba(0,59,148,0.15)]'}`}>
+                <GlassCard className={`p-0 overflow-hidden h-full flex flex-col rounded-[2.5rem] border transition-all duration-500 hover:-translate-y-2 backdrop-blur-xl ${consulado.is_official ? 'bg-gradient-to-br from-[#FCB131] via-[#FFD23F] to-[#E6A800] border-[#001d4a]/20 shadow-[0_20px_50px_-10px_rgba(252,177,49,0.3)]' : 'bg-gradient-to-br from-white/90 via-white/70 to-white/40 border-white/60 shadow-[0_15px_40px_-5px_rgba(0,59,148,0.15)]'}`}>
                     <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent pointer-events-none z-10"></div>
                     <div className="h-36 relative shrink-0 overflow-hidden">
                         {consulado.banner ? (<img src={consulado.banner} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />) : (<div className="w-full h-full bg-gradient-to-br from-[#003B94] via-[#001d4a] to-black"></div>)}
                         <div className="absolute inset-0 bg-[#001d4a]/20 group-hover:bg-transparent transition-colors duration-500"></div>
-                        {consulado.isOfficial && (<div className="absolute top-3 right-3 bg-[#001d4a] w-10 h-10 rounded-full shadow-lg z-20 flex items-center justify-center border-2 border-[#FCB131] animate-in zoom-in duration-500"><Star size={18} className="text-[#FCB131] fill-[#FCB131] animate-pulse" /></div>)}
+                        {consulado.is_official && (<div className="absolute top-3 right-3 bg-[#001d4a] w-10 h-10 rounded-full shadow-lg z-20 flex items-center justify-center border-2 border-[#FCB131] animate-in zoom-in duration-500"><Star size={18} className="text-[#FCB131] fill-[#FCB131] animate-pulse" /></div>)}
                         <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-[-10px] group-hover:translate-y-0 z-20">
-                            <div className={`flex gap-2 ${consulado.isOfficial ? 'mr-12' : ''}`}>
+                            <div className={`flex gap-2 ${consulado.is_official ? 'mr-12' : ''}`}>
                                 <button onClick={(e) => { e.stopPropagation(); handleEdit(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white text-white hover:text-[#003B94] rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110"><Edit2 size={14} /></button>
                                 <button onClick={(e) => { e.stopPropagation(); requestDelete(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-red-500 text-white hover:text-white rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110"><Trash2 size={14} /></button>
                             </div>
@@ -373,19 +584,19 @@ export const Consulados = () => {
                             {consulado.logo ? (<img src={consulado.logo} className="w-full h-full object-cover" />) : (<Building2 className="text-[#003B94]/20" size={32} />)}
                         </div>
                         <div className="mb-4 space-y-1">
-                            <h3 className={`oswald text-xl font-black uppercase leading-tight line-clamp-2 drop-shadow-sm transition-colors ${consulado.isOfficial ? 'text-[#001d4a]' : 'text-[#001d4a] group-hover:text-[#003B94]'}`}>{consulado.name}</h3>
+                            <h3 className={`oswald text-xl font-black uppercase leading-tight line-clamp-2 drop-shadow-sm transition-colors ${consulado.is_official ? 'text-[#001d4a]' : 'text-[#001d4a] group-hover:text-[#003B94]'}`}>{consulado.name}</h3>
                             <div className="space-y-1">
-                                <div className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest w-fit px-2 py-1 rounded-lg ${consulado.isOfficial ? 'bg-[#001d4a]/10 text-[#001d4a]' : 'bg-[#003B94]/5 text-[#003B94]'}`}><MapPin size={10} /> {consulado.city}, {consulado.country}</div>
+                                <div className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest w-fit px-2 py-1 rounded-lg ${consulado.is_official ? 'bg-[#001d4a]/10 text-[#001d4a]' : 'bg-[#003B94]/5 text-[#003B94]'}`}><MapPin size={10} /> {consulado.city}, {consulado.country}</div>
                                 {consulado.address && (<div className="flex items-center gap-1.5 text-[9px] font-bold text-gray-500/80 uppercase tracking-wide truncate pl-1"><div className="w-1 h-1 rounded-full bg-current"></div><span className="truncate">{consulado.address}</span></div>)}
                             </div>
                         </div>
-                        <div className={`mt-auto pt-4 border-t ${consulado.isOfficial ? 'border-[#001d4a]/10' : 'border-[#003B94]/5'}`}>
+                        <div className={`mt-auto pt-4 border-t ${consulado.is_official ? 'border-[#001d4a]/10' : 'border-[#003B94]/5'}`}>
                             <div className="grid grid-cols-3 gap-2">
                                 <div className="flex flex-col items-center justify-center p-2 bg-white/40 rounded-xl border border-white/50 shadow-sm"><Users size={14} className="text-[#003B94] mb-1 opacity-70"/><span className="text-xl font-black text-[#001d4a] oswald leading-none">{memberCount}</span><span className="text-[6px] font-bold text-gray-500 uppercase tracking-widest">Socios</span></div>
                                 <div className="col-span-2 flex flex-col justify-center p-2 bg-white/40 rounded-xl border border-white/50 px-3 shadow-sm">
                                     <span className="text-[6px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">Presidente</span>
                                     <span className="text-[9px] font-black text-[#001d4a] uppercase truncate" title={consulado.president}>{consulado.president || 'Vacante'}</span>
-                                    {consulado.foundationYear && (<span className="text-[7px] font-bold text-gray-400 mt-1 uppercase tracking-wide">Fundado: {new Date(consulado.foundationYear).getFullYear()}</span>)}
+                                    {consulado.foundation_year && (<span className="text-[7px] font-bold text-gray-400 mt-1 uppercase tracking-wide">Fundado: {new Date(consulado.foundation_year).getFullYear()}</span>)}
                                 </div>
                             </div>
                         </div>
@@ -439,12 +650,12 @@ export const Consulados = () => {
                     {activeTab === 'INFO' && (
                         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             {/* Official Status Toggle - Full Line */}
-                            <div onClick={() => setEditingConsulado({...editingConsulado, isOfficial: !editingConsulado.isOfficial})} className={`w-full p-3 rounded-xl border-2 cursor-pointer transition-all duration-300 flex items-center justify-between group ${editingConsulado.isOfficial ? 'bg-[#001d4a] border-[#FCB131] shadow-md' : 'bg-gray-50 border-gray-200 hover:border-blue-200'}`}>
+                            <div onClick={() => setEditingConsulado({...editingConsulado, is_official: !editingConsulado.is_official})} className={`w-full p-3 rounded-xl border-2 cursor-pointer transition-all duration-300 flex items-center justify-between group ${editingConsulado.is_official ? 'bg-[#001d4a] border-[#FCB131] shadow-md' : 'bg-gray-50 border-gray-200 hover:border-blue-200'}`}>
                                 <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-lg transition-colors ${editingConsulado.isOfficial ? 'bg-[#FCB131] text-[#001d4a]' : 'bg-white text-gray-400 shadow-sm'}`}><ShieldCheck size={16} /></div>
-                                    <div><span className={`block text-[9px] font-black uppercase tracking-widest ${editingConsulado.isOfficial ? 'text-white' : 'text-gray-500'}`}>Estatus de Oficialidad</span><span className={`block text-[8px] font-bold ${editingConsulado.isOfficial ? 'text-[#FCB131]' : 'text-gray-400'}`}>{editingConsulado.isOfficial ? 'Reconocido Oficialmente' : 'En formación / No Oficial'}</span></div>
+                                    <div className={`p-2 rounded-lg transition-colors ${editingConsulado.is_official ? 'bg-[#FCB131] text-[#001d4a]' : 'bg-white text-gray-400 shadow-sm'}`}><ShieldCheck size={16} /></div>
+                                    <div><span className={`block text-[9px] font-black uppercase tracking-widest ${editingConsulado.is_official ? 'text-white' : 'text-gray-500'}`}>Estatus de Oficialidad</span><span className={`block text-[8px] font-bold ${editingConsulado.is_official ? 'text-[#FCB131]' : 'text-gray-400'}`}>{editingConsulado.is_official ? 'Reconocido Oficialmente' : 'En formación / No Oficial'}</span></div>
                                 </div>
-                                <div className="relative"><Star size={20} className={`transition-all duration-500 ${editingConsulado.isOfficial ? 'text-[#FCB131] fill-[#FCB131] scale-110 rotate-[360deg] drop-shadow-md' : 'text-gray-300'}`} /></div>
+                                <div className="relative"><Star size={20} className={`transition-all duration-500 ${editingConsulado.is_official ? 'text-[#FCB131] fill-[#FCB131] scale-110 rotate-[360deg] drop-shadow-md' : 'text-gray-300'}`} /></div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -493,11 +704,11 @@ export const Consulados = () => {
                     {activeTab === 'SOCIAL' && (
                         <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Instagram size={10}/> Instagram</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.socialInstagram || ''} onChange={e => setEditingConsulado({...editingConsulado, socialInstagram: e.target.value})} placeholder="@usuario" /></div>
-                                <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Facebook size={10}/> Facebook</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.socialFacebook || ''} onChange={e => setEditingConsulado({...editingConsulado, socialFacebook: e.target.value})} placeholder="facebook.com/..." /></div>
-                                <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Twitter size={10}/> Twitter / X</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.socialX || ''} onChange={e => setEditingConsulado({...editingConsulado, socialX: e.target.value})} placeholder="@usuario" /></div>
-                                <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Youtube size={10}/> YouTube</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.socialYouTube || ''} onChange={e => setEditingConsulado({...editingConsulado, socialYouTube: e.target.value})} placeholder="youtube.com/..." /></div>
-                                <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Video size={10}/> TikTok</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.socialTikTok || ''} onChange={e => setEditingConsulado({...editingConsulado, socialTikTok: e.target.value})} placeholder="@usuario" /></div>
+                                <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Instagram size={10}/> Instagram</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.social_instagram || ''} onChange={e => setEditingConsulado({...editingConsulado, social_instagram: e.target.value})} placeholder="@usuario" /></div>
+                                <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Facebook size={10}/> Facebook</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.social_facebook || ''} onChange={e => setEditingConsulado({...editingConsulado, social_facebook: e.target.value})} placeholder="facebook.com/..." /></div>
+                                <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Twitter size={10}/> Twitter / X</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.social_x || ''} onChange={e => setEditingConsulado({...editingConsulado, social_x: e.target.value})} placeholder="@usuario" /></div>
+                                <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Youtube size={10}/> YouTube</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.social_youtube || ''} onChange={e => setEditingConsulado({...editingConsulado, social_youtube: e.target.value})} placeholder="youtube.com/..." /></div>
+                                <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Video size={10}/> TikTok</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.social_tiktok || ''} onChange={e => setEditingConsulado({...editingConsulado, social_tiktok: e.target.value})} placeholder="@usuario" /></div>
                                 <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><LinkIcon size={10}/> Sitio Web</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.website || ''} onChange={e => setEditingConsulado({...editingConsulado, website: e.target.value})} placeholder="www.consulado.com" /></div>
                             </div>
                         </div>
@@ -526,7 +737,7 @@ export const Consulados = () => {
                             <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                                 <h3 className="text-[#001d4a] text-[9px] font-black uppercase tracking-widest mb-3 border-b border-gray-200 pb-1">Comisión Directiva</h3>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <CustomSelect label="Vicepresidente" value={editingConsulado.vicePresident || ''} onChange={(val) => setEditingConsulado({...editingConsulado, vicePresident: val})} options={[{value: '', label: 'Vacante'}, ...boardCandidates]} searchable />
+                                    <CustomSelect label="Vicepresidente" value={editingConsulado.vice_president || ''} onChange={(val) => setEditingConsulado({...editingConsulado, vice_president: val})} options={[{value: '', label: 'Vacante'}, ...boardCandidates]} searchable />
                                     <CustomSelect label="Secretario" value={editingConsulado.secretary || ''} onChange={(val) => setEditingConsulado({...editingConsulado, secretary: val})} options={[{value: '', label: 'Vacante'}, ...boardCandidates]} searchable />
                                     <CustomSelect label="Tesorero" value={editingConsulado.treasurer || ''} onChange={(val) => setEditingConsulado({...editingConsulado, treasurer: val})} options={[{value: '', label: 'Vacante'}, ...boardCandidates]} searchable />
                                     <CustomSelect label="Vocal" value={editingConsulado.vocal || ''} onChange={(val) => setEditingConsulado({...editingConsulado, vocal: val})} options={[{value: '', label: 'Vacante'}, ...boardCandidates]} searchable />

@@ -14,7 +14,7 @@ export const Mensajes = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<Partial<Mensaje>>({
-      title: '', body: '', type: 'INSTITUCIONAL', targetIds: ['ALL'], targetConsuladoId: 'ALL', targetConsuladoName: 'Todos'
+      title: '', body: '', type: 'INSTITUCIONAL', target_ids: ['ALL'], target_consulado_id: 'ALL', target_consulado_name: 'Todos'
   });
   
   const [targetSearch, setTargetSearch] = useState('');
@@ -102,20 +102,20 @@ export const Mensajes = () => {
       const today = new Date().toISOString().split('T')[0];
       setFormData({ 
           title: '', body: '', type: 'INSTITUCIONAL', 
-          targetIds: ['ALL'], targetConsuladoId: 'ALL', targetConsuladoName: 'Todos',
-          startDate: today, endDate: ''
+          target_ids: ['ALL'], target_consulado_id: 'ALL', target_consulado_name: 'Todos',
+          start_date: today, end_date: ''
       });
       setIsModalOpen(true);
   };
 
   const handleEdit = (msg: Mensaje) => {
       setEditingId(msg.id);
-      setFormData({ ...msg, targetIds: msg.targetIds || (msg.targetConsuladoId === 'ALL' ? ['ALL'] : [msg.targetConsuladoId]) });
+      setFormData({ ...msg, target_ids: msg.target_ids || (msg.target_consulado_id === 'ALL' ? ['ALL'] : [msg.target_consulado_id]) });
       setIsModalOpen(true);
   };
 
   const toggleTarget = (id: string) => {
-      const current = new Set(formData.targetIds || []);
+      const current = new Set(formData.target_ids || []);
       if (id === 'ALL') {
           if (current.has('ALL')) current.clear();
           else { current.clear(); current.add('ALL'); }
@@ -127,14 +127,14 @@ export const Mensajes = () => {
       const newTargets = Array.from(current);
       setFormData({ 
           ...formData, 
-          targetIds: newTargets,
-          targetConsuladoName: newTargets.includes('ALL') ? 'Todos' : `${newTargets.length} Seleccionados`
+          target_ids: newTargets,
+          target_consulado_name: newTargets.includes('ALL') ? 'Todos' : `${newTargets.length} Seleccionados`
       });
   };
 
   const requestSave = async () => {
       if (!formData.title || !formData.body) return;
-      if (formData.endDate && formData.startDate && formData.endDate < formData.startDate) {
+      if (formData.end_date && formData.start_date && formData.end_date < formData.start_date) {
           setDateError("La fecha final no puede ser anterior a la inicial");
           return;
       }
@@ -146,7 +146,7 @@ export const Mensajes = () => {
           ...formData,
           date: new Date().toLocaleDateString(), // Display date
           created_at: Date.now(),
-          targetConsuladoId: formData.targetIds?.includes('ALL') ? 'ALL' : (formData.targetIds?.[0] || 'ALL') // Legacy support
+          target_consulado_id: formData.target_ids?.includes('ALL') ? 'ALL' : (formData.target_ids?.[0] || 'ALL') // Legacy support
       } as Mensaje;
 
       if (editingId) {
@@ -176,7 +176,7 @@ export const Mensajes = () => {
       // Refresh local state handled by subscription
   };
 
-  const isFormValid = formData.title && formData.body && (formData.targetIds?.length || 0) > 0;
+  const isFormValid = formData.title && formData.body && (formData.target_ids?.length || 0) > 0;
   
   const filteredConsuladosSelection = consulados.filter(c => c.name.toLowerCase().includes(targetSearch.toLowerCase()));
   const filteredMessages = mensajes.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -214,7 +214,7 @@ export const Mensajes = () => {
                     <h4 className="oswald text-lg font-black text-[#001d4a] uppercase leading-tight mb-2 truncate">{msg.title}</h4>
                     <p className="text-[10px] text-gray-500 line-clamp-2 mb-3">{msg.body}</p>
                     <div className="flex items-center justify-between text-[9px] font-bold text-gray-400 border-t border-gray-100 pt-2">
-                        <span className="flex items-center gap-1"><Globe size={10}/> {msg.targetConsuladoName}</span>
+                        <span className="flex items-center gap-1"><Globe size={10}/> {msg.target_consulado_name}</span>
                         <span>{msg.date}</span>
                     </div>
                 </GlassCard>
@@ -289,7 +289,7 @@ export const Mensajes = () => {
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1">Vigencia (Hasta)</label>
-                                <input type="date" className={`w-full bg-gray-50 border rounded-xl py-2.5 px-3 font-bold text-xs text-[#001d4a] outline-none ${dateError ? 'border-red-500' : 'border-gray-200'}`} value={formData.endDate} min={formData.startDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
+                                <input type="date" className={`w-full bg-gray-50 border rounded-xl py-2.5 px-3 font-bold text-xs text-[#001d4a] outline-none ${dateError ? 'border-red-500' : 'border-gray-200'}`} value={formData.end_date} min={formData.start_date} onChange={e => setFormData({...formData, end_date: e.target.value})} />
                             </div>
                         </div>
                         {dateError && <span className="text-[8px] text-red-500 font-bold block">{dateError}</span>}
@@ -311,13 +311,13 @@ export const Mensajes = () => {
                         </div>
                         
                         <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-1">
-                            <div onClick={() => toggleTarget('ALL')} className={`p-2.5 rounded-lg border cursor-pointer flex items-center justify-between transition-all ${formData.targetIds?.includes('ALL') ? 'bg-[#003B94] border-[#003B94] text-white shadow-sm' : 'bg-white border-gray-200 text-gray-500 hover:border-[#003B94]/30'}`}>
+                            <div onClick={() => toggleTarget('ALL')} className={`p-2.5 rounded-lg border cursor-pointer flex items-center justify-between transition-all ${formData.target_ids?.includes('ALL') ? 'bg-[#003B94] border-[#003B94] text-white shadow-sm' : 'bg-white border-gray-200 text-gray-500 hover:border-[#003B94]/30'}`}>
                                 <div className="flex items-center gap-2"><Globe size={12} /><span className="text-[9px] font-black uppercase tracking-widest">Todos</span></div>
-                                {formData.targetIds?.includes('ALL') && <Check size={12} strokeWidth={3} />}
+                                {formData.target_ids?.includes('ALL') && <Check size={12} strokeWidth={3} />}
                             </div>
                             
                             {filteredConsuladosSelection.map(c => {
-                                const isSelected = formData.targetIds?.includes(c.id) && !formData.targetIds?.includes('ALL');
+                                const isSelected = formData.target_ids?.includes(c.id) && !formData.target_ids?.includes('ALL');
                                 return (
                                     <div key={c.id} onClick={() => toggleTarget(c.id)} className={`p-2 rounded-lg border cursor-pointer flex items-center justify-between transition-all ${isSelected ? 'bg-white border-[#003B94] text-[#003B94] shadow-sm ring-1 ring-[#003B94]/20' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                                         <span className="text-[9px] font-bold uppercase truncate max-w-[180px]">{c.name}</span>

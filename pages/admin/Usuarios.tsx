@@ -17,7 +17,7 @@ export const Usuarios = () => {
   const [consulados, setConsulados] = useState(dataService.getConsulados());
 
   const [formData, setFormData] = useState<Partial<AppUser>>({
-      username: '', password: '', email: '', fullName: '', role: 'PRESIDENTE', active: true, consuladoId: ''
+      username: '', password: '', email: '', full_name: '', role: 'PRESIDENTE', active: true, consulado_id: ''
   });
 
   useEffect(() => {
@@ -38,7 +38,7 @@ export const Usuarios = () => {
 
   const handleCreate = () => {
       setEditingUser(null);
-      setFormData({ username: '', password: '', email: '', fullName: '', role: 'PRESIDENTE', active: true, consuladoId: '' });
+      setFormData({ username: '', password: '', email: '', full_name: '', role: 'PRESIDENTE', active: true, consulado_id: '' });
       setIsModalOpen(true);
   };
 
@@ -66,7 +66,7 @@ export const Usuarios = () => {
 
   const handleSave = async () => {
       setError(null);
-      if (!formData.username || !formData.email || !formData.fullName) {
+      if (!formData.username || !formData.email || !formData.full_name) {
           setError("Complete todos los campos obligatorios");
           return;
       }
@@ -82,12 +82,12 @@ export const Usuarios = () => {
               username: formData.username || '',
               password: formData.password,
               email: formData.email || '',
-              fullName: formData.fullName || '',
+              full_name: formData.full_name || '',
               role: formData.role || 'PRESIDENTE',
-              consuladoId: formData.consuladoId || undefined,
+              consulado_id: formData.consulado_id || undefined,
               active: formData.active !== undefined ? formData.active : true,
               gender: formData.gender || undefined,
-              lastLogin: formData.lastLogin || undefined,
+              last_login: formData.last_login || undefined,
               avatar: formData.avatar || undefined
           };
           if (editingUser) {
@@ -103,7 +103,7 @@ export const Usuarios = () => {
       }
   };
 
-  const filteredUsers = users.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase()) || u.fullName.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredUsers = users.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase()) || u.full_name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 px-4 animate-boca-entrance">
@@ -130,10 +130,10 @@ export const Usuarios = () => {
                 <GlassCard key={user.id} className="p-5 bg-white border border-[#003B94]/10 group relative">
                     <div className="flex items-start gap-4">
                         <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-[#003B94] font-black shadow-inner">
-                            {user.fullName.charAt(0)}
+                            {user.full_name.charAt(0)}
                         </div>
                         <div className="min-w-0 flex-1">
-                            <h3 className="oswald text-lg font-black text-[#001d4a] uppercase truncate">{user.fullName}</h3>
+                            <h3 className="oswald text-lg font-black text-[#001d4a] uppercase truncate">{user.full_name}</h3>
                             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-2">{user.role}</p>
                             <div className="flex items-center gap-2 text-[9px] font-medium text-gray-500">
                                 <span className={`w-2 h-2 rounded-full ${user.active ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
@@ -185,8 +185,8 @@ export const Usuarios = () => {
                                         <input 
                                             type="text" 
                                             className="w-full bg-white border border-gray-200 rounded-lg py-2.5 pl-9 pr-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94] focus:ring-1 focus:ring-[#003B94]/10 transition-all placeholder:text-gray-300" 
-                                            value={formData.fullName} 
-                                            onChange={e => setFormData({...formData, fullName: e.target.value})}
+                                            value={formData.full_name || ''} 
+                                            onChange={e => setFormData({...formData, full_name: e.target.value})}
                                             placeholder="Ej: Juan Pérez"
                                         />
                                         <User size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#003B94] transition-colors" />
@@ -295,8 +295,8 @@ export const Usuarios = () => {
                                     <div className="relative group">
                                         <select 
                                             className="w-full bg-white border border-blue-200 rounded-lg py-2.5 pl-9 pr-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94] focus:ring-1 focus:ring-[#003B94]/10 transition-all appearance-none cursor-pointer" 
-                                            value={formData.consuladoId} 
-                                            onChange={(e) => setFormData({...formData, consuladoId: e.target.value})}
+                                            value={formData.consulado_id || ''} 
+                                            onChange={(e) => setFormData({...formData, consulado_id: e.target.value})}
                                         >
                                             <option value="">Seleccionar Consulado...</option>
                                             {consulados.map(c => <option key={c.id} value={c.id}>{c.name} - {c.city}</option>)}

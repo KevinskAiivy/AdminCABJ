@@ -5,18 +5,18 @@ import { Building2, MapPin, Globe, Users, Edit2, Save, Upload, Image as ImageIco
 import { dataService } from '../../services/dataService';
 import { Consulado } from '../../types';
 
-export const MiConsulado = ({ consuladoId }: { consuladoId: string }) => {
+export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
   const [consulado, setConsulado] = useState<Consulado | null>(null);
   const [formData, setFormData] = useState<Partial<Consulado>>({});
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    const c = dataService.getConsuladoById(consuladoId);
+    const c = dataService.getConsuladoById(consulado_id);
     if (c) {
       setConsulado(c);
       setFormData(c);
     }
-  }, [consuladoId]);
+  }, [consulado_id]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'logo' | 'banner') => {
     const file = e.target.files?.[0];

@@ -24,7 +24,7 @@ export const Equipos = () => {
   const [deletingTeam, setDeletingTeam] = useState<Team | null>(null);
   
   const [formData, setFormData] = useState<Partial<Team>>({
-    name: '', shortName: '', countryId: 'AR', confederation: 'CONMEBOL', city: '', stadium: '', logo: ''
+    name: '', short_name: '', country_id: 'AR', confederation: 'CONMEBOL', city: '', stadium: '', logo: ''
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -38,7 +38,7 @@ export const Equipos = () => {
 
   const handleCreate = () => {
       setEditingId(null);
-      setFormData({ name: '', shortName: '', countryId: 'AR', confederation: 'CONMEBOL', city: '', stadium: '', logo: '' });
+      setFormData({ name: '', short_name: '', country_id: 'AR', confederation: 'CONMEBOL', city: '', stadium: '', logo: '' });
       setIsModalOpen(true);
   };
 
@@ -53,8 +53,8 @@ export const Equipos = () => {
       const payload: Team = {
           id: editingId || crypto.randomUUID(),
           name: formData.name || '',
-          shortName: formData.shortName || '',
-          countryId: formData.countryId || 'AR',
+          short_name: formData.short_name || '',
+          country_id: formData.country_id || 'AR',
           confederation: formData.confederation || 'CONMEBOL',
           city: formData.city || '',
           stadium: formData.stadium || '',
@@ -104,7 +104,7 @@ export const Equipos = () => {
   const availableCountries = useMemo(() => {
       if (filterConfederation === 'ALL') {
           // Si pas de filtre de confédération, montrer tous les pays qui ont des teams
-          const countriesWithTeams = new Set(teams.map(t => t.countryId));
+          const countriesWithTeams = new Set(teams.map(t => t.country_id));
           return COUNTRY_OPTIONS.filter(c => countriesWithTeams.has(c.code))
               .sort((a,b) => a.name.localeCompare(b.name));
       }
@@ -112,7 +112,7 @@ export const Equipos = () => {
       const countriesInConfederation = new Set(
           teams
               .filter(t => t.confederation === filterConfederation)
-              .map(t => t.countryId)
+              .map(t => t.country_id)
       );
       return COUNTRY_OPTIONS.filter(c => countriesInConfederation.has(c.code))
           .sort((a,b) => a.name.localeCompare(b.name));
@@ -123,9 +123,9 @@ export const Equipos = () => {
   }, [availableCountries]);
 
   const filteredTeams = teams.filter(t => {
-      const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) || t.shortName.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) || t.short_name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesConfederation = filterConfederation === 'ALL' || t.confederation === filterConfederation;
-      const matchesCountry = filterCountry === 'ALL' || t.countryId === filterCountry;
+      const matchesCountry = filterCountry === 'ALL' || t.country_id === filterCountry;
       return matchesSearch && matchesConfederation && matchesCountry;
   });
 
@@ -184,8 +184,8 @@ export const Equipos = () => {
 
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredTeams.map(team => {
-                const countryData = COUNTRY_OPTIONS.find(c => c.code === team.countryId);
-                const countryName = countryData ? countryData.name : team.countryId;
+                const countryData = COUNTRY_OPTIONS.find(c => c.code === team.country_id);
+                const countryName = countryData ? countryData.name : team.country_id;
 
                 return (
                 <GlassCard key={team.id} className="p-5 bg-white border border-[#003B94]/10 hover:shadow-lg transition-all group relative">
@@ -246,7 +246,7 @@ export const Equipos = () => {
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Sigla</label>
-                                        <input className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94] text-[#001d4a]" placeholder="Ej: RIV" value={formData.shortName} onChange={e => setFormData({...formData, shortName: e.target.value})} />
+                                        <input className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94] text-[#001d4a]" placeholder="Ej: RIV" value={formData.short_name || ''} onChange={e => setFormData({...formData, short_name: e.target.value})} />
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Confederación</label>
@@ -257,7 +257,7 @@ export const Equipos = () => {
                                 <div className="space-y-1">
                                     <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">País</label>
                                     <div className="relative">
-                                        <select className="w-full bg-white border border-gray-200 rounded-lg py-2 pl-3 pr-8 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94] appearance-none" value={formData.countryId} onChange={e => setFormData({...formData, countryId: e.target.value})}>{COUNTRY_OPTIONS.sort((a,b) => (a.name || '').localeCompare(b.name || '')).map(c => (<option key={c.code} value={c.code}>{c.flag} {c.name}</option>))}</select>
+                                        <select className="w-full bg-white border border-gray-200 rounded-lg py-2 pl-3 pr-8 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94] appearance-none" value={formData.country_id || 'AR'} onChange={e => setFormData({...formData, country_id: e.target.value})}>{COUNTRY_OPTIONS.sort((a,b) => (a.name || '').localeCompare(b.name || '')).map(c => (<option key={c.code} value={c.code}>{c.flag} {c.name}</option>))}</select>
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"><Flag size={10} /></div>
                                     </div>
                                 </div>

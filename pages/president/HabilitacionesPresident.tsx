@@ -9,7 +9,7 @@ interface StagedSocio extends Socio {
     submissionStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
-export const HabilitacionesPresident = ({ consuladoId, consuladoName }: { consuladoId: string, consuladoName: string }) => {
+export const HabilitacionesPresident = ({ consulado_id, consuladoName }: { consulado_id: string, consuladoName: string }) => {
   const [activeMatch, setActiveMatch] = useState<Match | null>(null);
   const [socios, setSocios] = useState<Socio[]>([]);
   const [stagedSocios, setStagedSocios] = useState<StagedSocio[]>([]);
@@ -23,28 +23,28 @@ export const HabilitacionesPresident = ({ consuladoId, consuladoName }: { consul
       const now = new Date();
       
       const openMatch = matches.find(m => {
-          if (!m.aperturaDate || !m.cierreDate) return false;
-          const [ad, am, ay] = m.aperturaDate.split('/').map(Number);
-          const [ah, amin] = m.aperturaHour.split(':').map(Number);
+          if (!m.apertura_date || !m.cierre_date) return false;
+          const [ad, am, ay] = m.apertura_date.split('/').map(Number);
+          const [ah, amin] = m.apertura_hour.split(':').map(Number);
           const openTime = new Date(ay, am - 1, ad, ah, amin);
 
-          const [cd, cm, cy] = m.cierreDate.split('/').map(Number);
-          const [ch, cmin] = m.cierreHour.split(':').map(Number);
+          const [cd, cm, cy] = m.cierre_date.split('/').map(Number);
+          const [ch, cmin] = m.cierre_hour.split(':').map(Number);
           const closeTime = new Date(cy, cm - 1, cd, ch, cmin);
 
-          return now >= openTime && now <= closeTime && !m.isSuspended && (m.isHome || m.isNeutral);
+          return now >= openTime && now <= closeTime && !m.is_suspended && (m.is_home || m.is_neutral);
       });
 
       setActiveMatch(openMatch || null);
 
-      const mySocios = dataService.getSocios(consuladoId);
+      const mySocios = dataService.getSocios(consulado_id);
       setSocios(mySocios.filter(s => s.status === 'AL DÍA'));
 
       if (openMatch) {
           const reqs = dataService.getSolicitudes(openMatch.id, consuladoName);
           setSubmittedRequests(reqs);
       }
-  }, [consuladoId, consuladoName]);
+  }, [consulado_id, consuladoName]);
 
   const toggleStageSocio = (socio: Socio) => {
       if (stagedSocios.find(s => s.id === socio.id)) {
@@ -60,11 +60,11 @@ export const HabilitacionesPresident = ({ consuladoId, consuladoName }: { consul
       for (const socio of stagedSocios) {
           await dataService.createSolicitud({
               id: crypto.randomUUID(),
-              matchId: activeMatch.id,
-              socioId: socio.id,
-              socioName: socio.name,
-              socioDni: socio.dni,
-              socioCategory: socio.category,
+              match_id: activeMatch.id,
+              socio_id: socio.id,
+              socio_name: socio.name,
+              socio_dni: socio.dni,
+              socio_category: socio.category,
               consulado: consuladoName,
               status: 'PENDING',
               timestamp: new Date().toISOString()
@@ -97,7 +97,7 @@ export const HabilitacionesPresident = ({ consuladoId, consuladoName }: { consul
   }
 
   const filteredSocios = socios.filter(s => 
-      !submittedRequests.some(r => r.socioId === s.id) && 
+      !submittedRequests.some(r => r.socio_id === s.id) && 
       (s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.dni.includes(searchQuery))
   );
 
@@ -193,7 +193,7 @@ export const HabilitacionesPresident = ({ consuladoId, consuladoName }: { consul
                         <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
                             {submittedRequests.map(req => (
                                 <div key={req.id} className="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-100 opacity-70">
-                                    <span className="text-[10px] font-bold uppercase text-[#001d4a]">{req.socioName}</span>
+                                    <span className="text-[10px] font-bold uppercase text-[#001d4a]">{req.socio_name}</span>
                                     <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-600' : req.status === 'REJECTED' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>{req.status === 'APPROVED' ? 'Aprobado' : req.status === 'REJECTED' ? 'Rechazado' : 'Pendiente'}</span>
                                 </div>
                             ))}

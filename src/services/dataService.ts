@@ -68,7 +68,7 @@ class DataService {
           { id: 1, rival: 'River Plate', rivalShort: 'CARP', rivalCountry: 'AR', competition: 'Liga Profesional', date: '15/03/2026', hour: '17:00', venue: 'La Bombonera', city: 'Buenos Aires', isHome: true, fechaJornada: 'Fecha 7', isSuspended: false, aperturaDate: '10/03/2026', aperturaHour: '10:00', cierreDate: '14/03/2026', cierreHour: '20:00' }
       ];
       this.users = [
-          { id: '1', username: 'admin', email: 'admin@boca.com', fullName: 'Super Admin', role: 'SUPERADMIN', active: true }
+          { id: '1', username: 'admin', email: 'admin@boca.com', full_name: 'Super Admin', role: 'SUPERADMIN', active: true }
       ];
   }
 
@@ -112,15 +112,15 @@ class DataService {
   getAgendaEvents(): AgendaEvent[] { return this.agenda; }
   getMensajes(consuladoId?: string): Mensaje[] { 
       if (!consuladoId || consuladoId === 'ALL') return this.mensajes;
-      return this.mensajes.filter(m => m.targetConsuladoId === 'ALL' || m.targetConsuladoId === consuladoId || m.targetIds?.includes(consuladoId));
+      return this.mensajes.filter(m => m.target_consulado_id === 'ALL' || m.target_consulado_id === consuladoId || m.target_ids?.includes(consuladoId));
   }
   getBirthdays(consuladoName: string, days: number): Socio[] { return []; }
   getTransfers(consuladoId: string) { return { incoming: [], outgoing: [] }; }
-  getSocioTransfers(socioId: string): TransferRequest[] { return this.transfers.filter(t => t.socioId === socioId); }
+  getSocioTransfers(socioId: string): TransferRequest[] { return this.transfers.filter(t => t.socio_id === socioId); }
   getNotificationsForUser(user: UserSession): AppNotification[] { return this.notifications; }
   
   getSolicitudes(matchId: number, consuladoName?: string): Solicitud[] { 
-      let reqs = this.solicitudes.filter(s => s.matchId === matchId);
+      let reqs = this.solicitudes.filter(s => s.match_id === matchId);
       if (consuladoName) {
           reqs = reqs.filter(s => s.consulado === consuladoName);
       }
@@ -135,7 +135,7 @@ class DataService {
       // In real app, verify password hash
       if (user) {
           // For demo, accept any password if user exists, or specific hardcoded
-          return { role: user.role, name: user.fullName, email: user.email, consuladoId: user.consuladoId, gender: user.gender };
+          return { role: user.role, name: user.full_name, email: user.email, consulado_id: user.consulado_id, gender: user.gender };
       }
       if(u === 'admin' && p === 'admin') return { role: 'SUPERADMIN', name: 'Super Admin' };
       return null;

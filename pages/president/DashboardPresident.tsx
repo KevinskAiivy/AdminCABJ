@@ -15,12 +15,12 @@ interface Notification {
     read: boolean;
 }
 
-export const DashboardPresident = ({ consuladoId }: { consuladoId: string }) => {
+export const DashboardPresident = ({ consulado_id }: { consulado_id: string }) => {
   const [nextMatch, setNextMatch] = useState<any>(null);
   const [messages, setMessages] = useState<Mensaje[]>([]);
   const [birthdays, setBirthdays] = useState<Socio[]>([]);
   const [generalEvents, setGeneralEvents] = useState<AgendaEvent[]>([]);
-  const [consulado, setConsulado] = useState(dataService.getConsuladoById(consuladoId));
+  const [consulado, setConsulado] = useState(dataService.getConsuladoById(consulado_id));
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [viewingMessage, setViewingMessage] = useState<Mensaje | null>(null);
   const [selectedDayDetails, setSelectedDayDetails] = useState<{ date: Date, birthdays: Socio[], agenda: AgendaEvent[] } | null>(null);
@@ -28,10 +28,10 @@ export const DashboardPresident = ({ consuladoId }: { consuladoId: string }) => 
   // Subscribe to dataService updates
   useEffect(() => {
     const updateDashboardData = () => {
-        const c = dataService.getConsuladoById(consuladoId);
+        const c = dataService.getConsuladoById(consulado_id);
         setConsulado(c);
         
-        const allMsgs = dataService.getMensajes(consuladoId);
+        const allMsgs = dataService.getMensajes(consulado_id);
         setMessages(allMsgs.slice(0, 3));
         
         // Fetch Birthdays
@@ -41,10 +41,10 @@ export const DashboardPresident = ({ consuladoId }: { consuladoId: string }) => 
         setGeneralEvents(dataService.getAgendaEvents());
 
         // Notifications (Transfers)
-        const currentTransfers = dataService.getTransfers(consuladoId);
+        const currentTransfers = dataService.getTransfers(consulado_id);
         const newNotifs: Notification[] = [];
         currentTransfers.incoming.filter(t => t.status === 'PENDING').forEach(t => {
-            newNotifs.push({ id: `notif-tr-${t.id}`, type: 'TRANSFER', title: `Traslado: ${t.socioName}`, date: t.requestDate, read: false });
+            newNotifs.push({ id: `notif-tr-${t.id}`, type: 'TRANSFER', title: `Traslado: ${t.socio_name}`, date: t.request_date, read: false });
         });
         setNotifications(newNotifs);
 
@@ -64,7 +64,7 @@ export const DashboardPresident = ({ consuladoId }: { consuladoId: string }) => 
     updateDashboardData();
     const unsubscribe = dataService.subscribe(updateDashboardData);
     return () => unsubscribe();
-  }, [consuladoId]);
+  }, [consulado_id]);
 
   const next7Days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -76,7 +76,7 @@ export const DashboardPresident = ({ consuladoId }: { consuladoId: string }) => 
     const dateStr = `${date.getDate().toString().padStart(2,'0')}/${(date.getMonth()+1).toString().padStart(2,'0')}`;
     const isoDateStr = date.toISOString().split('T')[0];
     return {
-        dayBirthdays: birthdays.filter(b => b.birthDate.startsWith(dateStr)),
+        dayBirthdays: birthdays.filter(b => b.birth_date.startsWith(dateStr)),
         dayAgenda: generalEvents.filter(e => e.date === isoDateStr)
     };
   };
@@ -89,7 +89,7 @@ export const DashboardPresident = ({ consuladoId }: { consuladoId: string }) => 
             <NextMatchCard 
                 match={nextMatch} 
                 userTimezone={consulado?.timezone}
-                userCountryCode={consulado?.countryCode}
+                userCountryCode={consulado?.country_code}
             />
         ) : (
             <div className="h-[200px] bg-[#001d4a] rounded-[2.5rem] flex flex-col items-center justify-center text-white/10 border border-white/5 shadow-xl">
@@ -299,7 +299,7 @@ export const DashboardPresident = ({ consuladoId }: { consuladoId: string }) => 
                                     {selectedDayDetails.birthdays.length > 0 ? selectedDayDetails.birthdays.map(socio => (
                                         <div key={socio.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-50 transition-colors">
                                             <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-black">
-                                                {socio.firstName[0]}{socio.lastName[0]}
+                                                {socio.first_name[0]}{socio.last_name[0]}
                                             </div>
                                             <div>
                                                 <p className="text-[10px] font-bold text-[#001d4a] uppercase">{socio.name}</p>

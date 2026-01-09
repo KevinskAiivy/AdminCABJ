@@ -114,7 +114,7 @@ export const Partidos = () => {
       setEditingMatch({ ...m });
       // Find country of rival to set filter
       const team = teams.find(t => t.name === m.rival);
-      if(team) setRivalCountryFilter(team.countryId);
+      if(team) setRivalCountryFilter(team.country_id);
   };
 
   const handleDelete = async () => {
@@ -143,19 +143,19 @@ export const Partidos = () => {
 
   const handleLocationChange = (loc: 'LOCAL' | 'VISITANTE' | 'NEUTRAL') => {
       if (!editingMatch) return;
-      if (loc === 'LOCAL') setEditingMatch({ ...editingMatch, isHome: true, isNeutral: false, venue: 'La Bombonera', city: 'Buenos Aires' });
-      else if (loc === 'VISITANTE') setEditingMatch({ ...editingMatch, isHome: false, isNeutral: false, venue: '', city: '' });
-      else setEditingMatch({ ...editingMatch, isHome: false, isNeutral: true, venue: '', city: '' });
+      if (loc === 'LOCAL') setEditingMatch({ ...editingMatch, is_home: true, is_neutral: false, venue: 'La Bombonera', city: 'Buenos Aires' });
+      else if (loc === 'VISITANTE') setEditingMatch({ ...editingMatch, is_home: false, is_neutral: false, venue: '', city: '' });
+      else setEditingMatch({ ...editingMatch, is_home: false, is_neutral: true, venue: '', city: '' });
   };
 
   const handleCompetitionChange = (id: string) => {
       const comp = competitions.find(c => c.id === id);
-      setEditingMatch(prev => ({ ...prev, competitionId: id, competition: comp?.name || '' }));
+      setEditingMatch(prev => ({ ...prev, competition_id: id, competition: comp?.name || '' }));
   };
 
   const handleRivalCountryChange = (code: string) => {
       setRivalCountryFilter(code);
-      setEditingMatch(prev => ({ ...prev, rivalId: '', rival: '', rivalShort: '', rivalCountry: code }));
+      setEditingMatch(prev => ({ ...prev, rival_id: '', rival: '', rival_short: '', rival_country: code }));
   };
 
   const handleRivalIdChange = (id: string) => {
@@ -163,11 +163,11 @@ export const Partidos = () => {
       if(team) {
           setEditingMatch(prev => ({ 
               ...prev, 
-              rivalId: id, 
+              rival_id: id, 
               rival: team.name, 
-              rivalShort: team.shortName,
-              venue: (!prev?.isHome && !prev?.isNeutral) ? team.stadium : prev?.venue,
-              city: (!prev?.isHome && !prev?.isNeutral) ? team.city : prev?.city
+              rival_short: team.short_name,
+              venue: (!prev?.is_home && !prev?.is_neutral) ? team.stadium : prev?.venue,
+              city: (!prev?.is_home && !prev?.is_neutral) ? team.city : prev?.city
           }));
       }
   };
@@ -175,8 +175,8 @@ export const Partidos = () => {
   const handleMatchDateTimeChange = (field: 'date' | 'hour', value: string) => {
       setEditingMatch(prev => {
           const updated = { ...prev, [field]: value };
-          // Auto-calculate habilitation window if isHome
-          if (updated.isHome && updated.date && updated.hour) {
+          // Auto-calculate habilitation window if is_home
+          if (updated.is_home && updated.date && updated.hour) {
               // Simple logic: Open 5 days before, Close 1 day before
               // This logic can be more complex
               // For now just keeping user input or default
@@ -256,7 +256,7 @@ export const Partidos = () => {
                     <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1 mb-1 block">Condición</label>
                     <div className="bg-gray-100 p-1 rounded-xl flex">
                         {['LOCAL', 'NEUTRAL', 'VISITANTE'].map((tab) => {
-                            const isActive = (tab === 'LOCAL' && editingMatch.isHome && !editingMatch.isNeutral) || (tab === 'NEUTRAL' && editingMatch.isNeutral) || (tab === 'VISITANTE' && !editingMatch.isHome && !editingMatch.isNeutral);
+                            const isActive = (tab === 'LOCAL' && editingMatch.is_home && !editingMatch.is_neutral) || (tab === 'NEUTRAL' && editingMatch.is_neutral) || (tab === 'VISITANTE' && !editingMatch.is_home && !editingMatch.is_neutral);
                             return (<button key={tab} onClick={() => handleLocationChange(tab as any)} className={`flex-1 py-2 text-[9px] font-black tracking-widest uppercase transition-all rounded-lg ${isActive ? 'bg-white text-[#003B94] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>{tab}</button>);
                         })}
                     </div>
@@ -264,14 +264,14 @@ export const Partidos = () => {
 
                 {/* 2. Competition & Jornada */}
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Competición</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.competitionId || ''} onChange={e => handleCompetitionChange(e.target.value)}><option value="">Seleccionar...</option>{competitions.map(comp => <option key={comp.id} value={comp.id}>{comp.name}</option>)}</select></div>
-                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Fecha/Jornada</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.fechaJornada || ''} onChange={e => setEditingMatch({...editingMatch, fechaJornada: e.target.value})}>{FECHAS.map(f => <option key={f} value={f}>{f}</option>)}</select></div>
+                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Competición</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.competition_id || ''} onChange={e => handleCompetitionChange(e.target.value)}><option value="">Seleccionar...</option>{competitions.map(comp => <option key={comp.id} value={comp.id}>{comp.name}</option>)}</select></div>
+                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Fecha/Jornada</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.fecha_jornada || ''} onChange={e => setEditingMatch({...editingMatch, fecha_jornada: e.target.value})}>{FECHAS.map(f => <option key={f} value={f}>{f}</option>)}</select></div>
                 </div>
 
                 {/* 3. Rival Selector */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">País del Rival</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={rivalCountryFilter} onChange={e => handleRivalCountryChange(e.target.value)}>{COUNTRY_OPTIONS.map(c => (<option key={c.code} value={c.code}>{c.flag} {c.name}</option>))}</select></div>
-                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Equipo Rival</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.rivalId || ''} onChange={e => handleRivalIdChange(e.target.value)}><option value="">Seleccionar Equipo...</option>{teams.filter(t => t.countryId === rivalCountryFilter).sort((a,b) => a.name.localeCompare(b.name)).map(r => (<option key={r.id} value={r.id}>{r.name} ({r.shortName})</option>))}</select></div>
+                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Equipo Rival</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.rival_id || ''} onChange={e => handleRivalIdChange(e.target.value)}><option value="">Seleccionar Equipo...</option>{teams.filter(t => t.country_id === rivalCountryFilter).sort((a,b) => a.name.localeCompare(b.name)).map(r => (<option key={r.id} value={r.id}>{r.name} ({r.short_name})</option>))}</select></div>
                 </div>
 
                 {/* 5. Date & Hour */}
@@ -282,12 +282,12 @@ export const Partidos = () => {
 
                 {/* 6. Stadium & City */}
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Estadio</label>{editingMatch.isNeutral ? (<select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.venue || ''} onChange={e => handleNeutralStadiumChange(e.target.value)}><option value="">Seleccionar Estadio Neutral...</option>{distinctStadiums.map(s => <option key={s.stadium} value={s.stadium}>{s.stadium}</option>)}</select>) : (<input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.venue || ''} onChange={e => setEditingMatch({...editingMatch, venue: e.target.value})} />)}</div>
+                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Estadio</label>{editingMatch.is_neutral ? (<select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.venue || ''} onChange={e => handleNeutralStadiumChange(e.target.value)}><option value="">Seleccionar Estadio Neutral...</option>{distinctStadiums.map(s => <option key={s.stadium} value={s.stadium}>{s.stadium}</option>)}</select>) : (<input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.venue || ''} onChange={e => setEditingMatch({...editingMatch, venue: e.target.value})} />)}</div>
                     <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Ciudad</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.city || ''} onChange={e => setEditingMatch({...editingMatch, city: e.target.value})} /></div>
                 </div>
 
                {/* 7. Habilitation Window */}
-               {(editingMatch.isHome || editingMatch.isNeutral) && (
+               {(editingMatch.is_home || editingMatch.is_neutral) && (
                 <div className="bg-gradient-to-br from-[#001d4a] to-[#003B94] border border-[#FCB131]/30 rounded-xl p-4 relative overflow-hidden mt-4 shadow-lg">
                     <Ticket className="absolute top-2 right-2 text-white/5 w-24 h-24 rotate-12" />
                     <div className="flex items-center gap-2 mb-3 relative z-10">
@@ -299,15 +299,15 @@ export const Partidos = () => {
                         <div className="space-y-1">
                             <span className="text-[8px] font-black text-white/70 uppercase tracking-widest block mb-1">Apertura</span>
                             <div className="flex gap-2">
-                                <input type="date" className="flex-1 bg-white border border-transparent rounded-lg py-2 px-2 font-bold text-[10px] text-[#001d4a] outline-none focus:border-[#FCB131] transition-colors shadow-sm" value={editingMatch.aperturaDate?.split('/').reverse().join('-')} onChange={e => { const val = e.target.value; if(val) { const [y, m, d] = val.split('-'); setEditingMatch({...editingMatch, aperturaDate: `${d}/${m}/${y}`}) } }} />
-                                <input type="time" className="w-20 bg-white border border-transparent rounded-lg py-2 px-1 font-bold text-[10px] text-[#001d4a] outline-none text-center focus:border-[#FCB131] transition-colors shadow-sm" value={editingMatch.aperturaHour || ''} onChange={e => setEditingMatch({...editingMatch, aperturaHour: e.target.value})} />
+                                <input type="date" className="flex-1 bg-white border border-transparent rounded-lg py-2 px-2 font-bold text-[10px] text-[#001d4a] outline-none focus:border-[#FCB131] transition-colors shadow-sm" value={editingMatch.apertura_date?.split('/').reverse().join('-')} onChange={e => { const val = e.target.value; if(val) { const [y, m, d] = val.split('-'); setEditingMatch({...editingMatch, apertura_date: `${d}/${m}/${y}`}) } }} />
+                                <input type="time" className="w-20 bg-white border border-transparent rounded-lg py-2 px-1 font-bold text-[10px] text-[#001d4a] outline-none text-center focus:border-[#FCB131] transition-colors shadow-sm" value={editingMatch.apertura_hour || ''} onChange={e => setEditingMatch({...editingMatch, apertura_hour: e.target.value})} />
                             </div>
                         </div>
                         <div className="space-y-1">
                             <span className="text-[8px] font-black text-white/70 uppercase tracking-widest block mb-1">Cierre</span>
                             <div className="flex gap-2">
-                                <input type="date" className={`flex-1 bg-white border rounded-lg py-2 px-2 font-bold text-[10px] text-[#001d4a] outline-none transition-colors shadow-sm ${closingDateError ? 'border-red-500' : 'border-transparent focus:border-[#FCB131]'}`} value={editingMatch.cierreDate?.split('/').reverse().join('-')} onChange={e => { const val = e.target.value; if(val) { const [y, m, d] = val.split('-'); setEditingMatch({...editingMatch, cierreDate: `${d}/${m}/${y}`}) } }} />
-                                <input type="time" className="w-20 bg-white border border-transparent rounded-lg py-2 px-1 font-bold text-[10px] text-[#001d4a] outline-none text-center focus:border-[#FCB131] transition-colors shadow-sm" value={editingMatch.cierreHour || ''} onChange={e => setEditingMatch({...editingMatch, cierreHour: e.target.value})} />
+                                <input type="date" className={`flex-1 bg-white border rounded-lg py-2 px-2 font-bold text-[10px] text-[#001d4a] outline-none transition-colors shadow-sm ${closingDateError ? 'border-red-500' : 'border-transparent focus:border-[#FCB131]'}`} value={editingMatch.cierre_date?.split('/').reverse().join('-')} onChange={e => { const val = e.target.value; if(val) { const [y, m, d] = val.split('-'); setEditingMatch({...editingMatch, cierre_date: `${d}/${m}/${y}`}) } }} />
+                                <input type="time" className="w-20 bg-white border border-transparent rounded-lg py-2 px-1 font-bold text-[10px] text-[#001d4a] outline-none text-center focus:border-[#FCB131] transition-colors shadow-sm" value={editingMatch.cierre_hour || ''} onChange={e => setEditingMatch({...editingMatch, cierre_hour: e.target.value})} />
                             </div>
                         </div>
                     </div>

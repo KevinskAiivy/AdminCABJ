@@ -195,17 +195,17 @@ export const Consulados = () => {
           return sConsulado === targetName;
       }).map(s => ({
           value: s.name,
-          label: `${s.lastName.toUpperCase()}, ${s.firstName} (${s.id})`
+          label: `${s.last_name.toUpperCase()}, ${s.first_name} (${s.id})`
       })).sort((a, b) => a.label.localeCompare(b.label));
   }, [allSocios, editingConsulado.name]);
 
   const handleCreate = () => {
       setEditingConsulado({
           id: crypto.randomUUID(),
-          name: '', city: '', country: 'Argentina', isOfficial: false,
-          socialInstagram: '', socialFacebook: '', socialX: '', socialYouTube: '', socialTikTok: '', website: '',
+          name: '', city: '', country: 'Argentina', is_official: false,
+          social_instagram: '', social_facebook: '', social_x: '', social_youtube: '', social_tiktok: '', website: '',
           address: '', logo: '', banner: '',
-          president: '', vicePresident: '', secretary: '', treasurer: '', referente: '', vocal: ''
+          president: '', vice_president: '', secretary: '', treasurer: '', referente: '', vocal: ''
       });
       setActiveTab('INFO');
       setIsEditModalOpen(true);
@@ -231,9 +231,9 @@ export const Consulados = () => {
           name: (editingConsulado.name || '').trim(),
           city: (editingConsulado.city || '').trim(),
           country: (editingConsulado.country || 'Argentina').trim(),
-          countryCode: (editingConsulado.countryCode || '').trim(),
+          country_code: (editingConsulado.country_code || '').trim(),
           president: (editingConsulado.president || '').trim(),
-          vicePresident: editingConsulado.vicePresident?.trim() || undefined,
+          vice_president: editingConsulado.vice_president?.trim() || undefined,
           secretary: editingConsulado.secretary?.trim() || undefined,
           treasurer: editingConsulado.treasurer?.trim() || undefined,
           vocal: editingConsulado.vocal?.trim() || undefined,
@@ -241,19 +241,19 @@ export const Consulados = () => {
               ? editingConsulado.vocales.filter(v => v && v.trim()).map(v => v.trim())
               : undefined,
           referente: (editingConsulado.referente || '').trim(),
-          foundationYear: (editingConsulado.foundationYear || '').trim(),
+          foundation_year: (editingConsulado.foundation_year || '').trim(),
           address: (editingConsulado.address || '').trim(),
           timezone: (editingConsulado.timezone || 'UTC-03:00 (Buenos Aires)').trim(),
           banner: (editingConsulado.banner || '').trim(),
           logo: (editingConsulado.logo || '').trim(),
-          isOfficial: editingConsulado.isOfficial === true,
+          is_official: editingConsulado.is_official === true,
           email: editingConsulado.email?.trim() || undefined,
           phone: editingConsulado.phone?.trim() || undefined,
-          socialInstagram: editingConsulado.socialInstagram?.trim() || undefined,
-          socialFacebook: editingConsulado.socialFacebook?.trim() || undefined,
-          socialX: editingConsulado.socialX?.trim() || undefined,
-          socialTikTok: editingConsulado.socialTikTok?.trim() || undefined,
-          socialYouTube: editingConsulado.socialYouTube?.trim() || undefined,
+          social_instagram: editingConsulado.social_instagram?.trim() || undefined,
+          social_facebook: editingConsulado.social_facebook?.trim() || undefined,
+          social_x: editingConsulado.social_x?.trim() || undefined,
+          social_tiktok: editingConsulado.social_tiktok?.trim() || undefined,
+          social_youtube: editingConsulado.social_youtube?.trim() || undefined,
           website: editingConsulado.website?.trim() || undefined
       };
       
@@ -391,7 +391,7 @@ export const Consulados = () => {
             // Helper pour trouver le genre d'un socio par son nom
             const findSocioGender = (name: string): 'M' | 'F' | 'X' => {
                 if (!name) return 'M';
-                const socio = allSocios.find(s => s.name === name || `${s.firstName} ${s.lastName}` === name);
+                const socio = allSocios.find(s => s.name === name || `${s.first_name} ${s.last_name}` === name);
                 return socio?.gender || 'M';
             };
             
@@ -406,14 +406,14 @@ export const Consulados = () => {
             <div key={consulado.id} className="relative group">
                 <GlassCard 
                     onClick={handleCardClick}
-                    className={`p-0 overflow-hidden h-full flex flex-col rounded-[2.5rem] border transition-all duration-500 hover:-translate-y-2 backdrop-blur-xl cursor-pointer ${consulado.isOfficial ? 'bg-gradient-to-br from-[#FCB131] via-[#FFD23F] to-[#E6A800] border-[#001d4a]/20 shadow-[0_20px_50px_-10px_rgba(252,177,49,0.3)]' : 'bg-gradient-to-br from-white/90 via-white/70 to-white/40 border-white/60 shadow-[0_15px_40px_-5px_rgba(0,59,148,0.15)]'}`}>
+                    className={`p-0 overflow-hidden h-full flex flex-col rounded-[2.5rem] border transition-all duration-500 hover:-translate-y-2 backdrop-blur-xl cursor-pointer ${consulado.is_official ? 'bg-gradient-to-br from-[#FCB131] via-[#FFD23F] to-[#E6A800] border-[#001d4a]/20 shadow-[0_20px_50px_-10px_rgba(252,177,49,0.3)]' : 'bg-gradient-to-br from-white/90 via-white/70 to-white/40 border-white/60 shadow-[0_15px_40px_-5px_rgba(0,59,148,0.15)]'}`}>
                     <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent pointer-events-none z-10"></div>
                     <div className="h-36 relative shrink-0 overflow-hidden">
                         {consulado.banner ? (<img src={consulado.banner} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />) : (<div className="w-full h-full bg-gradient-to-br from-[#003B94] via-[#001d4a] to-black"></div>)}
                         <div className="absolute inset-0 bg-[#001d4a]/20 group-hover:bg-transparent transition-colors duration-500"></div>
-                        {consulado.isOfficial && (<div className="absolute top-3 right-3 bg-[#001d4a] w-10 h-10 rounded-full shadow-lg z-20 flex items-center justify-center border-2 border-[#FCB131] animate-in zoom-in duration-500"><Star size={18} className="text-[#FCB131] fill-[#FCB131] animate-pulse" /></div>)}
+                        {consulado.is_official && (<div className="absolute top-3 right-3 bg-[#001d4a] w-10 h-10 rounded-full shadow-lg z-20 flex items-center justify-center border-2 border-[#FCB131] animate-in zoom-in duration-500"><Star size={18} className="text-[#FCB131] fill-[#FCB131] animate-pulse" /></div>)}
                         <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-[-10px] group-hover:translate-y-0 z-30">
-                            <div className={`flex gap-2 ${consulado.isOfficial ? 'mr-12' : ''}`}>
+                            <div className={`flex gap-2 ${consulado.is_official ? 'mr-12' : ''}`}>
                                 <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleEdit(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white text-white hover:text-[#003B94] rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110"><Edit2 size={14} /></button>
                                 <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); requestDelete(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-red-500 text-white hover:text-white rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110"><Trash2 size={14} /></button>
                             </div>
@@ -424,19 +424,19 @@ export const Consulados = () => {
                             {consulado.logo ? (<img src={consulado.logo} className="w-full h-full object-cover" />) : (<Building2 className="text-[#003B94]/20" size={32} />)}
                         </div>
                         <div className="mb-4 space-y-1">
-                            <h3 className={`oswald text-xl font-black uppercase leading-tight line-clamp-2 drop-shadow-sm transition-colors ${consulado.isOfficial ? 'text-[#001d4a]' : 'text-[#001d4a] group-hover:text-[#003B94]'}`}>{consulado.name}</h3>
+                            <h3 className={`oswald text-xl font-black uppercase leading-tight line-clamp-2 drop-shadow-sm transition-colors ${consulado.is_official ? 'text-[#001d4a]' : 'text-[#001d4a] group-hover:text-[#003B94]'}`}>{consulado.name}</h3>
                             <div className="space-y-1">
-                                <div className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest w-fit px-2 py-1 rounded-lg ${consulado.isOfficial ? 'bg-[#001d4a]/10 text-[#001d4a]' : 'bg-[#003B94]/5 text-[#003B94]'}`}><MapPin size={10} /> {consulado.city}, {consulado.country}</div>
+                                <div className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest w-fit px-2 py-1 rounded-lg ${consulado.is_official ? 'bg-[#001d4a]/10 text-[#001d4a]' : 'bg-[#003B94]/5 text-[#003B94]'}`}><MapPin size={10} /> {consulado.city}, {consulado.country}</div>
                                 {consulado.address && (<div className="flex items-center gap-1.5 text-[9px] font-bold text-gray-500/80 uppercase tracking-wide truncate pl-1"><div className="w-1 h-1 rounded-full bg-current"></div><span className="truncate">{consulado.address}</span></div>)}
                             </div>
                         </div>
-                        <div className={`mt-auto pt-4 border-t ${consulado.isOfficial ? 'border-[#001d4a]/10' : 'border-[#003B94]/5'}`}>
+                        <div className={`mt-auto pt-4 border-t ${consulado.is_official ? 'border-[#001d4a]/10' : 'border-[#003B94]/5'}`}>
                             <div className="grid grid-cols-3 gap-2">
                                 <div className="flex flex-col items-center justify-center p-2 bg-white/40 rounded-xl border border-white/50 shadow-sm"><Users size={14} className="text-[#003B94] mb-1 opacity-70"/><span className="text-xl font-black text-[#001d4a] oswald leading-none">{memberCount}</span><span className="text-[6px] font-bold text-gray-500 uppercase tracking-widest">Socios</span></div>
                                 <div className="col-span-2 flex flex-col justify-center p-2 bg-white/40 rounded-xl border border-white/50 px-3 shadow-sm">
                                     <span className="text-[6px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">{getGenderRoleLabel('PRESIDENTE', presidentGender)}</span>
                                     <span className="text-[9px] font-black text-[#001d4a] uppercase truncate" title={consulado.president}>{consulado.president || 'Vacante'}</span>
-                                    {consulado.foundationYear && (<span className="text-[7px] font-bold text-gray-400 mt-1 uppercase tracking-wide">Fundado: {consulado.foundationYear.includes('/') ? consulado.foundationYear : (consulado.foundationYear.length === 4 ? `01/01/${consulado.foundationYear}` : consulado.foundationYear)}</span>)}
+                                    {consulado.foundation_year && (<span className="text-[7px] font-bold text-gray-400 mt-1 uppercase tracking-wide">Fundado: {consulado.foundation_year.includes('/') ? consulado.foundation_year : (consulado.foundation_year.length === 4 ? `01/01/${consulado.foundation_year}` : consulado.foundation_year)}</span>)}
                                 </div>
                             </div>
                         </div>
@@ -474,12 +474,12 @@ export const Consulados = () => {
 
                 <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-white">
                     {activeTab === 'INFO' && ( <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <div onClick={() => setEditingConsulado({...editingConsulado, isOfficial: !editingConsulado.isOfficial})} className={`w-full p-3 rounded-xl border-2 cursor-pointer transition-all duration-300 flex items-center justify-between group ${editingConsulado.isOfficial ? 'bg-[#001d4a] border-[#FCB131] shadow-md' : 'bg-gray-50 border-gray-200 hover:border-blue-200'}`}>
+                        <div onClick={() => setEditingConsulado({...editingConsulado, is_official: !editingConsulado.is_official})} className={`w-full p-3 rounded-xl border-2 cursor-pointer transition-all duration-300 flex items-center justify-between group ${editingConsulado.is_official ? 'bg-[#001d4a] border-[#FCB131] shadow-md' : 'bg-gray-50 border-gray-200 hover:border-blue-200'}`}>
                             <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg transition-colors ${editingConsulado.isOfficial ? 'bg-[#FCB131] text-[#001d4a]' : 'bg-white text-gray-400 shadow-sm'}`}><ShieldCheck size={16} /></div>
-                                <div><span className={`block text-[9px] font-black uppercase tracking-widest ${editingConsulado.isOfficial ? 'text-white' : 'text-gray-500'}`}>Estatus de Oficialidad</span><span className={`block text-[8px] font-bold ${editingConsulado.isOfficial ? 'text-[#FCB131]' : 'text-gray-400'}`}>{editingConsulado.isOfficial ? 'Reconocido Oficialmente' : 'En formación / No Oficial'}</span></div>
+                                <div className={`p-2 rounded-lg transition-colors ${editingConsulado.is_official ? 'bg-[#FCB131] text-[#001d4a]' : 'bg-white text-gray-400 shadow-sm'}`}><ShieldCheck size={16} /></div>
+                                <div><span className={`block text-[9px] font-black uppercase tracking-widest ${editingConsulado.is_official ? 'text-white' : 'text-gray-500'}`}>Estatus de Oficialidad</span><span className={`block text-[8px] font-bold ${editingConsulado.is_official ? 'text-[#FCB131]' : 'text-gray-400'}`}>{editingConsulado.is_official ? 'Reconocido Oficialmente' : 'En formación / No Oficial'}</span></div>
                             </div>
-                            <div className="relative"><Star size={20} className={`transition-all duration-500 ${editingConsulado.isOfficial ? 'text-[#FCB131] fill-[#FCB131] scale-110 rotate-[360deg] drop-shadow-md' : 'text-gray-300'}`} /></div>
+                            <div className="relative"><Star size={20} className={`transition-all duration-500 ${editingConsulado.is_official ? 'text-[#FCB131] fill-[#FCB131] scale-110 rotate-[360deg] drop-shadow-md' : 'text-gray-300'}`} /></div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Nombre del Consulado</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" value={editingConsulado.name} onChange={e => setEditingConsulado({...editingConsulado, name: e.target.value})} placeholder="Ej: Consulado Madrid" /></div>
@@ -490,7 +490,7 @@ export const Consulados = () => {
                                 <input 
                                     type="text" 
                                     className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94] tracking-widest" 
-                                    value={editingConsulado.foundationYear || ''} 
+                                    value={editingConsulado.foundation_year || ''} 
                                     onChange={e => {
                                         let value = e.target.value.replace(/\D/g, '');
                                         if (value.length > 0) {
@@ -502,7 +502,7 @@ export const Consulados = () => {
                                                 value = value.slice(0, 2) + '/' + value.slice(2, 4) + '/' + value.slice(4, 8);
                                             }
                                         }
-                                        setEditingConsulado({...editingConsulado, foundationYear: value});
+                                        setEditingConsulado({...editingConsulado, foundation_year: value});
                                     }}
                                     placeholder="DD/MM/AAAA" 
                                     maxLength={10} 
@@ -512,11 +512,11 @@ export const Consulados = () => {
                     </div> )}
                     {activeTab === 'SOCIAL' && ( <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Instagram size={10}/> Instagram</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.socialInstagram || ''} onChange={e => setEditingConsulado({...editingConsulado, socialInstagram: e.target.value})} placeholder="@usuario" /></div>
-                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Facebook size={10}/> Facebook</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.socialFacebook || ''} onChange={e => setEditingConsulado({...editingConsulado, socialFacebook: e.target.value})} placeholder="facebook.com/..." /></div>
-                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Twitter size={10}/> Twitter / X</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.socialX || ''} onChange={e => setEditingConsulado({...editingConsulado, socialX: e.target.value})} placeholder="@usuario" /></div>
-                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Youtube size={10}/> YouTube</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.socialYouTube || ''} onChange={e => setEditingConsulado({...editingConsulado, socialYouTube: e.target.value})} placeholder="youtube.com/..." /></div>
-                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Video size={10}/> TikTok</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.socialTikTok || ''} onChange={e => setEditingConsulado({...editingConsulado, socialTikTok: e.target.value})} placeholder="@usuario" /></div>
+                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Instagram size={10}/> Instagram</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.social_instagram || ''} onChange={e => setEditingConsulado({...editingConsulado, social_instagram: e.target.value})} placeholder="@usuario" /></div>
+                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Facebook size={10}/> Facebook</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.social_facebook || ''} onChange={e => setEditingConsulado({...editingConsulado, social_facebook: e.target.value})} placeholder="facebook.com/..." /></div>
+                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Twitter size={10}/> Twitter / X</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.social_x || ''} onChange={e => setEditingConsulado({...editingConsulado, social_x: e.target.value})} placeholder="@usuario" /></div>
+                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Youtube size={10}/> YouTube</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.social_youtube || ''} onChange={e => setEditingConsulado({...editingConsulado, social_youtube: e.target.value})} placeholder="youtube.com/..." /></div>
+                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Video size={10}/> TikTok</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.social_tiktok || ''} onChange={e => setEditingConsulado({...editingConsulado, social_tiktok: e.target.value})} placeholder="@usuario" /></div>
                             <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><LinkIcon size={10}/> Sitio Web</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:border-[#003B94]" value={editingConsulado.website || ''} onChange={e => setEditingConsulado({...editingConsulado, website: e.target.value})} placeholder="www.consulado.com" /></div>
                         </div>
                     </div> )}
@@ -532,8 +532,8 @@ export const Consulados = () => {
                             <h3 className="text-[#FCB131] text-[9px] font-black uppercase tracking-widest mb-3 border-b border-white/10 pb-1 flex items-center gap-2"><Star size={10} fill="currentColor"/> Alta Dirección</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 {(() => {
-                                    const presidentSocio = allSocios.find(s => s.name === editingConsulado.president || `${s.firstName} ${s.lastName}` === editingConsulado.president);
-                                    const referenteSocio = allSocios.find(s => s.name === editingConsulado.referente || `${s.firstName} ${s.lastName}` === editingConsulado.referente);
+                                    const presidentSocio = allSocios.find(s => s.name === editingConsulado.president || `${s.first_name} ${s.last_name}` === editingConsulado.president);
+                                    const referenteSocio = allSocios.find(s => s.name === editingConsulado.referente || `${s.first_name} ${s.last_name}` === editingConsulado.referente);
                                     return (
                                         <>
                                             <CustomSelect label={getGenderRoleLabel('PRESIDENTE', presidentSocio?.gender || 'M')} value={editingConsulado.president || ''} onChange={(val) => setEditingConsulado({...editingConsulado, president: val})} options={[{value: '', label: 'Vacante'}, ...boardCandidates]} searchable placeholder="Asignar..." className="text-white" />
@@ -546,7 +546,7 @@ export const Consulados = () => {
                         <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                            <h3 className="text-[#001d4a] text-[9px] font-black uppercase tracking-widest mb-3 border-b border-gray-200 pb-1">Comisión Directiva</h3>
                            <div className="grid grid-cols-2 gap-4">
-                               <CustomSelect label="Vicepresidente" value={editingConsulado.vicePresident || ''} onChange={(val) => setEditingConsulado({...editingConsulado, vicePresident: val})} options={[{value: '', label: 'Vacante'}, ...boardCandidates]} searchable />
+                               <CustomSelect label="Vicepresidente" value={editingConsulado.vice_president || ''} onChange={(val) => setEditingConsulado({...editingConsulado, vice_president: val})} options={[{value: '', label: 'Vacante'}, ...boardCandidates]} searchable />
                                <CustomSelect label="Secretario" value={editingConsulado.secretary || ''} onChange={(val) => setEditingConsulado({...editingConsulado, secretary: val})} options={[{value: '', label: 'Vacante'}, ...boardCandidates]} searchable />
                                <CustomSelect label="Tesorero" value={editingConsulado.treasurer || ''} onChange={(val) => setEditingConsulado({...editingConsulado, treasurer: val})} options={[{value: '', label: 'Vacante'}, ...boardCandidates]} searchable />
                                <CustomSelect label="Vocal" value={editingConsulado.vocal || ''} onChange={(val) => setEditingConsulado({...editingConsulado, vocal: val})} options={[{value: '', label: 'Vacante'}, ...boardCandidates]} searchable />

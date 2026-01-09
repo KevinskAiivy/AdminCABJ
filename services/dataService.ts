@@ -8,253 +8,261 @@ export interface IntegrityResult {
   latency: number;
 }
 
-// --- MAPPING HELPERS (DB snake_case <-> App camelCase) ---
+export interface TableSchema {
+  table: string;
+  columns: Array<{
+    name: string;
+    type: string;
+    nullable: boolean;
+    default?: any;
+  }>;
+}
 
-const mapSocioFromDB = (db: any): Socio => ({
+export interface FieldMapping {
+  dbField: string; // snake_case from database
+  appField: string; // camelCase in application
+  type: string;
+  nullable: boolean;
+  description?: string;
+}
+
+// --- HELPERS (Snake_case uniquement - pas de conversion) ---
+
+// Helper pour nettoyer et normaliser les données de la DB (déjà en snake_case)
+const normalizeSocio = (db: any): Socio => ({
     id: db.id || '',
-    firstName: db.first_name || '',
-    lastName: db.last_name || '',
+    numero_socio: db.numero_socio || db.id || '',
+    first_name: db.first_name || '',
+    last_name: db.last_name || '',
     name: `${db.first_name || ''} ${db.last_name || ''}`.trim() || '',
-    numeroSocio: db.numero_socio || db.id || '',
     dni: db.dni || '',
-    category: db.category || 'ADHERENTE',
-    status: db.status || 'AL DÍA',
+    category: db.category || 'ADHERENTE', // Catégorie de socio
+    status: db.status || 'AL DÍA', // Estado de cuota
     email: db.email || '',
-    phone: db.phone || '',
-    phoneSecondary: db.phone_secondary || undefined,
+    phone: db.phone || '', // Format international avec indicatif
     gender: (db.gender === 'M' || db.gender === 'F' || db.gender === 'X') ? db.gender : 'M',
     nationality: db.nationality || undefined,
-    birthDate: db.birth_date || '',
-    joinDate: db.join_date || '',
-    lastMonthPaid: db.last_month_paid || '',
-    emergencyContact: db.emergency_contact || undefined,
+    birth_date: db.birth_date || '',
+    join_date: db.join_date || '',
+    last_month_paid: db.last_month_paid || '',
     consulado: db.consulado_name && db.consulado_name.trim() !== '' ? db.consulado_name : undefined,
     role: db.role || 'SOCIO',
-    avatarColor: db.avatar_color || 'bg-blue-500',
-    expirationDate: db.expiration_date || '',
-    instagram: db.instagram || undefined,
-    facebook: db.facebook || undefined,
+    avatar_color: db.avatar_color || 'bg-blue-500',
+    expiration_date: db.expiration_date || '',
     twitter: db.twitter || undefined,
-    youtube: db.youtube || undefined,
-    avatar: db.avatar || undefined
+    youtube: db.youtube || undefined
 });
 
+// Pour compatibilité, garder les noms mais utiliser directement les données snake_case
+const mapSocioFromDB = normalizeSocio;
 const mapSocioToDB = (s: Partial<Socio>) => {
-    const payload: any = {};
-    if (s.firstName !== undefined) payload.first_name = s.firstName || '';
-    if (s.lastName !== undefined) payload.last_name = s.lastName || '';
-    if (s.numeroSocio !== undefined) payload.numero_socio = s.numeroSocio || null;
-    if (s.dni !== undefined) payload.dni = s.dni || '';
-    if (s.category !== undefined) payload.category = s.category || 'ADHERENTE';
-    if (s.status !== undefined) payload.status = s.status || 'AL DÍA';
-    if (s.email !== undefined) payload.email = s.email || '';
-    if (s.phone !== undefined) payload.phone = s.phone || '';
-    if (s.phoneSecondary !== undefined) payload.phone_secondary = s.phoneSecondary || null;
-    if (s.gender !== undefined) payload.gender = s.gender || 'M';
-    if (s.nationality !== undefined) payload.nationality = s.nationality || null;
-    if (s.birthDate !== undefined) payload.birth_date = s.birthDate || null; // Ensure YYYY-MM-DD
-    if (s.joinDate !== undefined) payload.join_date = s.joinDate || null;
-    if (s.lastMonthPaid !== undefined) payload.last_month_paid = s.lastMonthPaid || null;
-    if (s.emergencyContact !== undefined) payload.emergency_contact = s.emergencyContact || null;
-    if (s.consulado !== undefined) payload.consulado_name = s.consulado || null;
-    if (s.role !== undefined) payload.role = s.role || 'SOCIO';
-    if (s.avatarColor !== undefined) payload.avatar_color = s.avatarColor || 'bg-blue-500';
-    if (s.expirationDate !== undefined) payload.expiration_date = s.expirationDate || null;
-    if (s.instagram !== undefined) payload.instagram = s.instagram || null;
-    if (s.facebook !== undefined) payload.facebook = s.facebook || null;
-    if (s.twitter !== undefined) payload.twitter = s.twitter || null;
-    if (s.youtube !== undefined) payload.youtube = s.youtube || null;
-    if (s.avatar !== undefined) payload.avatar = s.avatar || null;
+    const payload: any = { ...s };
+    // Assurer que name est calculé si nécessaire
+    if (!payload.name && payload.first_name && payload.last_name) {
+        payload.name = `${payload.first_name} ${payload.last_name}`.trim();
+    }
+    // Nettoyer les valeurs undefined -> null pour la DB
+    Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined) payload[key] = null;
+    });
     return payload;
 };
 
-const mapConsuladoFromDB = (db: any): Consulado => {
-    // Helper pour convertir vocales (peut être string JSON, array, ou null)
-    const parseVocales = (value: any): string[] | undefined => {
-        if (!value) return undefined;
-        if (Array.isArray(value)) return value.filter(v => v && typeof v === 'string');
-        if (typeof value === 'string') {
-            try {
-                const parsed = JSON.parse(value);
-                return Array.isArray(parsed) ? parsed.filter(v => v && typeof v === 'string') : undefined;
-            } catch {
-                // Si ce n'est pas du JSON valide, traiter comme une chaîne simple
-                return value.trim() ? [value.trim()] : undefined;
-            }
+// Helper pour parser vocales (peut être string JSON, array, ou null)
+const parseVocales = (value: any): string[] | undefined => {
+    if (!value) return undefined;
+    if (Array.isArray(value)) return value.filter(v => v && typeof v === 'string');
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed.filter(v => v && typeof v === 'string') : undefined;
+        } catch {
+            return value.trim() ? [value.trim()] : undefined;
         }
-        return undefined;
-    };
+    }
+    return undefined;
+};
 
-    // Helper pour convertir boolean de manière sûre
-    const parseBoolean = (value: any, defaultValue: boolean = false): boolean => {
-        if (value === null || value === undefined) return defaultValue;
-        if (typeof value === 'boolean') return value;
-        if (typeof value === 'string') {
-            const lower = value.toLowerCase().trim();
-            return lower === 'true' || lower === '1' || lower === 'yes';
+// Helper pour convertir boolean de manière sûre
+const parseBoolean = (value: any, defaultValue: boolean = false): boolean => {
+    if (value === null || value === undefined) return defaultValue;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+        const lower = value.toLowerCase().trim();
+        return lower === 'true' || lower === '1' || lower === 'yes';
+    }
+    if (typeof value === 'number') return value !== 0;
+    return defaultValue;
+};
+
+// Helper pour nettoyer les chaînes
+const cleanString = (value: any, defaultValue: string = ''): string => {
+    if (value === null || value === undefined) return defaultValue;
+    const str = String(value).trim();
+    return str || defaultValue;
+};
+
+// Helper pour les chaînes optionnelles
+const cleanOptionalString = (value: any): string | undefined => {
+    if (value === null || value === undefined) return undefined;
+    const str = String(value).trim();
+    return str || undefined;
+};
+
+const mapConsuladoFromDB = (db: any): Consulado | null => {
+    // Si db est null ou undefined, retourner null
+    if (!db || typeof db !== 'object') {
+        console.warn("⚠️ mapConsuladoFromDB: données invalides (null/undefined)", db);
+        return null;
+    }
+    
+    // S'assurer que l'ID existe (obligatoire pour identifier un consulado)
+    const consuladoId = db.id || crypto.randomUUID();
+    if (!consuladoId) {
+        console.warn("⚠️ mapConsuladoFromDB: ID manquant, génération d'un nouvel ID", db);
+    }
+    
+    try {
+        // S'assurer que tous les champs requis ont des valeurs valides
+        const mapped: Consulado = {
+            id: consuladoId,
+            name: cleanString(db.name),
+            city: cleanString(db.city),
+            country: cleanString(db.country, 'Argentina'),
+            country_code: cleanString(db.country_code) || 'AR',
+            president: cleanString(db.president),
+            referente: cleanString(db.referente),
+            foundation_year: cleanString(db.foundation_year),
+            address: cleanString(db.address),
+            timezone: cleanString(db.timezone, 'UTC-03:00 (Buenos Aires)'),
+            banner: cleanString(db.banner),
+            logo: cleanString(db.logo),
+            // Champs optionnels
+            vice_president: cleanOptionalString(db.vice_president),
+            secretary: cleanOptionalString(db.secretary),
+            treasurer: cleanOptionalString(db.treasurer),
+            vocal: cleanOptionalString(db.vocal),
+            vocales: parseVocales(db.vocales),
+            is_official: parseBoolean(db.is_official, false),
+            email: cleanOptionalString(db.email),
+            phone: cleanOptionalString(db.phone),
+            social_instagram: cleanOptionalString(db.social_instagram),
+            social_facebook: cleanOptionalString(db.social_facebook),
+            social_x: cleanOptionalString(db.social_x),
+            social_tiktok: cleanOptionalString(db.social_tiktok),
+            social_youtube: cleanOptionalString(db.social_youtube),
+            website: cleanOptionalString(db.website)
+        };
+        
+        // Validation : s'assurer que les champs requis critiques ont des valeurs
+        if (!mapped.name || mapped.name.trim() === '') {
+            mapped.name = `Consulado ${mapped.id.slice(0, 8)}`; // Nom par défaut basé sur l'ID
+            console.warn(`⚠️ Consulado ${mapped.id} n'a pas de nom, utilisation d'un nom par défaut`);
         }
-        if (typeof value === 'number') return value !== 0;
-        return defaultValue;
-    };
-
-    // Helper pour nettoyer les chaînes (trim et gérer les valeurs vides)
-    const cleanString = (value: any, defaultValue: string = ''): string => {
-        if (value === null || value === undefined) return defaultValue;
-        const str = String(value).trim();
-        return str || defaultValue;
-    };
-
-    // Helper pour les chaînes optionnelles
-    const cleanOptionalString = (value: any): string | undefined => {
-        if (value === null || value === undefined) return undefined;
-        const str = String(value).trim();
-        return str || undefined;
-    };
-
-    return {
-        id: db.id || crypto.randomUUID(),
-        name: cleanString(db.name),
-        city: cleanString(db.city),
-        country: cleanString(db.country, 'Argentina'),
-        countryCode: cleanString(db.country_code),
-        president: cleanString(db.president),
-        vicePresident: cleanOptionalString(db.vice_president),
-        secretary: cleanOptionalString(db.secretary),
-        treasurer: cleanOptionalString(db.treasurer),
-        vocal: cleanOptionalString(db.vocal),
-        vocales: parseVocales(db.vocales),
-        referente: cleanString(db.referente),
-        foundationYear: cleanString(db.foundation_year),
-        address: cleanString(db.address),
-        timezone: cleanString(db.timezone, 'UTC-03:00 (Buenos Aires)'),
-        banner: cleanString(db.banner),
-        logo: cleanString(db.logo),
-        isOfficial: parseBoolean(db.is_official, false),
-        email: cleanOptionalString(db.email),
-        phone: cleanOptionalString(db.phone),
-        socialInstagram: cleanOptionalString(db.social_instagram),
-        socialFacebook: cleanOptionalString(db.social_facebook),
-        socialX: cleanOptionalString(db.social_x),
-        socialTikTok: cleanOptionalString(db.social_tiktok),
-        socialYouTube: cleanOptionalString(db.social_youtube),
-        website: cleanOptionalString(db.website)
-    };
+        if (!mapped.country_code || mapped.country_code.trim() === '') {
+            mapped.country_code = 'AR';
+        }
+        
+        return mapped;
+    } catch (error: any) {
+        console.error("❌ Erreur lors du mapping d'un consulado:", error, db);
+        return null;
+    }
 };
 
 const mapConsuladoToDB = (c: Partial<Consulado>) => {
-    const payload: any = {};
+    const payload: any = { ...c };
     
-    // Helper pour nettoyer les chaînes avant envoi
-    const cleanString = (value: any, defaultValue: string = ''): string => {
-        if (value === null || value === undefined) return defaultValue;
-        const str = String(value).trim();
-        return str || defaultValue;
-    };
-
-    // Helper pour les valeurs optionnelles (null si vide)
-    const cleanOptional = (value: any): string | null => {
-        if (value === null || value === undefined) return null;
-        const str = String(value).trim();
-        return str || null;
-    };
-
-    // Helper pour convertir vocales array en format DB (JSON string ou array selon la DB)
-    const formatVocales = (value: string[] | undefined): string[] | null => {
-        if (!value || !Array.isArray(value)) return null;
-        const filtered = value.filter(v => v && typeof v === 'string' && v.trim());
-        return filtered.length > 0 ? filtered : null;
-    };
-
-    // Champs obligatoires avec valeurs par défaut
-    if (c.name !== undefined) payload.name = cleanString(c.name);
-    if (c.city !== undefined) payload.city = cleanString(c.city);
-    if (c.country !== undefined) payload.country = cleanString(c.country, 'Argentina');
-    if (c.countryCode !== undefined) payload.country_code = cleanString(c.countryCode);
-    if (c.president !== undefined) payload.president = cleanString(c.president);
-    if (c.referente !== undefined) payload.referente = cleanString(c.referente);
-    if (c.foundationYear !== undefined) payload.foundation_year = cleanString(c.foundationYear);
-    if (c.address !== undefined) payload.address = cleanString(c.address);
-    if (c.timezone !== undefined) payload.timezone = cleanString(c.timezone, 'UTC-03:00 (Buenos Aires)');
-    if (c.banner !== undefined) payload.banner = cleanString(c.banner);
-    if (c.logo !== undefined) payload.logo = cleanString(c.logo);
-
-    // Champs optionnels (null si vide)
-    if (c.vicePresident !== undefined) payload.vice_president = cleanOptional(c.vicePresident);
-    if (c.secretary !== undefined) payload.secretary = cleanOptional(c.secretary);
-    if (c.treasurer !== undefined) payload.treasurer = cleanOptional(c.treasurer);
-    if (c.vocal !== undefined) payload.vocal = cleanOptional(c.vocal);
-    if (c.vocales !== undefined) payload.vocales = formatVocales(c.vocales);
-    if (c.email !== undefined) payload.email = cleanOptional(c.email);
-    if (c.phone !== undefined) payload.phone = cleanOptional(c.phone);
-    if (c.socialInstagram !== undefined) payload.social_instagram = cleanOptional(c.socialInstagram);
-    if (c.socialFacebook !== undefined) payload.social_facebook = cleanOptional(c.socialFacebook);
-    if (c.socialX !== undefined) payload.social_x = cleanOptional(c.socialX);
-    if (c.socialTikTok !== undefined) payload.social_tiktok = cleanOptional(c.socialTikTok);
-    if (c.socialYouTube !== undefined) payload.social_youtube = cleanOptional(c.socialYouTube);
-    if (c.website !== undefined) payload.website = cleanOptional(c.website);
-
-    // Boolean avec conversion explicite
-    if (c.isOfficial !== undefined) {
-        payload.is_official = Boolean(c.isOfficial);
+    // Liste des champs requis (ne doivent pas être null, peuvent être strings vides)
+    const requiredFields = ['id', 'name', 'city', 'country', 'country_code', 'president', 'referente', 'foundation_year', 'address', 'timezone', 'banner', 'logo'];
+    
+    // Liste des champs optionnels (peuvent être null)
+    const optionalFields = ['vice_president', 'secretary', 'treasurer', 'vocal', 'vocales', 'email', 'phone', 'social_instagram', 'social_facebook', 'social_x', 'social_tiktok', 'social_youtube', 'website', 'is_official'];
+    
+    // Nettoyer les valeurs
+    Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined) {
+            // Pour les champs requis, utiliser une valeur par défaut si undefined
+            if (requiredFields.includes(key)) {
+                if (key === 'id') payload[key] = crypto.randomUUID();
+                else if (key === 'timezone') payload[key] = 'UTC-03:00 (Buenos Aires)';
+                else if (key === 'country') payload[key] = 'Argentina';
+                else if (key === 'country_code') payload[key] = 'AR';
+                else payload[key] = '';
+            } else {
+                // Pour les champs optionnels, mettre null
+                payload[key] = null;
+            }
+        } else if (typeof payload[key] === 'string' && payload[key].trim() === '') {
+            // Pour les champs optionnels, convertir les strings vides en null
+            // Pour les champs requis, garder la string vide
+            if (optionalFields.includes(key)) {
+                payload[key] = null;
+            }
+            // Les champs requis restent des strings vides
+        }
+    });
+    
+    // Assurer le format des vocales
+    if (payload.vocales !== null && payload.vocales !== undefined) {
+        if (Array.isArray(payload.vocales)) {
+            payload.vocales = payload.vocales.filter(v => v && typeof v === 'string' && v.trim());
+            if (payload.vocales.length === 0) payload.vocales = null;
+        } else {
+            payload.vocales = null;
+        }
     }
-
+    
+    // Assurer les valeurs par défaut pour les champs requis manquants
+    requiredFields.forEach(field => {
+        if (payload[field] === undefined || payload[field] === null) {
+            if (field === 'id') payload[field] = crypto.randomUUID();
+            else if (field === 'timezone') payload[field] = 'UTC-03:00 (Buenos Aires)';
+            else if (field === 'country') payload[field] = 'Argentina';
+            else if (field === 'country_code') payload[field] = 'AR';
+            else payload[field] = '';
+        }
+    });
+    
     return payload;
 };
 
-const mapMatchFromDB = (db: any): Match => {
-    // Helper pour convertir l'ID en number
-    const parseId = (id: any): number => {
-        if (typeof id === 'number') return id;
-        if (typeof id === 'string') {
-            const parsed = parseInt(id, 10);
-            return isNaN(parsed) ? 0 : parsed;
-        }
-        return 0;
-    };
-
-    return {
-        id: parseId(db.id),
-        rival: db.rival || '',
-        rivalShort: db.rival_short || '',
-        rivalCountry: db.rival_country || '',
-        competition: db.competition || '',
-        date: db.date || '',
-        hour: db.hour || '',
-        venue: db.venue || '',
-        city: db.city || '',
-        isHome: db.is_home !== undefined ? Boolean(db.is_home) : false,
-        isNeutral: db.is_neutral !== undefined ? Boolean(db.is_neutral) : false,
-        fechaJornada: db.fecha_jornada || '',
-        isSuspended: db.is_suspended !== undefined ? Boolean(db.is_suspended) : false,
-        aperturaDate: db.apertura_date || '',
-        aperturaHour: db.apertura_hour || '',
-        cierreDate: db.cierre_date || '',
-        cierreHour: db.cierre_hour || '',
-        competitionId: db.competition_id || undefined,
-        rivalId: db.rival_id || undefined
-    };
+const parseId = (id: any): number => {
+    if (typeof id === 'number') return id;
+    if (typeof id === 'string') {
+        const parsed = parseInt(id, 10);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
 };
 
+const mapMatchFromDB = (db: any): Match => ({
+    id: parseId(db.id),
+    rival_id: db.rival_id || undefined,
+    competition_id: db.competition_id || undefined,
+    rival: db.rival || '',
+    rival_short: db.rival_short || '',
+    rival_country: db.rival_country || '',
+    competition: db.competition || '',
+    date: db.date || '',
+    hour: db.hour || '',
+    venue: db.venue || '',
+    city: db.city || '',
+    is_home: db.is_home !== undefined ? Boolean(db.is_home) : false,
+    is_neutral: db.is_neutral !== undefined ? Boolean(db.is_neutral) : false,
+    fecha_jornada: db.fecha_jornada || '',
+    is_suspended: db.is_suspended !== undefined ? Boolean(db.is_suspended) : false,
+    apertura_date: db.apertura_date || '',
+    apertura_hour: db.apertura_hour || '',
+    cierre_date: db.cierre_date || '',
+    cierre_hour: db.cierre_hour || ''
+});
+
 const mapMatchToDB = (m: Partial<Match>) => {
-    const payload: any = {};
-    if (m.rival !== undefined) payload.rival = m.rival || '';
-    if (m.rivalShort !== undefined) payload.rival_short = m.rivalShort || '';
-    if (m.rivalCountry !== undefined) payload.rival_country = m.rivalCountry || '';
-    if (m.competition !== undefined) payload.competition = m.competition || '';
-    if (m.date !== undefined) payload.date = m.date || null;
-    if (m.hour !== undefined) payload.hour = m.hour || null;
-    if (m.venue !== undefined) payload.venue = m.venue || null;
-    if (m.city !== undefined) payload.city = m.city || null;
-    if (m.isHome !== undefined) payload.is_home = Boolean(m.isHome);
-    if (m.isNeutral !== undefined) payload.is_neutral = Boolean(m.isNeutral !== undefined ? m.isNeutral : false);
-    if (m.fechaJornada !== undefined) payload.fecha_jornada = m.fechaJornada || null;
-    if (m.isSuspended !== undefined) payload.is_suspended = Boolean(m.isSuspended !== undefined ? m.isSuspended : false);
-    if (m.aperturaDate !== undefined) payload.apertura_date = m.aperturaDate || null;
-    if (m.aperturaHour !== undefined) payload.apertura_hour = m.aperturaHour || null;
-    if (m.cierreDate !== undefined) payload.cierre_date = m.cierreDate || null;
-    if (m.cierreHour !== undefined) payload.cierre_hour = m.cierreHour || null;
-    if (m.competitionId !== undefined) payload.competition_id = m.competitionId || null;
-    if (m.rivalId !== undefined) payload.rival_id = m.rivalId || null;
+    const payload: any = { ...m };
+    Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined) payload[key] = null;
+    });
     return payload;
 };
 
@@ -262,8 +270,8 @@ const mapMatchToDB = (m: Partial<Match>) => {
 const mapTeamFromDB = (db: any): Team => ({
     id: db.id || crypto.randomUUID(),
     name: db.name || '',
-    shortName: db.short_name || db.shortName || '',
-    countryId: db.country_id || db.countryId || 'AR',
+    short_name: db.short_name || '',
+    country_id: db.country_id || 'AR',
     confederation: (db.confederation === 'CONMEBOL' || db.confederation === 'UEFA' || db.confederation === 'OTHER') 
         ? db.confederation 
         : 'CONMEBOL',
@@ -273,14 +281,10 @@ const mapTeamFromDB = (db: any): Team => ({
 });
 
 const mapTeamToDB = (t: Partial<Team>) => {
-    const payload: any = {};
-    if (t.name !== undefined) payload.name = t.name || '';
-    if (t.shortName !== undefined) payload.short_name = t.shortName || '';
-    if (t.countryId !== undefined) payload.country_id = t.countryId || 'AR';
-    if (t.confederation !== undefined) payload.confederation = t.confederation || 'CONMEBOL';
-    if (t.city !== undefined) payload.city = t.city || null;
-    if (t.stadium !== undefined) payload.stadium = t.stadium || null;
-    if (t.logo !== undefined) payload.logo = t.logo || null;
+    const payload: any = { ...t };
+    Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined) payload[key] = null;
+    });
     return payload;
 };
 
@@ -305,55 +309,46 @@ const mapCompetitionToDB = (c: Partial<Competition>) => {
 };
 
 // Mapping pour Mensajes
-const mapMensajeFromDB = (db: any): Mensaje => {
-    // Helper pour parser target_ids (peut être JSON string ou array)
-    const parseTargetIds = (value: any): string[] | undefined => {
-        if (!value) return undefined;
-        if (Array.isArray(value)) return value;
-        if (typeof value === 'string') {
-            try {
-                const parsed = JSON.parse(value);
-                return Array.isArray(parsed) ? parsed : undefined;
-            } catch {
-                return undefined;
-            }
+const parseTargetIds = (value: any): string[] | undefined => {
+    if (!value) return undefined;
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : undefined;
+        } catch {
+            return undefined;
         }
-        return undefined;
-    };
-
-    return {
-        id: db.id || crypto.randomUUID(),
-        title: db.title || '',
-        body: db.body || '',
-        targetConsuladoId: db.target_consulado_id || 'ALL',
-        targetIds: parseTargetIds(db.target_ids),
-        targetConsuladoName: db.target_consulado_name || 'Todos',
-        type: (db.type === 'INSTITUCIONAL' || db.type === 'URGENTE' || db.type === 'CONSULAR') 
-            ? db.type 
-            : 'INSTITUCIONAL',
-        date: db.date || '',
-        startDate: db.start_date || undefined,
-        endDate: db.end_date || undefined,
-        created_at: db.created_at || Date.now(),
-        archived: db.archived !== undefined ? Boolean(db.archived) : false,
-        isAutomatic: db.is_automatic !== undefined ? Boolean(db.is_automatic) : false
-    };
+    }
+    return undefined;
 };
 
+const mapMensajeFromDB = (db: any): Mensaje => ({
+    id: db.id || crypto.randomUUID(),
+    title: db.title || '',
+    body: db.body || '',
+    target_consulado_id: db.target_consulado_id || 'ALL',
+    target_ids: parseTargetIds(db.target_ids),
+    target_consulado_name: db.target_consulado_name || 'Todos',
+    type: (db.type === 'INSTITUCIONAL' || db.type === 'URGENTE' || db.type === 'CONSULAR') 
+        ? db.type 
+        : 'INSTITUCIONAL',
+    date: db.date || '',
+    start_date: db.start_date || undefined,
+    end_date: db.end_date || undefined,
+    created_at: db.created_at || Date.now(),
+    archived: db.archived !== undefined ? Boolean(db.archived) : false,
+    is_automatic: db.is_automatic !== undefined ? Boolean(db.is_automatic) : false
+});
+
 const mapMensajeToDB = (m: Partial<Mensaje>) => {
-    const payload: any = {};
-    if (m.title !== undefined) payload.title = m.title || '';
-    if (m.body !== undefined) payload.body = m.body || '';
-    if (m.targetConsuladoId !== undefined) payload.target_consulado_id = m.targetConsuladoId || 'ALL';
-    if (m.targetIds !== undefined) payload.target_ids = m.targetIds && Array.isArray(m.targetIds) && m.targetIds.length > 0 ? m.targetIds : null;
-    if (m.targetConsuladoName !== undefined) payload.target_consulado_name = m.targetConsuladoName || 'Todos';
-    if (m.type !== undefined) payload.type = m.type || 'INSTITUCIONAL';
-    if (m.date !== undefined) payload.date = m.date || null;
-    if (m.startDate !== undefined) payload.start_date = m.startDate || null;
-    if (m.endDate !== undefined) payload.end_date = m.endDate || null;
-    if (m.created_at !== undefined) payload.created_at = m.created_at || Date.now();
-    if (m.archived !== undefined) payload.archived = Boolean(m.archived);
-    if (m.isAutomatic !== undefined) payload.is_automatic = Boolean(m.isAutomatic);
+    const payload: any = { ...m };
+    Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined) payload[key] = null;
+    });
+    if (payload.created_at === undefined || payload.created_at === null) {
+        payload.created_at = Date.now();
+    }
     return payload;
 };
 
@@ -362,26 +357,21 @@ const mapAgendaEventFromDB = (db: any): AgendaEvent => ({
     id: db.id || crypto.randomUUID(),
     title: db.title || '',
     date: db.date || db.start_date || '',
-    startDate: db.start_date || db.date || undefined,
-    endDate: db.end_date || undefined,
+    start_date: db.start_date || db.date || undefined,
+    end_date: db.end_date || undefined,
     type: (db.type === 'EFEMERIDE' || db.type === 'IDOLO' || db.type === 'INTERNACIONAL' || db.type === 'EVENTO' || db.type === 'ENCUENTRO' || db.type === 'CUMPLEAÑOS')
         ? db.type
         : 'EVENTO',
     description: db.description || undefined,
     location: db.location || undefined,
-    isSpecialDay: db.is_special_day !== undefined ? Boolean(db.is_special_day) : false
+    is_special_day: db.is_special_day !== undefined ? Boolean(db.is_special_day) : false
 });
 
 const mapAgendaEventToDB = (e: Partial<AgendaEvent>) => {
-    const payload: any = {};
-    if (e.title !== undefined) payload.title = e.title || '';
-    if (e.date !== undefined) payload.date = e.date || null;
-    if (e.startDate !== undefined) payload.start_date = e.startDate || null;
-    if (e.endDate !== undefined) payload.end_date = e.endDate || null;
-    if (e.type !== undefined) payload.type = e.type || 'EVENTO';
-    if (e.description !== undefined) payload.description = e.description || null;
-    if (e.location !== undefined) payload.location = e.location || null;
-    if (e.isSpecialDay !== undefined) payload.is_special_day = Boolean(e.isSpecialDay);
+    const payload: any = { ...e };
+    Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined) payload[key] = null;
+    });
     return payload;
 };
 
@@ -391,40 +381,37 @@ const mapAppUserFromDB = (db: any): AppUser => ({
     username: db.username || '',
     password: db.password || undefined,
     email: db.email || '',
-    fullName: db.full_name || db.fullName || '',
+    full_name: db.full_name || '',
     role: (db.role === 'SUPERADMIN' || db.role === 'ADMIN' || db.role === 'PRESIDENTE' || db.role === 'REFERENTE' || db.role === 'SOCIO')
         ? db.role
         : 'SOCIO',
-    consuladoId: db.consulado_id || db.consuladoId || undefined,
+    consulado_id: db.consulado_id || undefined,
     active: db.active !== undefined ? Boolean(db.active) : true,
-    lastLogin: db.last_login || db.lastLogin || undefined,
+    last_login: db.last_login || undefined,
     avatar: db.avatar || undefined,
     gender: (db.gender === 'M' || db.gender === 'F' || db.gender === 'X') ? db.gender : undefined
 });
 
 const mapAppUserToDB = (u: Partial<AppUser>) => {
-    const payload: any = {};
-    if (u.username !== undefined) payload.username = u.username || '';
-    if (u.password !== undefined && u.password.trim() !== '') payload.password = u.password;
-    if (u.email !== undefined) payload.email = u.email || '';
-    if (u.fullName !== undefined) payload.full_name = u.fullName || '';
-    if (u.role !== undefined) payload.role = u.role || 'SOCIO';
-    if (u.consuladoId !== undefined) payload.consulado_id = u.consuladoId || null;
-    if (u.active !== undefined) payload.active = Boolean(u.active);
-    if (u.lastLogin !== undefined) payload.last_login = u.lastLogin || null;
-    if (u.avatar !== undefined) payload.avatar = u.avatar || null;
-    if (u.gender !== undefined) payload.gender = u.gender || null;
+    const payload: any = { ...u };
+    // Ne pas inclure le password s'il est vide
+    if (payload.password !== undefined && (!payload.password || payload.password.trim() === '')) {
+        delete payload.password;
+    }
+    Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined) payload[key] = null;
+    });
     return payload;
 };
 
 // Mapping pour Solicitud
 const mapSolicitudFromDB = (db: any): Solicitud => ({
     id: db.id || crypto.randomUUID(),
-    matchId: db.match_id || db.matchId || 0,
-    socioId: db.socio_id || db.socioId || '',
-    socioName: db.socio_name || db.socioName || '',
-    socioDni: db.socio_dni || db.socioDni || '',
-    socioCategory: db.socio_category || db.socioCategory || '',
+    match_id: parseId(db.match_id) || 0,
+    socio_id: db.socio_id || '',
+    socio_name: db.socio_name || '',
+    socio_dni: db.socio_dni || '',
+    socio_category: db.socio_category || '',
     consulado: db.consulado || '',
     status: (db.status === 'PENDING' || db.status === 'APPROVED' || db.status === 'REJECTED' || db.status === 'CANCELLATION_REQUESTED')
         ? db.status
@@ -433,15 +420,11 @@ const mapSolicitudFromDB = (db: any): Solicitud => ({
 });
 
 const mapSolicitudToDB = (s: Partial<Solicitud>) => {
-    const payload: any = {};
-    if (s.matchId !== undefined) payload.match_id = s.matchId || null;
-    if (s.socioId !== undefined) payload.socio_id = s.socioId || '';
-    if (s.socioName !== undefined) payload.socio_name = s.socioName || '';
-    if (s.socioDni !== undefined) payload.socio_dni = s.socioDni || '';
-    if (s.socioCategory !== undefined) payload.socio_category = s.socioCategory || '';
-    if (s.consulado !== undefined) payload.consulado = s.consulado || '';
-    if (s.status !== undefined) payload.status = s.status || 'PENDING';
-    if (s.timestamp !== undefined) payload.timestamp = s.timestamp || new Date().toISOString();
+    const payload: any = { ...s };
+    Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined) payload[key] = null;
+    });
+    if (!payload.timestamp) payload.timestamp = new Date().toISOString();
     return payload;
 };
 
@@ -552,30 +535,69 @@ class DataService {
               console.error("❌ Erreur lors du chargement des users:", usersResult.error);
           }
 
-          // Traitement des Consulados (logs réduits)
+          // Traitement des Consulados
           if (consuladosResult.error) {
               console.error("❌ Error fetching consulados:", consuladosResult.error);
-          }
-          
-          if (consuladosResult.data && Array.isArray(consuladosResult.data)) {
-              this.consulados = consuladosResult.data.map(mapConsuladoFromDB);
-              
-              // Vérifier les consulados incomplets seulement en dev
+              this.consulados = [];
+          } else if (consuladosResult.data) {
+              // Logs détaillés pour le débogage
               if (isDevelopment) {
-                  const incomplete = this.consulados.filter(c => !c.name || !c.id);
-                  if (incomplete.length > 0) {
-                      console.warn("⚠️ Consulados incomplets:", incomplete.length);
-                  }
+                  console.log("📊 Données brutes des consulados:", {
+                      count: consuladosResult.data.length,
+                      isArray: Array.isArray(consuladosResult.data),
+                      sample: consuladosResult.data.slice(0, 2)
+                  });
               }
               
-              if (isDevelopment) console.log(`✅ ${this.consulados.length} consulados chargés`);
-              
-              // Créer SEDE CENTRAL de manière asynchrone (ne bloque pas)
-              this.ensureSedeCentralExists().catch(err => {
-                  console.error("Erreur lors de la création de SEDE CENTRAL:", err);
-              });
+              if (Array.isArray(consuladosResult.data)) {
+                  // Mapper les consulados depuis la DB
+                  const mappedConsulados = consuladosResult.data
+                      .map((dbItem: any, index: number) => {
+                          try {
+                              const mapped = mapConsuladoFromDB(dbItem);
+                              if (isDevelopment && index < 3) {
+                                  console.log(`🔍 Mapping consulado ${index + 1}/${consuladosResult.data.length}:`, {
+                                      raw: { id: dbItem?.id, name: dbItem?.name, city: dbItem?.city },
+                                      mapped: mapped ? { id: mapped.id, name: mapped.name, city: mapped.city } : null,
+                                      success: mapped !== null
+                                  });
+                              }
+                              return mapped;
+                          } catch (error: any) {
+                              console.error(`❌ Erreur lors du mapping du consulado ${index + 1}:`, error, dbItem);
+                              return null;
+                          }
+                      })
+                      .filter((c): c is Consulado => c !== null); // Filtrer les null
+                  
+                  this.consulados = mappedConsulados;
+                  
+                  // Vérifier les consulados incomplets
+                  if (isDevelopment) {
+                      const incomplete = this.consulados.filter(c => !c.name || !c.id);
+                      if (incomplete.length > 0) {
+                          console.warn("⚠️ Consulados incomplets:", incomplete.length, incomplete);
+                      }
+                      console.log(`✅ ${this.consulados.length} consulados chargés et mappés`, this.consulados.map(c => ({ id: c.id, name: c.name })));
+                  }
+                  
+                  // Notifier les listeners après le chargement
+                  this.notify();
+                  
+                  // Créer SEDE CENTRAL de manière asynchrone (ne bloque pas)
+                  this.ensureSedeCentralExists().catch(err => {
+                      console.error("Erreur lors de la création de SEDE CENTRAL:", err);
+                  });
+              } else {
+                  console.warn("⚠️ consuladosResult.data n'est pas un tableau:", typeof consuladosResult.data, consuladosResult.data);
+                  this.consulados = [];
+                  this.notify();
+              }
           } else {
+              console.warn("⚠️ Aucune donnée retournée pour consulados (data est null/undefined)");
               this.consulados = [];
+              this.notify();
+              // Créer SEDE CENTRAL même si aucune donnée
               this.ensureSedeCentralExists().catch(err => {
                   console.error("Erreur lors de la création de SEDE CENTRAL:", err);
               });
@@ -725,9 +747,9 @@ class DataService {
 
   // --- SOCIOS LOGIC ---
 
-  getSocios(consuladoId?: string) { 
-      if (consuladoId) {
-          const c = this.consulados.find(x => x.id === consuladoId);
+  getSocios(consulado_id?: string) { 
+      if (consulado_id) {
+          const c = this.consulados.find(x => x.id === consulado_id);
           return this.socios.filter(s => s.consulado === c?.name);
       }
       return this.socios; 
@@ -770,7 +792,7 @@ class DataService {
 
       const user = this.users.find(usr => usr.username.toLowerCase() === u.toLowerCase() && usr.active);
       if (user && user.password === p) {
-          return { role: user.role, name: user.fullName, email: user.email, consuladoId: user.consuladoId, gender: user.gender };
+          return { role: user.role, name: user.full_name, email: user.email, consulado_id: user.consulado_id, gender: user.gender };
       }
 
       try {
@@ -782,7 +804,7 @@ class DataService {
               .single();
           
           if (data) {
-              return { role: data.role, name: data.full_name, email: data.email, consuladoId: data.consulado_id, gender: data.gender };
+              return { role: data.role, name: data.full_name, email: data.email, consulado_id: data.consulado_id, gender: data.gender };
           }
       } catch (e) {}
 
@@ -802,31 +824,47 @@ class DataService {
   private async ensureSedeCentralExists() {
       const sedeCentralName = 'SEDE CENTRAL';
       
-      // Vérifier d'abord dans la base de données
-      const { data: existingSedeCentral, error: checkError } = await supabase
+      // Vérifier d'abord dans la base de données avec un count pour éviter de charger toutes les données
+      // Utiliser select('id') avec count pour vérifier l'existence sans charger les données complètes
+      const { count, error: countError } = await supabase
           .from('consulados')
-          .select('*')
-          .ilike('name', sedeCentralName)
-          .limit(1);
+          .select('id', { count: 'exact', head: true })
+          .ilike('name', sedeCentralName);
       
-      if (checkError) {
-          console.error("❌ Erreur lors de la vérification de SEDE CENTRAL:", checkError);
+      if (countError) {
+          console.error("❌ Erreur lors de la vérification de SEDE CENTRAL:", countError);
           return;
       }
       
-      // Si "SEDE CENTRAL" existe déjà dans la DB, s'assurer qu'il est dans la liste locale
-      if (existingSedeCentral && existingSedeCentral.length > 0) {
-          const dbSedeCentral = mapConsuladoFromDB(existingSedeCentral[0]);
+      // Si "SEDE CENTRAL" existe déjà dans la DB (count > 0), ne pas insérer
+      if (count !== null && count > 0) {
+          // Vérifier s'il est déjà dans la liste locale
           const existsLocally = this.consulados.some(
-              c => c.id === dbSedeCentral.id || (c.name && c.name.toUpperCase() === sedeCentralName.toUpperCase())
+              c => c.name && c.name.toUpperCase() === sedeCentralName.toUpperCase() && c.id !== 'sede-central-virtual'
           );
           
           if (!existsLocally) {
-              // Ajouter à la liste locale
-              this.consulados.push(dbSedeCentral);
-              this.notify();
+              // Charger les données complètes seulement si nécessaire pour l'ajouter localement
+              const { data: existingSedeCentral, error: fetchError } = await supabase
+                  .from('consulados')
+                  .select('*')
+                  .ilike('name', sedeCentralName)
+                  .limit(1);
+              
+              if (!fetchError && existingSedeCentral && existingSedeCentral.length > 0) {
+                  const dbSedeCentral = mapConsuladoFromDB(existingSedeCentral[0]);
+                  if (dbSedeCentral) {
+                      // Ajouter à la liste locale
+                      this.consulados.push(dbSedeCentral);
+                      this.notify();
+                  }
+              }
           }
-          console.log("✅ Consulado SEDE CENTRAL existe déjà dans la base de données");
+          
+          const isDevelopment = import.meta.env.DEV;
+          if (isDevelopment) {
+              console.log(`✅ Consulado SEDE CENTRAL existe déjà dans la base de données (count: ${count})`);
+          }
           return;
       }
       
@@ -836,39 +874,45 @@ class DataService {
       );
       
       if (existsLocally) {
-          console.log("✅ Consulado SEDE CENTRAL existe déjà localement");
+          const isDevelopment = import.meta.env.DEV;
+          if (isDevelopment) {
+              console.log("✅ Consulado SEDE CENTRAL existe déjà localement");
+          }
           return;
       }
 
-      // Créer "SEDE CENTRAL" dans la base de données
-      console.log("🏛️ Création du consulado SEDE CENTRAL dans la base de données...");
+      // Créer "SEDE CENTRAL" dans la base de données seulement s'il n'existe pas
+      const isDevelopment = import.meta.env.DEV;
+      if (isDevelopment) {
+          console.log("🏛️ Création du consulado SEDE CENTRAL dans la base de données...");
+      }
       
       const sedeCentral: Consulado = {
           id: crypto.randomUUID(),
           name: sedeCentralName,
           city: 'Buenos Aires',
           country: 'Argentina',
-          countryCode: 'AR',
+          country_code: 'AR',
           president: '',
           referente: '',
-          foundationYear: '',
+          foundation_year: '',
           address: 'La Bombonera, Brandsen 805, C1161 CABA, Argentina',
           timezone: 'UTC-03:00 (Buenos Aires)',
           banner: '',
           logo: '',
-          isOfficial: true,
+          is_official: true,
           email: undefined,
           phone: undefined,
-          socialInstagram: undefined,
-          socialFacebook: undefined,
-          socialX: undefined,
-          socialTikTok: undefined,
-          socialYouTube: undefined,
+          social_instagram: undefined,
+          social_facebook: undefined,
+          social_x: undefined,
+          social_tiktok: undefined,
+          social_youtube: undefined,
           website: undefined
       };
 
       try {
-          // Créer dans la base de données d'abord
+          // Créer dans la base de données
           const { data: insertedData, error } = await supabase
               .from('consulados')
               .insert([mapConsuladoToDB(sedeCentral)])
@@ -883,9 +927,13 @@ class DataService {
           // Si l'insertion a réussi, mapper et ajouter à la liste locale
           if (insertedData) {
               const mappedSedeCentral = mapConsuladoFromDB(insertedData);
-              this.consulados.push(mappedSedeCentral);
-              this.notify();
-              console.log("✅ Consulado SEDE CENTRAL créé avec succès dans la base de données");
+              if (mappedSedeCentral) {
+                  this.consulados.push(mappedSedeCentral);
+                  this.notify();
+                  if (isDevelopment) {
+                      console.log("✅ Consulado SEDE CENTRAL créé avec succès dans la base de données");
+                  }
+              }
           }
       } catch (error: any) {
           console.error("❌ Erreur lors de la création de SEDE CENTRAL:", error);
@@ -968,22 +1016,22 @@ class DataService {
               name: sedeCentralName,
               city: 'Buenos Aires',
               country: 'Argentina',
-              countryCode: 'AR',
+              country_code: 'AR',
               president: '',
               referente: '',
-              foundationYear: '',
+              foundation_year: '',
               address: 'La Bombonera, Brandsen 805, C1161 CABA, Argentina',
               timezone: 'UTC-03:00 (Buenos Aires)',
               banner: '',
               logo: '',
-              isOfficial: true,
+              is_official: true,
               email: undefined,
               phone: undefined,
-              socialInstagram: undefined,
-              socialFacebook: undefined,
-              socialX: undefined,
-              socialTikTok: undefined,
-              socialYouTube: undefined,
+              social_instagram: undefined,
+              social_facebook: undefined,
+              social_x: undefined,
+              social_tiktok: undefined,
+              social_youtube: undefined,
               website: undefined
           };
           
@@ -1002,22 +1050,22 @@ class DataService {
               name: 'SEDE CENTRAL',
               city: 'Buenos Aires',
               country: 'Argentina',
-              countryCode: 'AR',
+              country_code: 'AR',
               president: '',
               referente: '',
-              foundationYear: '',
+              foundation_year: '',
               address: 'La Bombonera, Brandsen 805, C1161 CABA, Argentina',
               timezone: 'UTC-03:00 (Buenos Aires)',
               banner: '',
               logo: '',
-              isOfficial: true,
+              is_official: true,
               email: undefined,
               phone: undefined,
-              socialInstagram: undefined,
-              socialFacebook: undefined,
-              socialX: undefined,
-              socialTikTok: undefined,
-              socialYouTube: undefined,
+              social_instagram: undefined,
+              social_facebook: undefined,
+              social_x: undefined,
+              social_tiktok: undefined,
+              social_youtube: undefined,
               website: undefined
           };
           return sedeCentral;
@@ -1299,9 +1347,9 @@ class DataService {
       // Filtrer par consulado si spécifié
       if (cId && cId !== 'ALL') {
           return this.mensajes.filter(m => 
-              m.targetConsuladoId === cId || 
-              m.targetConsuladoId === 'ALL' ||
-              (m.targetIds && m.targetIds.includes(cId))
+              m.target_consulado_id === cId || 
+              m.target_consulado_id === 'ALL' ||
+              (m.target_ids && m.target_ids.includes(cId))
           );
       }
       return this.mensajes; 
@@ -1439,7 +1487,7 @@ class DataService {
   getSolicitudes(mId?: number, cName?: string) { 
       let res = this.solicitudes;
       if (mId !== undefined) {
-          res = res.filter(s => s.matchId === mId);
+          res = res.filter(s => s.match_id === mId);
       }
       if (cName) {
           res = res.filter(s => s.consulado === cName);
@@ -1627,8 +1675,8 @@ class DataService {
   }
   
   getBirthdays(c: string, d: number) { return []; }
-  getTransfers(consuladoId: string) { return { incoming: [], outgoing: [] }; }
-  getSocioTransfers(socioId: string) { return []; }
+  getTransfers(consulado_id: string) { return { incoming: [], outgoing: [] }; }
+  getSocioTransfers(socio_id: string) { return []; }
   
   async factoryReset() { localStorage.clear(); window.location.reload(); }
   
@@ -1643,6 +1691,531 @@ class DataService {
       return { success: true, message: 'Maintenance effectuée avec succès' };
     } catch (error: any) {
       throw new Error(error.message || 'Erreur lors de la maintenance');
+    }
+  }
+
+  // Obtener esquema SQL de una tabla desde Supabase (inferido desde datos)
+  public async getTableSchema(tableName: string): Promise<TableSchema | null> {
+    try {
+      // Obtener una muestra de datos para inferir el esquema
+      const { data: sampleData, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .limit(10); // Obtener varias filas para mejor inferencia
+      
+      if (error) {
+        console.error(`Error obteniendo esquema de ${tableName}:`, error);
+        return null;
+      }
+      
+      if (!sampleData || sampleData.length === 0) {
+        // Si no hay datos, usar los mappings existentes
+        const mappings = this.getFieldMappings(tableName);
+        return {
+          table: tableName,
+          columns: mappings.map(m => ({
+            name: m.dbField,
+            type: m.type,
+            nullable: m.nullable
+          }))
+        };
+      }
+      
+      // Inferir tipos desde los datos
+      const columnsMap: Record<string, { type: string; nullable: boolean; count: number }> = {};
+      
+      sampleData.forEach(row => {
+        Object.keys(row).forEach(key => {
+          const value = row[key];
+          const isNull = value === null || value === undefined;
+          
+          if (!columnsMap[key]) {
+            let inferredType = 'string';
+            
+            if (typeof value === 'number') {
+              inferredType = Number.isInteger(value) ? 'integer' : 'float';
+            } else if (typeof value === 'boolean') {
+              inferredType = 'boolean';
+            } else if (value instanceof Date || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value))) {
+              inferredType = 'date';
+            } else if (typeof value === 'object' && !Array.isArray(value)) {
+              inferredType = 'json';
+            } else if (Array.isArray(value)) {
+              inferredType = 'array';
+            }
+            
+            columnsMap[key] = {
+              type: inferredType,
+              nullable: isNull,
+              count: 1
+            };
+          } else {
+            columnsMap[key].nullable = columnsMap[key].nullable || isNull;
+            columnsMap[key].count++;
+          }
+        });
+      });
+      
+      const columns = Object.keys(columnsMap).map(key => ({
+        name: key,
+        type: columnsMap[key].type,
+        nullable: columnsMap[key].nullable
+      }));
+      
+      return { table: tableName, columns };
+    } catch (error: any) {
+      console.error(`Error obteniendo esquema de ${tableName}:`, error);
+      // Fallback: usar mappings existentes
+      const mappings = this.getFieldMappings(tableName);
+      if (mappings.length > 0) {
+        return {
+          table: tableName,
+          columns: mappings.map(m => ({
+            name: m.dbField,
+            type: m.type,
+            nullable: m.nullable
+          }))
+        };
+      }
+      return null;
+    }
+  }
+
+  // Obtener todos los esquemas de las tablas principales
+  public async getAllTableSchemas(): Promise<Record<string, TableSchema>> {
+    const tables = ['socios', 'consulados', 'matches', 'teams', 'competitions', 'agenda', 'mensajes', 'users', 'solicitudes', 'notifications'];
+    const schemas: Record<string, TableSchema> = {};
+    
+    await Promise.all(
+      tables.map(async (table) => {
+        const schema = await this.getTableSchema(table);
+        if (schema) {
+          schemas[table] = schema;
+        }
+      })
+    );
+    
+    return schemas;
+  }
+
+  // Obtener el mapping de campos para una tabla (ahora todo es snake_case)
+  public getFieldMappings(tableName: string): FieldMapping[] {
+    const mappings: FieldMapping[] = [];
+    
+    // Tous les champs sont maintenant en snake_case (pas de conversion)
+    switch (tableName) {
+      case 'socios':
+        mappings.push(
+          { dbField: 'id', appField: 'id', type: 'text', nullable: false },
+          { dbField: 'first_name', appField: 'first_name', type: 'text', nullable: false },
+          { dbField: 'last_name', appField: 'last_name', type: 'text', nullable: false },
+          { dbField: 'numero_socio', appField: 'numero_socio', type: 'text', nullable: true },
+          { dbField: 'dni', appField: 'dni', type: 'text', nullable: false },
+          { dbField: 'category', appField: 'category', type: 'text', nullable: false }, // Catégorie de socio
+          { dbField: 'status', appField: 'status', type: 'text', nullable: false }, // Estado de cuota
+          { dbField: 'email', appField: 'email', type: 'text', nullable: true },
+          { dbField: 'phone', appField: 'phone', type: 'text', nullable: true }, // Format international avec indicatif
+          { dbField: 'gender', appField: 'gender', type: 'text', nullable: false },
+          { dbField: 'nationality', appField: 'nationality', type: 'text', nullable: true },
+          { dbField: 'birth_date', appField: 'birth_date', type: 'date', nullable: true },
+          { dbField: 'join_date', appField: 'join_date', type: 'date', nullable: true },
+          { dbField: 'last_month_paid', appField: 'last_month_paid', type: 'text', nullable: true },
+          { dbField: 'consulado_name', appField: 'consulado', type: 'text', nullable: true },
+          { dbField: 'role', appField: 'role', type: 'text', nullable: false },
+          { dbField: 'avatar_color', appField: 'avatar_color', type: 'text', nullable: true },
+          { dbField: 'expiration_date', appField: 'expiration_date', type: 'date', nullable: true },
+          { dbField: 'twitter', appField: 'twitter', type: 'text', nullable: true },
+          { dbField: 'youtube', appField: 'youtube', type: 'text', nullable: true }
+        );
+        break;
+        
+      case 'consulados':
+        mappings.push(
+          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
+          { dbField: 'name', appField: 'name', type: 'string', nullable: false },
+          { dbField: 'city', appField: 'city', type: 'string', nullable: false },
+          { dbField: 'country', appField: 'country', type: 'string', nullable: false },
+          { dbField: 'country_code', appField: 'country_code', type: 'string', nullable: true },
+          { dbField: 'president', appField: 'president', type: 'string', nullable: false },
+          { dbField: 'vice_president', appField: 'vice_president', type: 'string', nullable: true },
+          { dbField: 'secretary', appField: 'secretary', type: 'string', nullable: true },
+          { dbField: 'treasurer', appField: 'treasurer', type: 'string', nullable: true },
+          { dbField: 'vocal', appField: 'vocal', type: 'string', nullable: true },
+          { dbField: 'vocales', appField: 'vocales', type: 'json', nullable: true },
+          { dbField: 'referente', appField: 'referente', type: 'string', nullable: false },
+          { dbField: 'foundation_year', appField: 'foundation_year', type: 'string', nullable: true },
+          { dbField: 'address', appField: 'address', type: 'string', nullable: true },
+          { dbField: 'timezone', appField: 'timezone', type: 'string', nullable: false },
+          { dbField: 'banner', appField: 'banner', type: 'string', nullable: true },
+          { dbField: 'logo', appField: 'logo', type: 'string', nullable: true },
+          { dbField: 'is_official', appField: 'is_official', type: 'boolean', nullable: false },
+          { dbField: 'email', appField: 'email', type: 'string', nullable: true },
+          { dbField: 'phone', appField: 'phone', type: 'string', nullable: true },
+          { dbField: 'social_instagram', appField: 'social_instagram', type: 'string', nullable: true },
+          { dbField: 'social_facebook', appField: 'social_facebook', type: 'string', nullable: true },
+          { dbField: 'social_x', appField: 'social_x', type: 'string', nullable: true },
+          { dbField: 'social_tiktok', appField: 'social_tiktok', type: 'string', nullable: true },
+          { dbField: 'social_youtube', appField: 'social_youtube', type: 'string', nullable: true },
+          { dbField: 'website', appField: 'website', type: 'string', nullable: true }
+        );
+        break;
+        
+      case 'matches':
+        mappings.push(
+          { dbField: 'id', appField: 'id', type: 'number', nullable: false },
+          { dbField: 'rival_id', appField: 'rival_id', type: 'string', nullable: true },
+          { dbField: 'competition_id', appField: 'competition_id', type: 'string', nullable: true },
+          { dbField: 'rival', appField: 'rival', type: 'string', nullable: false },
+          { dbField: 'rival_short', appField: 'rival_short', type: 'string', nullable: true },
+          { dbField: 'rival_country', appField: 'rival_country', type: 'string', nullable: true },
+          { dbField: 'competition', appField: 'competition', type: 'string', nullable: false },
+          { dbField: 'date', appField: 'date', type: 'date', nullable: false },
+          { dbField: 'hour', appField: 'hour', type: 'string', nullable: false },
+          { dbField: 'venue', appField: 'venue', type: 'string', nullable: true },
+          { dbField: 'city', appField: 'city', type: 'string', nullable: true },
+          { dbField: 'is_home', appField: 'is_home', type: 'boolean', nullable: false },
+          { dbField: 'is_neutral', appField: 'is_neutral', type: 'boolean', nullable: true },
+          { dbField: 'fecha_jornada', appField: 'fecha_jornada', type: 'string', nullable: false },
+          { dbField: 'is_suspended', appField: 'is_suspended', type: 'boolean', nullable: false },
+          { dbField: 'apertura_date', appField: 'apertura_date', type: 'string', nullable: true },
+          { dbField: 'apertura_hour', appField: 'apertura_hour', type: 'string', nullable: true },
+          { dbField: 'cierre_date', appField: 'cierre_date', type: 'string', nullable: true },
+          { dbField: 'cierre_hour', appField: 'cierre_hour', type: 'string', nullable: true }
+        );
+        break;
+        
+      case 'teams':
+        mappings.push(
+          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
+          { dbField: 'name', appField: 'name', type: 'string', nullable: false },
+          { dbField: 'short_name', appField: 'short_name', type: 'string', nullable: false },
+          { dbField: 'country_id', appField: 'country_id', type: 'string', nullable: false },
+          { dbField: 'confederation', appField: 'confederation', type: 'enum', nullable: false },
+          { dbField: 'city', appField: 'city', type: 'string', nullable: true },
+          { dbField: 'stadium', appField: 'stadium', type: 'string', nullable: true },
+          { dbField: 'logo', appField: 'logo', type: 'string', nullable: true }
+        );
+        break;
+        
+      case 'competitions':
+        mappings.push(
+          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
+          { dbField: 'name', appField: 'name', type: 'string', nullable: false },
+          { dbField: 'organization', appField: 'organization', type: 'string', nullable: false },
+          { dbField: 'type', appField: 'type', type: 'string', nullable: false },
+          { dbField: 'logo', appField: 'logo', type: 'string', nullable: true },
+          { dbField: 'category', appField: 'category', type: 'enum', nullable: false }
+        );
+        break;
+        
+      case 'agenda':
+        mappings.push(
+          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
+          { dbField: 'title', appField: 'title', type: 'string', nullable: false },
+          { dbField: 'date', appField: 'date', type: 'date', nullable: false },
+          { dbField: 'start_date', appField: 'start_date', type: 'date', nullable: true },
+          { dbField: 'end_date', appField: 'end_date', type: 'date', nullable: true },
+          { dbField: 'type', appField: 'type', type: 'enum', nullable: false },
+          { dbField: 'description', appField: 'description', type: 'string', nullable: true },
+          { dbField: 'location', appField: 'location', type: 'string', nullable: true },
+          { dbField: 'is_special_day', appField: 'is_special_day', type: 'boolean', nullable: true }
+        );
+        break;
+        
+      case 'mensajes':
+        mappings.push(
+          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
+          { dbField: 'title', appField: 'title', type: 'string', nullable: false },
+          { dbField: 'body', appField: 'body', type: 'string', nullable: false },
+          { dbField: 'target_consulado_id', appField: 'target_consulado_id', type: 'string', nullable: false },
+          { dbField: 'target_ids', appField: 'target_ids', type: 'json', nullable: true },
+          { dbField: 'target_consulado_name', appField: 'target_consulado_name', type: 'string', nullable: false },
+          { dbField: 'type', appField: 'type', type: 'enum', nullable: false },
+          { dbField: 'date', appField: 'date', type: 'string', nullable: false },
+          { dbField: 'start_date', appField: 'start_date', type: 'string', nullable: true },
+          { dbField: 'end_date', appField: 'end_date', type: 'string', nullable: true },
+          { dbField: 'created_at', appField: 'created_at', type: 'number', nullable: false },
+          { dbField: 'archived', appField: 'archived', type: 'boolean', nullable: false },
+          { dbField: 'is_automatic', appField: 'is_automatic', type: 'boolean', nullable: true }
+        );
+        break;
+        
+      case 'users':
+        mappings.push(
+          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
+          { dbField: 'username', appField: 'username', type: 'string', nullable: false },
+          { dbField: 'password', appField: 'password', type: 'string', nullable: true },
+          { dbField: 'email', appField: 'email', type: 'string', nullable: false },
+          { dbField: 'full_name', appField: 'full_name', type: 'string', nullable: false },
+          { dbField: 'role', appField: 'role', type: 'enum', nullable: false },
+          { dbField: 'consulado_id', appField: 'consulado_id', type: 'string', nullable: true },
+          { dbField: 'active', appField: 'active', type: 'boolean', nullable: false },
+          { dbField: 'last_login', appField: 'last_login', type: 'string', nullable: true },
+          { dbField: 'avatar', appField: 'avatar', type: 'string', nullable: true },
+          { dbField: 'gender', appField: 'gender', type: 'enum', nullable: true }
+        );
+        break;
+        
+      case 'solicitudes':
+        mappings.push(
+          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
+          { dbField: 'match_id', appField: 'match_id', type: 'number', nullable: false },
+          { dbField: 'socio_id', appField: 'socio_id', type: 'string', nullable: false },
+          { dbField: 'socio_name', appField: 'socio_name', type: 'string', nullable: false },
+          { dbField: 'socio_dni', appField: 'socio_dni', type: 'string', nullable: false },
+          { dbField: 'socio_category', appField: 'socio_category', type: 'string', nullable: false },
+          { dbField: 'consulado', appField: 'consulado', type: 'string', nullable: false },
+          { dbField: 'status', appField: 'status', type: 'enum', nullable: false },
+          { dbField: 'timestamp', appField: 'timestamp', type: 'string', nullable: false }
+        );
+        break;
+        
+      case 'notifications':
+        mappings.push(
+          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
+          { dbField: 'type', appField: 'type', type: 'enum', nullable: false },
+          { dbField: 'title', appField: 'title', type: 'string', nullable: false },
+          { dbField: 'message', appField: 'message', type: 'string', nullable: false },
+          { dbField: 'date', appField: 'date', type: 'string', nullable: false },
+          { dbField: 'read', appField: 'read', type: 'boolean', nullable: false },
+          { dbField: 'link', appField: 'link', type: 'string', nullable: true },
+          { dbField: 'data', appField: 'data', type: 'json', nullable: true }
+        );
+        break;
+    }
+    
+    return mappings;
+  }
+
+  // Re-mapper automatiquement toutes les données depuis Supabase
+  public async remapDataAutomatic() {
+    const isDevelopment = import.meta.env.DEV;
+    this.loadingMessage = "Re-mapeando datos automáticamente...";
+    
+    try {
+      // Réinitialiser toutes les données locales
+      this.socios = [];
+      this.consulados = [];
+      this.matches = [];
+      this.teams = [];
+      this.competitions = [];
+      this.agenda = [];
+      this.mensajes = [];
+      this.users = [];
+      this.solicitudes = [];
+      this.notifications = [];
+      
+      this.notify();
+      
+      // Recharger toutes les données depuis Supabase
+      await this.initializeData(false);
+      
+      this.notify();
+      if (isDevelopment) console.log("✅ Re-mapeo automático completado");
+      
+      return { success: true, message: 'Re-mapeo automático completado exitosamente' };
+    } catch (error: any) {
+      console.error("❌ Error en re-mapeo automático:", error);
+      throw new Error(error.message || 'Error durante el re-mapeo automático');
+    }
+  }
+
+  // Re-mapper manuellement des tables spécifiques
+  public async remapDataManual(tables: string[]) {
+    const isDevelopment = import.meta.env.DEV;
+    this.loadingMessage = `Re-mapeando ${tables.length} tabla(s) manualmente...`;
+    
+    try {
+      const results: Record<string, { success: boolean; count: number; error?: string }> = {};
+      
+      for (const table of tables) {
+        try {
+          switch (table) {
+            case 'socios':
+              this.loadingMessage = "Re-mapeando socios...";
+              let allSocios: any[] = [];
+              let sociosFrom = 0;
+              const sociosPageSize = 1000;
+              let sociosHasMore = true;
+              
+              while (sociosHasMore) {
+                const to = sociosFrom + sociosPageSize - 1;
+                const { data, error } = await supabase
+                  .from('socios')
+                  .select('*')
+                  .range(sociosFrom, to);
+                
+                if (error) throw error;
+                if (data && data.length > 0) {
+                  allSocios = [...allSocios, ...data];
+                  sociosHasMore = data.length === sociosPageSize;
+                  sociosFrom += sociosPageSize;
+                } else {
+                  sociosHasMore = false;
+                }
+              }
+              
+              this.socios = allSocios.map(mapSocioFromDB);
+              results[table] = { success: true, count: this.socios.length };
+              break;
+              
+            case 'consulados':
+              this.loadingMessage = "Re-mapeando consulados...";
+              const { data: consuladosData, error: consuladosError } = await supabase
+                .from('consulados')
+                .select('*');
+              
+              if (consuladosError) throw consuladosError;
+              this.consulados = (consuladosData || []).map(mapConsuladoFromDB);
+              // Créer SEDE CENTRAL si nécessaire
+              await this.ensureSedeCentralExists().catch(() => {});
+              // Assigner les socios à SEDE CENTRAL en arrière-plan
+              this.assignSociosToSedeCentral().catch(() => {});
+              results[table] = { success: true, count: this.consulados.length };
+              break;
+              
+            case 'matches':
+              this.loadingMessage = "Re-mapeando partidos...";
+              const { data: matchesData, error: matchesError } = await supabase
+                .from('matches')
+                .select('*');
+              
+              if (matchesError) throw matchesError;
+              this.matches = (matchesData || []).map(mapMatchFromDB);
+              results[table] = { success: true, count: this.matches.length };
+              break;
+              
+            case 'teams':
+              this.loadingMessage = "Re-mapeando equipos...";
+              let allTeams: any[] = [];
+              let teamsFrom = 0;
+              const teamsPageSize = 1000;
+              let teamsHasMore = true;
+              
+              while (teamsHasMore) {
+                const to = teamsFrom + teamsPageSize - 1;
+                const { data, error } = await supabase
+                  .from('teams')
+                  .select('*')
+                  .range(teamsFrom, to);
+                
+                if (error) throw error;
+                if (data && data.length > 0) {
+                  allTeams = [...allTeams, ...data];
+                  teamsHasMore = data.length === teamsPageSize;
+                  teamsFrom += teamsPageSize;
+                } else {
+                  teamsHasMore = false;
+                }
+              }
+              
+              this.teams = allTeams.map(mapTeamFromDB);
+              results[table] = { success: true, count: this.teams.length };
+              break;
+              
+            case 'competitions':
+              this.loadingMessage = "Re-mapeando torneos...";
+              const { data: competitionsData, error: competitionsError } = await supabase
+                .from('competitions')
+                .select('*');
+              
+              if (competitionsError) throw competitionsError;
+              this.competitions = (competitionsData || []).map(mapCompetitionFromDB);
+              results[table] = { success: true, count: this.competitions.length };
+              break;
+              
+            case 'agenda':
+              this.loadingMessage = "Re-mapeando agenda...";
+              const { data: agendaData, error: agendaError } = await supabase
+                .from('agenda')
+                .select('*');
+              
+              if (agendaError) throw agendaError;
+              this.agenda = (agendaData || []).map(mapAgendaEventFromDB);
+              results[table] = { success: true, count: this.agenda.length };
+              break;
+              
+            case 'mensajes':
+              this.loadingMessage = "Re-mapeando mensajes...";
+              const { data: mensajesData, error: mensajesError } = await supabase
+                .from('mensajes')
+                .select('*');
+              
+              if (mensajesError) throw mensajesError;
+              this.mensajes = (mensajesData || []).map(mapMensajeFromDB);
+              results[table] = { success: true, count: this.mensajes.length };
+              break;
+              
+            case 'users':
+              this.loadingMessage = "Re-mapeando usuarios...";
+              const { data: usersData, error: usersError } = await supabase
+                .from('users')
+                .select('*');
+              
+              if (usersError) throw usersError;
+              this.users = (usersData || []).map(mapAppUserFromDB);
+              results[table] = { success: true, count: this.users.length };
+              break;
+              
+            case 'solicitudes':
+              this.loadingMessage = "Re-mapeando solicitudes...";
+              const { data: solicitudesData, error: solicitudesError } = await supabase
+                .from('solicitudes')
+                .select('*');
+              
+              if (solicitudesError) {
+                results[table] = { success: false, count: 0, error: solicitudesError.message };
+              } else {
+                this.solicitudes = (solicitudesData || []).map(mapSolicitudFromDB);
+                results[table] = { success: true, count: this.solicitudes.length };
+              }
+              break;
+              
+            case 'notifications':
+              this.loadingMessage = "Re-mapeando notificaciones...";
+              const { data: notificationsData, error: notificationsError } = await supabase
+                .from('notifications')
+                .select('*');
+              
+              if (notificationsError) {
+                results[table] = { success: false, count: 0, error: notificationsError.message };
+              } else {
+                this.notifications = (notificationsData || []).map(mapNotificationFromDB);
+                results[table] = { success: true, count: this.notifications.length };
+              }
+              break;
+              
+            default:
+              results[table] = { success: false, count: 0, error: `Tabla '${table}' no reconocida` };
+          }
+          
+          this.notify();
+        } catch (error: any) {
+          console.error(`❌ Error re-mapeando ${table}:`, error);
+          results[table] = { 
+            success: false, 
+            count: 0, 
+            error: error.message || 'Error desconocido' 
+          };
+        }
+      }
+      
+      this.loadingMessage = "";
+      this.notify();
+      
+      if (isDevelopment) {
+        console.log("✅ Re-mapeo manual completado:", results);
+      }
+      
+      return { 
+        success: Object.values(results).some(r => r.success), 
+        results,
+        message: `Re-mapeo manual completado: ${Object.values(results).filter(r => r.success).length}/${tables.length} tablas exitosas`
+      };
+    } catch (error: any) {
+      console.error("❌ Error en re-mapeo manual:", error);
+      this.loadingMessage = "";
+      throw new Error(error.message || 'Error durante el re-mapeo manual');
     }
   }
 }

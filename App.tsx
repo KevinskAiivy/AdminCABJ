@@ -33,23 +33,82 @@ const SociosPresident = lazy(() => import('./pages/president/SociosPresident.tsx
 
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 
-const FullScreenLoader = ({ message }: { message?: string }) => (
-    <div className="min-h-screen bg-[#001d4a] flex flex-col items-center justify-center p-6 text-center">
-        <div className="relative mb-8 animate-pulse">
-            <div className="absolute inset-0 bg-[#FCB131] blur-[50px] opacity-20 rounded-full"></div>
-            <BocaLogoSVG className="w-32 h-32 relative z-10" />
+const FullScreenLoader = ({ message }: { message?: string }) => {
+    const settings = dataService.getAppSettings();
+    const logoUrl = settings.loginLogoUrl || settings.logoUrl;
+    
+    return (
+        <div className="min-h-screen bg-[#001d4a] flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+            {/* Background Effects */}
+            <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#003B94]/30 rounded-full blur-[120px] animate-pulse"></div>
+                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#FCB131]/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '3s' }}></div>
+            </div>
+            
+            <div className="relative z-10 flex flex-col items-center">
+                {/* Logo */}
+                <div className="relative mb-8 animate-pulse">
+                    <div className="absolute inset-0 bg-[#FCB131] blur-[50px] opacity-20 rounded-full"></div>
+                    {logoUrl && logoUrl.length > 50 ? (
+                        <img 
+                            src={logoUrl} 
+                            alt="Logo" 
+                            className="w-32 h-32 relative z-10 object-contain drop-shadow-2xl" 
+                        />
+                    ) : (
+                        <BocaLogoSVG className="w-32 h-32 relative z-10" />
+                    )}
+                </div>
+                
+                {/* Title */}
+                <h2 className="oswald text-2xl font-black text-white uppercase tracking-widest mb-4">
+                    Cargando Sistema
+                </h2>
+                
+                {/* Message */}
+                {message && (
+                    <p className="text-[#FCB131] font-bold text-xs uppercase tracking-[0.2em] mb-8">
+                        {message}
+                    </p>
+                )}
+                
+                {/* Progress Bar */}
+                <div className="w-64 max-w-[80vw] h-2 bg-white/10 rounded-full overflow-hidden shadow-inner relative">
+                    <div 
+                        className="h-full bg-[#FCB131] rounded-full"
+                        style={{
+                            width: '30%',
+                            animation: 'progressBar 1.5s ease-in-out infinite',
+                        }}
+                    />
+                </div>
+            </div>
+            
+            {/* CSS Animation for Progress Bar */}
+            <style>{`
+                @keyframes progressBar {
+                    0% {
+                        transform: translateX(-100%);
+                        width: 30%;
+                    }
+                    50% {
+                        transform: translateX(0%);
+                        width: 70%;
+                    }
+                    100% {
+                        transform: translateX(100%);
+                        width: 30%;
+                    }
+                }
+            `}</style>
         </div>
-        <h2 className="oswald text-2xl font-black text-white uppercase tracking-widest mb-2">
-            Cargando Sistema
-        </h2>
-        {message && <p className="text-[#FCB131] font-bold text-xs uppercase tracking-[0.2em] mb-8">{message}</p>}
-        <Loader2 className="text-[#FCB131] animate-spin" size={32} />
-    </div>
-);
+    );
+};
 
 export const App: React.FC = () => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(false);
 
   // Initial Load
   useEffect(() => {
@@ -66,6 +125,11 @@ export const App: React.FC = () => {
             console.log('🚀 Initialisation de l\'application...');
             const storedUser = localStorage.getItem('cabj_session');
             const isOfflineMode = storedUser ? JSON.parse(storedUser).name === 'Modo Offline' : false;
+            
+            // Afficher le loader seulement si on charge vraiment des données (pas en mode offline)
+            if (!isOfflineMode) {
+                setIsInitializing(true);
+            }
             
             await dataService.initializeData(isOfflineMode);
             console.log('✅ DataService initialisé');
@@ -87,6 +151,7 @@ export const App: React.FC = () => {
             console.error('❌ Erreur lors de l\'initialisation de l\'application:', error);
         } finally {
             setLoading(false);
+            setIsInitializing(false);
         }
     };
     initApp();
@@ -122,7 +187,10 @@ export const App: React.FC = () => {
     };
   }, [user, logout]);
 
-  if (loading) return <FullScreenLoader message="Inicializando..." />;
+  // Afficher le loader seulement lors d'un chargement réel (initialisation des données)
+  if (loading && isInitializing) {
+      return <FullScreenLoader message={dataService.loadingMessage || "Inicializando..."} />;
+  }
 
   if (!user) {
     return (
@@ -132,7 +200,7 @@ export const App: React.FC = () => {
     );
   }
 
-  const consuladoName = user.consuladoId ? dataService.getConsuladoById(user.consuladoId)?.name || 'Consulado' : '';
+  const consuladoName = user.consulado_id ? dataService.getConsuladoById(user.consulado_id)?.name || 'Consulado' : '';
   const isSuperAdmin = user.role === 'SUPERADMIN';
   const isAdmin = user.role === 'ADMIN' || isSuperAdmin;
 
@@ -167,10 +235,10 @@ export const App: React.FC = () => {
                 ) : (
                   <>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                    <Route path="/dashboard" element={<PageTransition><DashboardPresident consuladoId={user.consuladoId || ''} /></PageTransition>} />
-                    <Route path="/consulados" element={<PageTransition><MiConsulado consuladoId={user.consuladoId || ''} /></PageTransition>} />
-                    <Route path="/socios" element={<PageTransition><SociosPresident consuladoId={user.consuladoId || ''} /></PageTransition>} />
-                    <Route path="/habilitaciones" element={<PageTransition><HabilitacionesPresident consuladoId={user.consuladoId || ''} consuladoName={consuladoName} /></PageTransition>} />
+                    <Route path="/dashboard" element={<PageTransition><DashboardPresident consulado_id={user.consulado_id || ''} /></PageTransition>} />
+                    <Route path="/consulados" element={<PageTransition><MiConsulado consulado_id={user.consulado_id || ''} /></PageTransition>} />
+                    <Route path="/socios" element={<PageTransition><SociosPresident consulado_id={user.consulado_id || ''} /></PageTransition>} />
+                    <Route path="/habilitaciones" element={<PageTransition><HabilitacionesPresident consulado_id={user.consulado_id || ''} consuladoName={consuladoName} /></PageTransition>} />
                     
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </>

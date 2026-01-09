@@ -118,7 +118,7 @@ export const App: React.FC = () => {
     );
   }
 
-  const consuladoName = user.consuladoId ? dataService.getConsuladoById(user.consuladoId)?.name || 'Consulado' : '';
+  const consuladoName = user.consulado_id ? dataService.getConsuladoById(user.consulado_id)?.name || 'Consulado' : '';
   const isSuperAdmin = user.role === 'SUPERADMIN';
   const isAdmin = user.role === 'ADMIN' || isSuperAdmin;
 
@@ -154,10 +154,10 @@ export const App: React.FC = () => {
                 ) : (
                   <>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                    <Route path="/dashboard" element={<PageTransition><DashboardPresident consuladoId={user.consuladoId || ''} /></PageTransition>} />
-                    <Route path="/consulados" element={<PageTransition><MiConsulado consuladoId={user.consuladoId || ''} /></PageTransition>} />
-                    <Route path="/socios" element={<PageTransition><SociosPresident consuladoId={user.consuladoId || ''} /></PageTransition>} />
-                    <Route path="/habilitaciones" element={<PageTransition><HabilitacionesPresident consuladoId={user.consuladoId || ''} consuladoName={consuladoName} /></PageTransition>} />
+                    <Route path="/dashboard" element={<PageTransition><DashboardPresident consuladoId={user.consulado_id || ''} /></PageTransition>} />
+                    <Route path="/consulados" element={<PageTransition><MiConsulado consuladoId={user.consulado_id || ''} /></PageTransition>} />
+                    <Route path="/socios" element={<PageTransition><SociosPresident consuladoId={user.consulado_id || ''} /></PageTransition>} />
+                    <Route path="/habilitaciones" element={<PageTransition><HabilitacionesPresident consuladoId={user.consulado_id || ''} consuladoName={consuladoName} /></PageTransition>} />
                     
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </>

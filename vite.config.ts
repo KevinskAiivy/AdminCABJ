@@ -3,7 +3,14 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, '.', '');
+    // Charger les variables d'environnement de manière sécurisée
+    let env = {};
+    try {
+        env = loadEnv(mode, '.', '');
+    } catch (error) {
+        // Ignorer les erreurs de chargement d'env (fichier peut ne pas exister)
+        console.warn('⚠️ Fichier .env.local non trouvé, utilisation des valeurs par défaut');
+    }
     return {
       server: {
         port: 3000,

@@ -207,7 +207,7 @@ export const Dashboard = () => {
                                                       <span className={`text-[8px] font-black uppercase tracking-widest bg-white px-2 py-0.5 rounded border border-gray-100 shadow-sm ${config.color}`}>
                                                           {config.label}
                                                       </span>
-                                                      {evt.isSpecialDay && <Star size={12} className="text-[#FCB131] fill-[#FCB131]" />}
+                                                      {evt.is_special_day && <Star size={12} className="text-[#FCB131] fill-[#FCB131]" />}
                                                   </div>
                                                   <h5 className="font-bold text-[#001d4a] uppercase text-xs leading-tight mb-1">{evt.title}</h5>
                                                   {evt.description && <p className="text-[10px] text-gray-600 italic line-clamp-3">{evt.description}</p>}

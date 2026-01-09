@@ -55,11 +55,11 @@ export const Habilitaciones = () => {
 
   const processedMatches = useMemo<ProcessedMatch[]>(() => {
     return matches
-      .filter(m => !m.isSuspended && m.aperturaDate && m.cierreDate)
-      .filter(m => m.isHome || m.isNeutral)
+      .filter(m => !m.is_suspended && m.apertura_date && m.cierre_date)
+      .filter(m => m.is_home || m.is_neutral)
       .map(m => {
-          const ap = parseDate(m.aperturaDate, m.aperturaHour);
-          const ci = parseDate(m.cierreDate, m.cierreHour);
+          const ap = parseDate(m.apertura_date, m.apertura_hour);
+          const ci = parseDate(m.cierre_date, m.cierre_hour);
           
           let status: 'OPEN' | 'SCHEDULED' | 'CLOSED' = 'CLOSED';
           if (now >= ap && now <= ci) status = 'OPEN';
@@ -136,7 +136,7 @@ export const Habilitaciones = () => {
                 <GlassCard key={match.id} className={`p-6 border flex flex-col relative overflow-hidden ${getContainerStyle(match.status)}`}>
                     
                     <div className={`absolute top-0 right-0 p-2 rounded-bl-xl ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
-                        {match.isHome ? <Home size={14} className={isDark ? 'text-[#FCB131]' : 'text-[#003B94]'} /> : <Plane size={14} className={isDark ? 'text-[#FCB131]' : 'text-[#003B94]'} />}
+                        {match.is_home ? <Home size={14} className={isDark ? 'text-[#FCB131]' : 'text-[#003B94]'} /> : <Plane size={14} className={isDark ? 'text-[#FCB131]' : 'text-[#003B94]'} />}
                     </div>
 
                     <div className="flex justify-between items-start mb-4 pr-8">
@@ -155,15 +155,15 @@ export const Habilitaciones = () => {
                         <div className={`text-center p-2 rounded-lg border flex flex-col items-center justify-center ${isDark ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-gray-100'}`}>
                             <span className={`text-[7px] font-black uppercase block mb-1 ${isDark ? 'text-white/60' : 'text-gray-400'}`}>Apertura</span>
                             <div className="flex flex-col items-center leading-tight">
-                                <span className={`text-xs font-black ${isDark ? 'text-[#FCB131]' : 'text-[#003B94]'}`}>{formatDateDisplay(match.aperturaDate)}</span>
-                                <span className={`text-[9px] font-bold ${isDark ? 'text-white/80' : 'text-[#001d4a]/70'}`}>{match.aperturaHour} HS</span>
+                                <span className={`text-xs font-black ${isDark ? 'text-[#FCB131]' : 'text-[#003B94]'}`}>{formatDateDisplay(match.apertura_date)}</span>
+                                <span className={`text-[9px] font-bold ${isDark ? 'text-white/80' : 'text-[#001d4a]/70'}`}>{match.apertura_hour} HS</span>
                             </div>
                         </div>
                         <div className={`text-center p-2 rounded-lg border flex flex-col items-center justify-center ${isDark ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-gray-100'}`}>
                             <span className={`text-[7px] font-black uppercase block mb-1 ${isDark ? 'text-white/60' : 'text-gray-400'}`}>Cierre</span>
                             <div className="flex flex-col items-center leading-tight">
-                                <span className={`text-xs font-black ${isDark ? 'text-white' : 'text-[#001d4a]'}`}>{formatDateDisplay(match.cierreDate)}</span>
-                                <span className={`text-[9px] font-bold ${isDark ? 'text-white/60' : 'text-[#001d4a]/60'}`}>{match.cierreHour} HS</span>
+                                <span className={`text-xs font-black ${isDark ? 'text-white' : 'text-[#001d4a]'}`}>{formatDateDisplay(match.cierre_date)}</span>
+                                <span className={`text-[9px] font-bold ${isDark ? 'text-white/60' : 'text-[#001d4a]/60'}`}>{match.cierre_hour} HS</span>
                             </div>
                         </div>
                     </div>
@@ -223,8 +223,8 @@ export const Habilitaciones = () => {
                                         {requests.map(req => (
                                             <tr key={req.id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="p-4">
-                                                    <p className="font-black text-[#001d4a] uppercase text-xs">{req.socioName}</p>
-                                                    <p className="text-[9px] text-gray-400 font-mono">DNI: {req.socioDni}</p>
+                                                    <p className="font-black text-[#001d4a] uppercase text-xs">{req.socio_name}</p>
+                                                    <p className="text-[9px] text-gray-400 font-mono">DNI: {req.socio_dni}</p>
                                                 </td>
                                                 <td className="p-4 text-[10px] font-bold text-[#003B94] uppercase">{req.consulado}</td>
                                                 <td className="p-4">

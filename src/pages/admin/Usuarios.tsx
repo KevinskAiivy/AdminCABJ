@@ -101,7 +101,7 @@ export const Usuarios = () => {
 
   const handleSave = async () => {
       setError(null);
-      if (!formData.username || !formData.email || !formData.fullName) {
+      if (!formData.username || !formData.email || !formData.full_name) {
           setError("Complete todos los campos obligatorios");
           return;
       }
@@ -126,7 +126,7 @@ export const Usuarios = () => {
       }
   };
 
-  const filteredUsers = users.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase()) || u.fullName.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredUsers = users.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase()) || u.full_name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 px-4 animate-boca-entrance">
@@ -153,10 +153,10 @@ export const Usuarios = () => {
                 <GlassCard key={user.id} className="p-5 bg-white border border-[#003B94]/10 group relative">
                     <div className="flex items-start gap-4">
                         <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-[#003B94] font-black shadow-inner">
-                            {user.fullName.charAt(0)}
+                            {user.full_name.charAt(0)}
                         </div>
                         <div className="min-w-0 flex-1">
-                            <h3 className="oswald text-lg font-black text-[#001d4a] uppercase truncate">{user.fullName}</h3>
+                            <h3 className="oswald text-lg font-black text-[#001d4a] uppercase truncate">{user.full_name}</h3>
                             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-2">{user.role}</p>
                             <div className="flex items-center gap-2 text-[9px] font-medium text-gray-500">
                                 <span className={`w-2 h-2 rounded-full ${user.active ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
@@ -219,7 +219,7 @@ export const Usuarios = () => {
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Nombre Completo</label>
-                                    <div className="relative"><input type="text" className="w-full bg-white border border-gray-200 rounded-xl py-3 pl-10 pr-4 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94] transition-all" value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value})} /><User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /></div>
+                                    <div className="relative"><input type="text" className="w-full bg-white border border-gray-200 rounded-xl py-3 pl-10 pr-4 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94] transition-all" value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} /><User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /></div>
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label>
@@ -240,7 +240,7 @@ export const Usuarios = () => {
                                 <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
                                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Consulado Asignado</label>
                                     <div className="relative">
-                                        <select className="w-full bg-white border border-gray-200 rounded-xl py-3 pl-10 pr-4 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94] transition-all appearance-none cursor-pointer" value={formData.consuladoId} onChange={(e) => setFormData({...formData, consuladoId: e.target.value})}>
+                                        <select className="w-full bg-white border border-gray-200 rounded-xl py-3 pl-10 pr-4 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94] transition-all appearance-none cursor-pointer" value={formData.consulado_id} onChange={(e) => setFormData({...formData, consulado_id: e.target.value})}>
                                             <option value="">Seleccionar Consulado...</option>
                                             {consulados.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                         </select>

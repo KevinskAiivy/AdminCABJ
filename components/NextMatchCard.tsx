@@ -156,7 +156,7 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
                       {match.competition}
                   </h2>
                   <span className="text-[#FCB131] oswald text-xs font-bold uppercase tracking-[0.25em] mt-1 drop-shadow-sm">
-                      {match.fechaJornada || 'PRÓXIMO PARTIDO'}
+                      {match.fecha_jornada || 'PRÓXIMO PARTIDO'}
                   </span>
               </div>
           </div>
@@ -208,7 +208,7 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
                       {rivalLogo ? (
                           <img src={rivalLogo} alt={match.rival} className="w-full h-full object-contain filter brightness-110" />
                       ) : (
-                          <span className="oswald text-4xl md:text-6xl font-black text-white/10 italic tracking-tighter select-none">{match.rivalShort}</span>
+                          <span className="oswald text-4xl md:text-6xl font-black text-white/10 italic tracking-tighter select-none">{match.rival_short}</span>
                       )}
                   </div>
                   <h3 className="oswald text-lg md:text-xl font-black uppercase text-white/80 tracking-tight truncate w-full max-w-[140px]" title={match.rival}>
