@@ -38,12 +38,28 @@ export const Navbar = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [logoUrl, setLogoUrl] = useState<string | undefined>(dataService.getAppSettings().logoUrl);
+  const [logoError, setLogoError] = useState(false);
+  const [logoSize, setLogoSize] = useState<number>(dataService.getAppSettings().logoMenuSize || 40);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isViewSelectorOpen, setIsViewSelectorOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const viewSelectorRef = useRef<HTMLDivElement>(null);
   const isSuperAdmin = user.role === 'SUPERADMIN';
   const consulados = dataService.getConsulados();
+
+  // S'abonner aux changements de settings pour mettre à jour le logo
+  useEffect(() => {
+    const updateLogo = () => {
+      const settings = dataService.getAppSettings();
+      setLogoUrl(settings.logoUrl);
+      setLogoSize(settings.logoMenuSize || 40);
+      setLogoError(false); // Réinitialiser l'erreur quand les settings changent
+    };
+    updateLogo();
+    const unsubscribe = dataService.subscribe(updateLogo);
+    return () => unsubscribe();
+  }, []);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -95,7 +111,20 @@ export const Navbar = ({
         <div className="flex items-center gap-4 shrink-0">
           <div className="relative group cursor-pointer">
              <div className="absolute inset-0 bg-[#FCB131] blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-500 rounded-full"></div>
-             <BocaLogoSVG className="w-10 h-10 drop-shadow-lg relative z-10 transform group-hover:scale-105 transition-transform" />
+             {logoUrl && !logoError ? (
+               <img 
+                 src={logoUrl} 
+                 alt="Logo" 
+                 style={{ width: `${logoSize}px`, height: `${logoSize}px` }}
+                 className="drop-shadow-lg relative z-10 transform group-hover:scale-105 transition-transform object-contain"
+                 onError={() => {
+                   // Si l'image ne charge pas, utiliser le logo SVG par défaut
+                   setLogoError(true);
+                 }}
+               />
+             ) : (
+               <BocaLogoSVG style={{ width: `${logoSize}px`, height: `${logoSize}px` }} className="drop-shadow-lg relative z-10 transform group-hover:scale-105 transition-transform" />
+             )}
           </div>
           <div className="leading-tight hidden lg:block">
             <h1 className="text-white font-black text-sm oswald tracking-tighter uppercase">Consulados CABJ</h1>

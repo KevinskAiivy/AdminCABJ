@@ -48,16 +48,44 @@ export const DashboardPresident = ({ consulado_id }: { consulado_id: string }) =
         });
         setNotifications(newNotifs);
 
-        // Next Match Logic
+        // Next Match Logic - Trouver le vrai prochain match (le plus proche dans le futur)
         const allMatches = dataService.getMatches();
+        const now = new Date();
+        
         const upcomingMatches = allMatches
             .map((m) => {
-                const [d, M, y] = m.date.split('/').map(Number);
-                const [h, min] = m.hour.split(':').map(Number);
-                return { ...m, dateObj: new Date(y, M - 1, d, h, min) };
+                if (!m.date || !m.hour) return null;
+                
+                let dateObj: Date;
+                // Parser la date selon son format
+                if (m.date.includes('/')) {
+                    // Format DD/MM/YYYY
+                    const [d, M, y] = m.date.split('/').map(Number);
+                    const [h, min] = m.hour.split(':').map(Number);
+                    dateObj = new Date(y, M - 1, d, h || 0, min || 0);
+                } else if (m.date.includes('-')) {
+                    // Format YYYY-MM-DD (DB) ou DD-MM-YYYY
+                    const parts = m.date.split('-');
+                    if (parts[0].length === 4) {
+                        // Format YYYY-MM-DD
+                        const [y, M, d] = parts.map(Number);
+                        const [h, min] = m.hour.split(':').map(Number);
+                        dateObj = new Date(y, M - 1, d, h || 0, min || 0);
+                    } else {
+                        // Format DD-MM-YYYY
+                        const [d, M, y] = parts.map(Number);
+                        const [h, min] = m.hour.split(':').map(Number);
+                        dateObj = new Date(y, M - 1, d, h || 0, min || 0);
+                    }
+                } else {
+                    return null;
+                }
+                
+                return { ...m, dateObj };
             })
-            .filter((m) => m.dateObj > new Date())
+            .filter((m): m is any => m !== null && m.dateObj > now)
             .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+        
         setNextMatch(upcomingMatches.length > 0 ? upcomingMatches[0] : null);
     };
 

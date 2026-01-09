@@ -508,6 +508,10 @@ class DataService {
 
   // Local State Cache
   private appSettings: AppSettings = {
+    logoMenuSize: 40,
+    logoLoginSize: 96,
+    logoMatchSize: 128,
+    logoRivalSize: 128,
     appName: 'Consulados CABJ',
     appDescription: 'Sistema de Gestión Oficial',
     primaryColor: '#003B94',

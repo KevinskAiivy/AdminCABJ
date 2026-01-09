@@ -136,16 +136,21 @@ export const Configuracion = () => {
                           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-4 border-t border-gray-100">
                               
                               {[
-                                { label: 'Logo Principal', ref: logoInputRef, field: 'logoUrl', icon: ImageIcon },
-                                { label: 'Logo Login', ref: loginLogoInputRef, field: 'loginLogoUrl', icon: LogIn },
+                                { label: 'Logo Menú General', ref: logoInputRef, field: 'logoUrl', icon: ImageIcon, description: 'Logo visible dans la barre de navigation' },
+                                { label: 'Logo Login', ref: loginLogoInputRef, field: 'loginLogoUrl', icon: LogIn, description: 'Logo visible sur la page de connexion (utilise le logo du menu si non défini)' },
                                 { label: 'Escudo Deportivo', ref: matchLogoInputRef, field: 'matchLogoUrl', icon: Shield },
                                 { label: 'Favicon', ref: faviconInputRef, field: 'faviconUrl', icon: MousePointer2 },
                                 { label: 'Logo Carga', ref: transitionLogoInputRef, field: 'transitionLogoUrl', icon: Loader2 }
                               ].map((item: any) => (
                                 <div key={item.field} className="space-y-2">
-                                    <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest flex items-center gap-2">
-                                        <item.icon size={12}/> {item.label}
-                                    </label>
+                                    <div>
+                                        <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest flex items-center gap-2">
+                                            <item.icon size={12}/> {item.label}
+                                        </label>
+                                        {item.description && (
+                                            <p className="text-[7px] text-gray-400 mt-0.5 italic">{item.description}</p>
+                                        )}
+                                    </div>
                                     <div className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 hover:border-[#003B94]/30 transition-all h-40 group relative overflow-hidden">
                                         <div className="w-14 h-14 mb-3 relative flex items-center justify-center">
                                             {settings[item.field as keyof AppSettings] ? (
@@ -164,6 +169,71 @@ export const Configuracion = () => {
                                     </div>
                                 </div>
                               ))}
+                          </div>
+
+                          {/* Taille des Logos Section */}
+                          <div className="pt-8 border-t border-gray-100 mt-8">
+                              <h3 className="text-[#003B94] font-black uppercase text-sm border-b border-gray-100 pb-3 mb-6">Taille d'Affichage des Logos</h3>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  {[
+                                      { label: 'Logo Menu', field: 'logoMenuSize', icon: ImageIcon, description: 'Taille du logo dans la barre de navigation (px)', min: 20, max: 100, default: 40 },
+                                      { label: 'Logo Login', field: 'logoLoginSize', icon: LogIn, description: 'Taille du logo sur la page de connexion (px)', min: 40, max: 200, default: 96 },
+                                      { label: 'Logo Match', field: 'logoMatchSize', icon: Shield, description: 'Taille du logo de match (px)', min: 60, max: 200, default: 128 },
+                                      { label: 'Logo Équipe Adverse', field: 'logoRivalSize', icon: ImageIcon, description: 'Taille du logo de l\'équipe adverse (px)', min: 60, max: 200, default: 128 }
+                                  ].map((item: any) => (
+                                      <div key={item.field} className="space-y-3">
+                                          <div className="flex items-center gap-2">
+                                              <item.icon size={14} className="text-[#003B94]"/>
+                                              <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest">
+                                                  {item.label}
+                                              </label>
+                                          </div>
+                                          <p className="text-[7px] text-gray-400 italic">{item.description}</p>
+                                          
+                                          <div className="flex items-center gap-4">
+                                              <input
+                                                  type="range"
+                                                  min={item.min}
+                                                  max={item.max}
+                                                  step="4"
+                                                  value={settings[item.field as keyof AppSettings] as number || item.default}
+                                                  onChange={(e) => handleChange(item.field, parseInt(e.target.value))}
+                                                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#003B94]"
+                                              />
+                                              <div className="flex items-center gap-2 min-w-[80px]">
+                                                  <input
+                                                      type="number"
+                                                      min={item.min}
+                                                      max={item.max}
+                                                      value={settings[item.field as keyof AppSettings] as number || item.default}
+                                                      onChange={(e) => {
+                                                          const val = parseInt(e.target.value);
+                                                          if (val >= item.min && val <= item.max) {
+                                                              handleChange(item.field, val);
+                                                          }
+                                                      }}
+                                                      className="w-16 bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94] text-center"
+                                                  />
+                                                  <span className="text-[8px] font-black text-gray-400 uppercase">px</span>
+                                              </div>
+                                          </div>
+                                          
+                                          {/* Preview */}
+                                          <div className="flex items-center justify-center p-3 bg-gray-50 rounded-xl border border-gray-200">
+                                              <div 
+                                                  className="bg-white rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center"
+                                                  style={{ 
+                                                      width: `${Math.min((settings[item.field as keyof AppSettings] as number || item.default) * 0.5, 80)}px`, 
+                                                      height: `${Math.min((settings[item.field as keyof AppSettings] as number || item.default) * 0.5, 80)}px` 
+                                                  }}
+                                              >
+                                                  <div className="w-8 h-8 bg-[#003B94]/20 rounded"></div>
+                                              </div>
+                                          </div>
+                                      </div>
+                                  ))}
+                              </div>
                           </div>
                       </div>
                   )}

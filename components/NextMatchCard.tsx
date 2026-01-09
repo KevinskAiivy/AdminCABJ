@@ -57,11 +57,44 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
   const [settings, setSettings] = useState(dataService.getAppSettings());
   const [displayTime, setDisplayTime] = useState(match.hour);
   const [displayFlag, setDisplayFlag] = useState('🇦🇷');
+  const [logoMatchSize, setLogoMatchSize] = useState<number>(dataService.getAppSettings().logoMatchSize || 128);
+  const [logoRivalSize, setLogoRivalSize] = useState<number>(dataService.getAppSettings().logoRivalSize || 128);
 
   useEffect(() => {
     if (!match || !match.date || !match.hour) return;
 
-    setSettings(dataService.getAppSettings());
+    const currentSettings = dataService.getAppSettings();
+    setSettings(currentSettings);
+    setLogoMatchSize(currentSettings.logoMatchSize || 128);
+    setLogoRivalSize(currentSettings.logoRivalSize || 128);
+    
+    // Fonction pour mettre à jour les logos
+    const updateLogos = () => {
+        const currentSettings = dataService.getAppSettings();
+        setLogoMatchSize(currentSettings.logoMatchSize || 128);
+        setLogoRivalSize(currentSettings.logoRivalSize || 128);
+        
+        const teams = dataService.getTeams();
+        // Recherche plus robuste : par ID d'abord, puis par nom (insensible à la casse et trim)
+        const foundTeam = teams.find(t => 
+            (match.rival_id && t.id === match.rival_id) || 
+            (match.rival && t.name && t.name.trim().toLowerCase() === match.rival.trim().toLowerCase())
+        ) || teams.find(t => 
+            match.rival && t.name && (
+                t.name.trim().toLowerCase().includes(match.rival.trim().toLowerCase()) ||
+                match.rival.trim().toLowerCase().includes(t.name.trim().toLowerCase())
+            )
+        );
+        setRivalLogo(foundTeam?.logo || null);
+
+        const competitions = dataService.getCompetitions();
+        // Try precise match then fuzzy
+        const foundComp = competitions.find(c => c.name === match.competition) || competitions.find(c => match.competition.includes(c.name));
+        setCompLogo(foundComp?.logo || null);
+    };
+    
+    // Charger les logos immédiatement
+    updateLogos();
 
     // 1. Calculate Countdown
     const calculateTimeLeft = () => {
@@ -115,17 +148,13 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
         setDisplayFlag('🇦🇷');
     }
 
-    // 3. Fetch Logos dynamically from DB
-    const teams = dataService.getTeams();
-    const foundTeam = teams.find(t => t.name === match.rival);
-    setRivalLogo(foundTeam?.logo || null);
+    // S'abonner aux mises à jour des données pour recharger les logos
+    const unsubscribe = dataService.subscribe(updateLogos);
 
-    const competitions = dataService.getCompetitions();
-    // Try precise match then fuzzy
-    const foundComp = competitions.find(c => c.name === match.competition) || competitions.find(c => match.competition.includes(c.name));
-    setCompLogo(foundComp?.logo || null);
-
-    return () => clearInterval(timer);
+    return () => {
+        clearInterval(timer);
+        unsubscribe();
+    };
   }, [match, userTimezone, userCountryCode]);
 
   if (!match) return null;
@@ -182,11 +211,19 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
               
               {/* Boca Logic */}
               <div className="flex-1 flex flex-col items-center gap-2 text-center group/team">
-                  <div className="relative w-24 h-24 md:w-32 md:h-32 drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] group-hover/team:scale-110 transition-transform duration-500 flex items-center justify-center">
+                  <div className="relative drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] group-hover/team:scale-110 transition-transform duration-500 flex items-center justify-center">
                       {settings.matchLogoUrl ? (
-                          <img src={settings.matchLogoUrl} alt="Boca" className="w-full h-full object-contain filter brightness-110" />
+                          <img 
+                              src={settings.matchLogoUrl} 
+                              alt="Boca" 
+                              style={{ width: `${logoMatchSize}px`, height: `${logoMatchSize}px` }}
+                              className="object-contain filter brightness-110" 
+                          />
                       ) : (
-                          <BocaLogoSVG className="w-full h-full filter brightness-110" />
+                          <BocaLogoSVG 
+                              style={{ width: `${logoMatchSize}px`, height: `${logoMatchSize}px` }}
+                              className="filter brightness-110" 
+                          />
                       )}
                   </div>
                   <h3 className="oswald text-lg md:text-xl font-black uppercase text-white tracking-tight drop-shadow-md">Boca Juniors</h3>
@@ -216,11 +253,21 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
 
               {/* Rival Logic */}
               <div className="flex-1 flex flex-col items-center gap-2 text-center group/team">
-                  <div className="relative w-24 h-24 md:w-32 md:h-32 flex items-center justify-center drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] group-hover/team:scale-110 transition-transform duration-500">
+                  <div className="relative flex items-center justify-center drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] group-hover/team:scale-110 transition-transform duration-500">
                       {rivalLogo ? (
-                          <img src={rivalLogo} alt={match.rival} className="w-full h-full object-contain filter brightness-110" />
+                          <img 
+                              src={rivalLogo} 
+                              alt={match.rival} 
+                              style={{ width: `${logoRivalSize}px`, height: `${logoRivalSize}px` }}
+                              className="object-contain filter brightness-110" 
+                          />
                       ) : (
-                          <span className="oswald text-4xl md:text-6xl font-black text-white/10 italic tracking-tighter select-none">{match.rival_short}</span>
+                          <span 
+                              className="oswald font-black text-white/10 italic tracking-tighter select-none"
+                              style={{ fontSize: `${logoRivalSize * 0.4}px` }}
+                          >
+                              {match.rival_short}
+                          </span>
                       )}
                   </div>
                   <h3 className="oswald text-lg md:text-xl font-black uppercase text-white/80 tracking-tight truncate w-full max-w-[140px]" title={match.rival}>

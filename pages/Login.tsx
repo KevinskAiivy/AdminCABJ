@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BocaLogoSVG } from '../constants';
 import { User, ArrowRight, ShieldCheck, Key, Loader2 } from 'lucide-react';
 import { UserSession } from '../types';
@@ -9,6 +9,23 @@ export const Login = ({ onLogin }: { onLogin: (session: UserSession) => void }) 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
+  const [logoError, setLogoError] = useState(false);
+  const [logoSize, setLogoSize] = useState<number>(dataService.getAppSettings().logoLoginSize || 96);
+
+  // Charger le logo depuis les settings (priorité à loginLogoUrl, sinon logoUrl)
+  useEffect(() => {
+    const updateLogo = () => {
+      const settings = dataService.getAppSettings();
+      // Utiliser loginLogoUrl en priorité, sinon logoUrl
+      setLogoUrl(settings.loginLogoUrl || settings.logoUrl);
+      setLogoSize(settings.logoLoginSize || 96);
+      setLogoError(false);
+    };
+    updateLogo();
+    const unsubscribe = dataService.subscribe(updateLogo);
+    return () => unsubscribe();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +76,20 @@ export const Login = ({ onLogin }: { onLogin: (session: UserSession) => void }) 
             
             <div className="mb-6 relative inline-block group">
                 <div className="absolute inset-0 bg-[#FCB131] blur-2xl opacity-20 group-hover:opacity-40 transition-opacity duration-500 rounded-full"></div>
-                <BocaLogoSVG className="w-24 h-24 relative z-10 drop-shadow-2xl transform group-hover:scale-105 transition-transform duration-500" />
+                {logoUrl && !logoError ? (
+                  <img 
+                    src={logoUrl} 
+                    alt="Logo" 
+                    style={{ width: `${logoSize}px`, height: `${logoSize}px` }}
+                    className="relative z-10 drop-shadow-2xl transform group-hover:scale-105 transition-transform duration-500 object-contain"
+                    onError={() => {
+                      // Si l'image ne charge pas, utiliser le logo SVG par défaut
+                      setLogoError(true);
+                    }}
+                  />
+                ) : (
+                  <BocaLogoSVG style={{ width: `${logoSize}px`, height: `${logoSize}px` }} className="relative z-10 drop-shadow-2xl transform group-hover:scale-105 transition-transform duration-500" />
+                )}
             </div>
             
             <h1 className="oswald text-4xl font-black text-white tracking-tighter uppercase mb-2 drop-shadow-lg">

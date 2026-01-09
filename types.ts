@@ -201,6 +201,11 @@ export interface AppSettings {
   matchLogoUrl?: string; 
   faviconUrl?: string; 
   transitionLogoUrl?: string;
+  // Taille des logos (en pixels)
+  logoMenuSize?: number; // Taille du logo dans le menu (défaut: 40)
+  logoLoginSize?: number; // Taille du logo sur la page de connexion (défaut: 96)
+  logoMatchSize?: number; // Taille du logo de match (défaut: 128)
+  logoRivalSize?: number; // Taille du logo de l'équipe adverse (défaut: 128)
   enableAnimations: boolean;
   compactMode: boolean; // For denser tables/lists
   
