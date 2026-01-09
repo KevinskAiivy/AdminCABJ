@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { Socio, TransferRequest } from '../types';
 import { dataService } from '../services/dataService';
-import { SOCIO_CATEGORIES, SOCIO_STATUS, COUNTRIES } from '../constants';
+import { SOCIO_CATEGORIES, COUNTRIES } from '../constants';
 import { CustomSelect } from '../components/CustomSelect';
 import { getGenderRoleLabel, getGenderLabel as getGenderLabelUtil } from '../utils/genderLabels';
 import { formatDateDisplay, formatDateToDB, formatDateFromDB } from '../utils/dateFormat';
@@ -27,7 +27,6 @@ export const Socios = ({ user }: { user?: any }) => {
   const consuladoFromUrl = searchParams.get('consulado');
   
   // Filters
-  const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [filterConsulado, setFilterConsulado] = useState<string>(consuladoFromUrl || 'ALL');
   const [filterRole, setFilterRole] = useState<string>('ALL');
@@ -64,6 +63,7 @@ export const Socios = ({ user }: { user?: any }) => {
   // --- SPECIAL LOGIC STATES ---
   const [pendingConsulado, setPendingConsulado] = useState<string | null>(null);
   const [consuladoSelection, setConsuladoSelection] = useState<string>(''); // Intermediate selection
+  const [isConsuladoLocked, setIsConsuladoLocked] = useState(true); // Verrouiller le changement de consulado
   
   // ID Management
   const [isIdLocked, setIsIdLocked] = useState(true);
@@ -150,7 +150,6 @@ export const Socios = ({ user }: { user?: any }) => {
       const matchesSearch = s.name.toLowerCase().includes(q) || s.dni.includes(q) || s.id.includes(q) || (s.consulado && s.consulado.toLowerCase().includes(q));
       
       const dynamicStatus = calculateSocioStatus(s.last_month_paid || '').label;
-      const matchesStatus = filterStatus === 'ALL' || dynamicStatus === filterStatus;
       const matchesCategory = filterCategory === 'ALL' || s.category === filterCategory;
       const matchesConsulado = filterConsulado === 'ALL' || 
         (filterConsulado === 'SEDE CENTRAL' || filterConsulado?.toUpperCase() === 'SEDE CENTRAL' 
@@ -159,9 +158,9 @@ export const Socios = ({ user }: { user?: any }) => {
       const matchesRole = filterRole === 'ALL' || (filterRole === '' ? !s.role || s.role === '' : s.role === filterRole);
       const matchesCuotaStatus = filterCuotaStatus === 'ALL' || dynamicStatus === filterCuotaStatus;
 
-      return matchesSearch && matchesStatus && matchesCategory && matchesConsulado && matchesRole && matchesCuotaStatus;
+      return matchesSearch && matchesCategory && matchesConsulado && matchesRole && matchesCuotaStatus;
     });
-  }, [socios, searchQuery, filterStatus, filterCategory, filterConsulado, filterRole, filterCuotaStatus]);
+  }, [socios, searchQuery, filterCategory, filterConsulado, filterRole, filterCuotaStatus]);
 
   const totalPages = Math.ceil(filteredSocios.length / itemsPerPage);
   const currentItems = useMemo(() => {
@@ -236,7 +235,6 @@ export const Socios = ({ user }: { user?: any }) => {
 
   // --- ACTIONS ---
   const resetFilters = () => {
-    setFilterStatus('ALL');
     setFilterCategory('ALL');
     setFilterConsulado('ALL');
     setFilterRole('ALL');
@@ -281,6 +279,7 @@ export const Socios = ({ user }: { user?: any }) => {
     setPendingConsulado(null); setConsuladoSelection(socio.consulado || '');
     setPendingIdChange(null); setIsIdLocked(true); setTempId(socio.numero_socio || socio.id);
     setIdStatus('IDLE'); setSocioTransfers(dataService.getSocioTransfers(socio.id));
+    setIsConsuladoLocked(true);
     setActiveTab('INFO'); setIsEditModalOpen(true); setShowSaveConfirm(false);
   };
 
@@ -306,15 +305,21 @@ export const Socios = ({ user }: { user?: any }) => {
     let finalRole = formData.role;
     if (pendingConsulado) finalRole = 'SOCIO';
     let finalId = selectedSocio ? selectedSocio.id : tempId;
-    if (pendingIdChange) finalId = pendingIdChange.new;
+    let finalNumeroSocio = tempId || formData.numero_socio || (selectedSocio ? selectedSocio.numero_socio : '') || finalId || '';
+    
+    // Si un changement de numéro de socio est en attente, utiliser le nouveau numéro
+    if (pendingIdChange) {
+        finalId = pendingIdChange.new;
+        finalNumeroSocio = pendingIdChange.new;
+    }
 
     const finalData: Socio = {
         id: finalId || tempId || crypto.randomUUID().slice(-10),
         first_name: formData.first_name || '',
         last_name: formData.last_name || '',
         name: `${formData.first_name || ''} ${formData.last_name || ''}`.trim(),
-        // numero_socio : utiliser tempId (qui peut être modifié) ou formData.numero_socio (qui vient de la DB)
-        numero_socio: tempId || formData.numero_socio || (selectedSocio ? selectedSocio.numero_socio : '') || finalId || '',
+        // numero_socio : utiliser finalNumeroSocio qui prend en compte pendingIdChange
+        numero_socio: finalNumeroSocio,
         dni: formData.dni || '',
         category: formData.category || 'ADHERENTE',
         status: finalStatus.label as any || 'AL DÍA',
@@ -368,8 +373,20 @@ export const Socios = ({ user }: { user?: any }) => {
       setTempId(clean);
       // Mettre à jour aussi formData.numero_socio
       setFormData({...formData, numero_socio: clean});
-      if(clean === selectedSocio?.id) { setIdStatus('IDLE'); return; }
-      setIdStatus(socios.some(s => s.id === clean) ? 'ERROR' : 'VALID');
+      
+      // Si le numéro est identique à l'original, pas de changement
+      if(clean === selectedSocio?.numero_socio || clean === selectedSocio?.id) { 
+          setIdStatus('IDLE'); 
+          return; 
+      }
+      
+      // Vérifier si le numéro est déjà utilisé (dans id OU numero_socio)
+      const isUsed = socios.some(s => 
+          (s.id === clean || s.numero_socio === clean) && 
+          s.id !== selectedSocio?.id // Exclure le socio actuel
+      );
+      
+      setIdStatus(isUsed ? 'ERROR' : 'VALID');
   };
 
   return (
@@ -409,10 +426,6 @@ export const Socios = ({ user }: { user?: any }) => {
         <button onClick={resetFilters} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-[#001d4a] transition-all font-black text-[8px] uppercase tracking-widest border border-transparent hover:border-gray-300 h-fit"><RotateCcw size={10} /> Limpiar Filtros</button>
         <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto overflow-x-auto">
             <div className="relative min-w-[130px]">
-                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Estados</option>{SOCIO_STATUS.map(st => <option key={st} value={st}>{st}</option>)}</select>
-                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
-            </div>
-            <div className="relative min-w-[130px]">
                 <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="w-full bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Categorías</option>{SOCIO_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select>
                 <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
             </div>
@@ -449,43 +462,103 @@ export const Socios = ({ user }: { user?: any }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 min-h-[500px]">
         {currentItems.map((socio) => {
             const isPresident = socio.role === 'PRESIDENTE';
+            const isReferente = socio.role === 'REFERENTE';
             const computedStatus = calculateSocioStatus(socio.last_month_paid || '');
-            let containerClass = "bg-white border-[#003B94]/10";
-            if (isPresident) containerClass = "bg-gradient-to-br from-[#FCB131] to-[#FFD23F] border-[#001d4a]/20 shadow-[0_0_25px_rgba(252,177,49,0.3)]";
-            else if (computedStatus.label === 'EN DEUDA') containerClass = "bg-gradient-to-br from-white to-amber-50 border-amber-200 border-2";
-            else if (computedStatus.label === 'DE BAJA') containerClass = "bg-gradient-to-br from-white to-red-50 border-red-200 border-2";
+            let containerClass = "";
+            let variant: 'light' | 'gold' | 'dark' = 'light';
+            
+            if (isPresident) {
+                variant = 'gold';
+                containerClass = "border-[#001d4a]/20 shadow-[0_8px_32px_rgba(252,177,49,0.3)] bg-gradient-to-br from-[#FFD700]/90 via-[#FFC125]/85 to-[#FFA500]/90 backdrop-blur-xl";
+            } else if (isReferente) {
+                variant = 'dark';
+                containerClass = "border-white/10 shadow-[0_8px_32px_rgba(0,29,74,0.4)]";
+            } else if (computedStatus.label === 'EN DEUDA') {
+                variant = 'light';
+                containerClass = "border-amber-300/40 shadow-[0_4px_16px_rgba(245,158,11,0.1)]";
+            } else if (computedStatus.label === 'DE BAJA') {
+                variant = 'light';
+                containerClass = "border-red-300/40 shadow-[0_4px_16px_rgba(239,68,68,0.1)]";
+            } else {
+                variant = 'light';
+                containerClass = "";
+            }
 
             return (
-            <GlassCard key={socio.id} onClick={() => setViewSocio(socio)} className={`flex flex-col group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 ${containerClass} p-0`}>
-                <div className="p-5 pb-3 flex items-start gap-4">
-                    <div className={`w-14 h-14 rounded-full ${socio.avatar_color || 'bg-gray-300'} flex items-center justify-center text-white text-lg font-black shadow-md shrink-0 relative border-2 border-white`}>
-                        {socio.first_name.charAt(0)}{socio.last_name.charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <h4 className="oswald text-lg tracking-tight leading-none mb-1 truncate text-[#001d4a]">
-                            <span className="font-black">{socio.last_name.toUpperCase()}</span> <span className="font-medium">{socio.first_name}</span>
-                        </h4>
-                        <div className="flex flex-wrap gap-2 items-center">
-                            <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border bg-gray-100 text-gray-500 border-gray-200">{getGenderRoleLabel(socio.role || 'SOCIO', socio.gender)}</span>
-                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${computedStatus.color}`}>{computedStatus.label}</span>
+            <GlassCard 
+                key={socio.id} 
+                onClick={() => setViewSocio(socio)} 
+                className={`flex flex-col group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_-5px_rgba(0,29,74,0.2)] ${containerClass} p-0`}
+                variant={variant}
+            >
+                {/* Action buttons - toujours visibles en haut à droite */}
+                <div className="absolute top-3 right-3 z-10 flex gap-2 opacity-100">
+                    <button 
+                        onClick={(e) => { 
+                            e.stopPropagation(); 
+                            handleEdit(socio); 
+                        }} 
+                        className={`p-2 backdrop-blur-sm rounded-lg hover:text-white transition-all shadow-lg border hover:scale-110 ${
+                            isPresident || isReferente
+                                ? 'bg-white/20 text-white border-white/30 hover:bg-white/30'
+                                : 'bg-white/80 text-[#003B94] border-white/20 hover:bg-[#003B94]'
+                        }`}
+                        title="Editar socio"
+                    >
+                        <Edit2 size={14} />
+                    </button>
+                    <button 
+                        onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setSelectedSocio(socio); 
+                            setIsDeleteModalOpen(true); 
+                        }} 
+                        className={`p-2 backdrop-blur-sm text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-lg border hover:scale-110 ${
+                            isPresident || isReferente
+                                ? 'bg-white/20 border-white/30'
+                                : 'bg-white/80 border-white/20'
+                        }`}
+                        title="Eliminar socio"
+                    >
+                        <Trash2 size={14} />
+                    </button>
+                </div>
+
+                <div className="p-5 pb-3 flex items-start gap-4 relative">
+                    {/* Étoile pour les présidents */}
+                    {isPresident && (
+                        <div className="absolute top-4 left-4 w-12 h-12 rounded-full bg-[#001d4a] flex items-center justify-center shadow-lg border-2 border-[#FCB131]/30 z-10">
+                            <Star size={20} className="text-[#FCB131] fill-[#FCB131]" strokeWidth={3} />
+                        </div>
+                    )}
+                    <div className={`flex-1 min-w-0 ${isPresident ? 'pl-16' : 'pr-16'}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                            <h4 className={`oswald text-lg tracking-tight leading-none truncate ${isPresident || isReferente ? 'text-white' : 'text-[#001d4a]'}`}>
+                                <span className="font-black uppercase">{socio.last_name.toUpperCase()}</span> <span className="font-normal capitalize">{socio.first_name.toLowerCase()}</span>
+                            </h4>
+                        </div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-gray-500">N° Socio:</span>
+                            <span className={`text-[10px] font-black ${isPresident || isReferente ? 'text-white' : 'text-[#001d4a]'}`}>{socio.numero_socio || socio.dni || 'N/A'}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 items-center mt-2">
+                            <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest backdrop-blur-sm border shadow-sm ${
+                                isPresident || isReferente 
+                                    ? 'bg-white/20 border-white/30 text-white' 
+                                    : 'bg-white/60 border-white/30 text-gray-700'
+                            }`}>{getGenderRoleLabel(socio.role || 'SOCIO', socio.gender)}</span>
+                            <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border shadow-sm backdrop-blur-sm ${computedStatus.color}`}>{computedStatus.label}</span>
                         </div>
                     </div>
                 </div>
                 <div className="px-5 py-3 space-y-3">
-                    <div className="flex items-center gap-2 text-[#001d4a]/80">
-                        <MapPin size={14} className="text-[#FCB131]" />
-                        <span className="text-[10px] font-black uppercase tracking-widest truncate">{socio.consulado || 'SEDE CENTRAL'}</span>
+                    <div className={`flex items-center gap-2 ${isPresident || isReferente ? 'text-white/90 bg-white/10' : 'text-[#001d4a]/80 bg-white/30'} backdrop-blur-sm rounded-lg px-3 py-2 border border-white/20`}>
+                        <MapPin size={14} className={isPresident ? "text-[#001d4a]" : isReferente ? "text-[#FCB131]" : "text-[#FCB131]"} />
+                        <span className={`text-[10px] font-black uppercase tracking-widest truncate ${isPresident || isReferente ? 'text-white' : ''}`}>{socio.consulado || 'SEDE CENTRAL'}</span>
                     </div>
-                    <div className="text-[9px] font-bold flex items-center justify-between border-t border-[#003B94]/5 pt-2 text-[#001d4a]">
-                        <span className="uppercase opacity-70">Ultimo Pago:</span>
-                        <span className="text-[#003B94]">{formatLastPaymentDate(socio.last_month_paid)}</span>
-                    </div>
-                </div>
-                <div className="mt-auto px-5 py-3 border-t border-black/5 bg-white/50 flex justify-between items-center">
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">N° Socio: {socio.numero_socio || socio.id}</span>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                        <button onClick={(e) => { e.stopPropagation(); handleEdit(socio); }} className="p-1.5 bg-[#003B94]/10 text-[#003B94] rounded hover:bg-[#003B94] hover:text-white"><Edit2 size={12} /></button>
-                        <button onClick={(e) => { e.stopPropagation(); setSelectedSocio(socio); setIsDeleteModalOpen(true); }} className="p-1.5 bg-red-50 text-red-500 rounded hover:bg-red-500 hover:text-white"><Trash2 size={12} /></button>
+                    <div className={`text-[9px] font-bold flex items-center justify-between border-t border-white/20 pt-2 ${isPresident || isReferente ? 'text-white bg-white/10' : 'text-[#001d4a] bg-white/20'} backdrop-blur-sm rounded-lg px-3 py-2`}>
+                        <span className={`uppercase opacity-70 ${isPresident || isReferente ? 'text-white/70' : ''}`}>Ultimo Pago:</span>
+                        <span className={`font-black ${isPresident || isReferente ? 'text-white' : 'text-[#003B94]'}`}>{formatLastPaymentDate(socio.last_month_paid)}</span>
                     </div>
                 </div>
             </GlassCard>
@@ -502,32 +575,32 @@ export const Socios = ({ user }: { user?: any }) => {
       )}
 
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
-             <div className="relative w-full max-w-5xl bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_50px_100px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col border border-white/60 max-h-[calc(100vh-7rem-2rem)] animate-in zoom-in-95 duration-300">
-                <div className="relative bg-gradient-to-r from-[#003B94] to-[#001d4a] p-4 text-white shrink-0 overflow-hidden">
-                    <div className="flex items-center gap-4 relative z-10">
-                        <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 shadow-inner flex items-center justify-center text-xl font-black text-[#FCB131]">
-                            {formData.first_name ? `${formData.first_name[0]}${formData.last_name ? formData.last_name[0] : ''}` : <User size={24}/>}
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" >
+             <div className="relative w-full max-w-4xl bg-white/95 backdrop-blur-xl rounded-xl shadow-[0_50px_100px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col border border-white/60 max-h-[90vh] animate-in zoom-in-95 duration-300">
+                <div className="relative bg-gradient-to-r from-[#003B94] to-[#001d4a] p-3 text-white shrink-0 overflow-hidden">
+                    <div className="flex items-center gap-3 relative z-10">
+                        <div className="w-10 h-10 rounded-lg bg-white/10 border border-white/20 shadow-inner flex items-center justify-center text-lg font-black text-[#FCB131]">
+                            {formData.first_name ? `${formData.first_name[0]}${formData.last_name ? formData.last_name[0] : ''}` : <User size={20}/>}
                         </div>
                         <div>
-                            <h2 className="oswald text-2xl font-black uppercase tracking-tight leading-none mb-0.5">{selectedSocio ? `Editar ${getGenderLabel('Socio', formData.gender)}` : `Nuevo ${getGenderLabel('Socio', formData.gender)}`}</h2>
-                            <div className="flex items-center gap-2"><p className="text-[#FCB131] text-[9px] font-bold uppercase tracking-widest">{selectedSocio ? `N° Socio: ${selectedSocio.numero_socio || selectedSocio.id}` : 'Alta en Proceso'}</p></div>
+                            <h2 className="oswald text-xl font-black uppercase tracking-tight leading-none mb-0.5">{selectedSocio ? `Editar ${getGenderLabel('Socio', formData.gender)}` : `Nuevo ${getGenderLabel('Socio', formData.gender)}`}</h2>
+                            <div className="flex items-center gap-2"><p className="text-[#FCB131] text-[8px] font-bold uppercase tracking-widest">{selectedSocio ? `N° Socio: ${selectedSocio.numero_socio || selectedSocio.id}` : 'Alta en Proceso'}</p></div>
                         </div>
                     </div>
-                    <X onClick={() => setIsEditModalOpen(false)} className="cursor-pointer opacity-60 hover:opacity-100 p-1.5 hover:bg-white/10 rounded-full transition-colors absolute top-4 right-4 z-20" size={24} />
+                    <X onClick={() => setIsEditModalOpen(false)} className="cursor-pointer opacity-60 hover:opacity-100 p-1 hover:bg-white/10 rounded-full transition-colors absolute top-3 right-3 z-20" size={20} />
                 </div>
 
-                <div className="p-5 space-y-5 overflow-y-auto custom-scrollbar flex-1 bg-white/50">
-                    <div className="space-y-3">
-                        <h3 className="text-[#003B94] font-black uppercase text-[10px] tracking-widest border-b border-[#003B94]/10 pb-1.5 flex items-center gap-1.5"><User size={12}/> {getGenderLabel('Datos del Socio', formData.gender)}</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Apellido</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 uppercase text-[#001d4a]" value={formData.last_name || ''} onChange={e => setFormData({...formData, last_name: e.target.value.toUpperCase()})}/></div>
-                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Nombre</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 capitalize text-[#001d4a]" value={formData.first_name || ''} onChange={e => setFormData({...formData, first_name: e.target.value})}/></div>
-                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Género</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value as any})}><option value="M">Masculino</option><option value="F">Femenino</option><option value="X">X (No binario)</option></select></div>
+                <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1 bg-white/50">
+                    <div className="space-y-2">
+                        <h3 className="text-[#003B94] font-black uppercase text-[9px] tracking-widest border-b border-[#003B94]/10 pb-1 flex items-center gap-1.5"><User size={11}/> {getGenderLabel('Datos del Socio', formData.gender)}</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <div className="space-y-0.5"><label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Apellido</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 uppercase text-[#001d4a]" value={formData.last_name || ''} onChange={e => setFormData({...formData, last_name: e.target.value.toUpperCase()})}/></div>
+                            <div className="space-y-0.5"><label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Nombre</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 capitalize text-[#001d4a]" value={formData.first_name || ''} onChange={e => setFormData({...formData, first_name: e.target.value})}/></div>
+                            <div className="space-y-0.5"><label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Género</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value as any})}><option value="M">Masculino</option><option value="F">Femenino</option><option value="X">X (No binario)</option></select></div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">DNI / Pasaporte</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" value={formData.dni} onChange={e => setFormData({...formData, dni: e.target.value})}/></div>
-                            <div className="space-y-1">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <div className="space-y-0.5"><label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">DNI / Pasaporte</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" value={formData.dni} onChange={e => setFormData({...formData, dni: e.target.value})}/></div>
+                            <div className="space-y-0.5">
                                 <CustomSelect
                                     label="Nationalidad"
                                     value={formData.nationality || ''}
@@ -537,11 +610,11 @@ export const Socios = ({ user }: { user?: any }) => {
                                     searchable={true}
                                 />
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Fecha de Nacimiento</label>
+                            <div className="space-y-0.5">
+                                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Fecha de Nacimiento</label>
                                 <input 
                                     type="text" 
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest" 
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest" 
                                     placeholder="jj-mm-aaaa" 
                                     value={formatDateFromDB(formData.birth_date || '')}
                                     onChange={e => {
@@ -554,32 +627,32 @@ export const Socios = ({ user }: { user?: any }) => {
                         </div>
                     </div>
 
-                    <div className="space-y-3">
-                        <h3 className="text-[#003B94] font-black uppercase text-[10px] tracking-widest border-b border-[#003B94]/10 pb-1.5 flex items-center gap-1.5"><Mail size={12}/> Contacto</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                                <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Mail size={9}/> Email</label>
+                    <div className="space-y-2">
+                        <h3 className="text-[#003B94] font-black uppercase text-[9px] tracking-widest border-b border-[#003B94]/10 pb-1 flex items-center gap-1.5"><Mail size={11}/> Contacto</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div className="space-y-0.5">
+                                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Mail size={8}/> Email</label>
                                 <input 
                                     type="email" 
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" 
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" 
                                     value={formData.email || ''} 
                                     onChange={e => setFormData({...formData, email: e.target.value})}
                                     placeholder="ejemplo@email.com"
                                 />
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Phone size={9}/> Teléfono</label>
+                            <div className="space-y-0.5">
+                                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Phone size={8}/> Teléfono</label>
                                 <div className="flex gap-2">
                                     <input 
                                         type="text" 
-                                        className="w-20 bg-gray-50 border border-gray-200 rounded-lg py-2 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" 
+                                        className="w-20 bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" 
                                         value={getPhoneParts(formData.phone || '').code} 
                                         onChange={e => updatePhone('code', e.target.value)}
                                         placeholder="+54"
                                     />
                                     <input 
                                         type="tel" 
-                                        className="flex-1 bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" 
+                                        className="flex-1 bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" 
                                         value={getPhoneParts(formData.phone || '').number} 
                                         onChange={e => updatePhone('number', e.target.value)}
                                         placeholder="9 11 1234-5678"
@@ -589,20 +662,20 @@ export const Socios = ({ user }: { user?: any }) => {
                         </div>
                     </div>
 
-                    <div className="space-y-3">
-                        <h3 className="text-[#003B94] font-black uppercase text-[10px] tracking-widest border-b border-[#003B94]/10 pb-1.5 flex items-center gap-1.5"><Trophy size={12}/> Membresía</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="space-y-1">
-                                <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Categoría</label>
-                                <select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value as any})}>
+                    <div className="space-y-2">
+                        <h3 className="text-[#003B94] font-black uppercase text-[9px] tracking-widest border-b border-[#003B94]/10 pb-1 flex items-center gap-1.5"><Trophy size={11}/> Membresía</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <div className="space-y-0.5">
+                                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Categoría</label>
+                                <select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value as any})}>
                                     {SOCIO_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Desde el</label>
+                            <div className="space-y-0.5">
+                                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Desde el</label>
                                 <input 
                                     type="text" 
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest" 
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest" 
                                     placeholder="jj-mm-aaaa" 
                                     value={formatDateFromDB(formData.join_date || '')}
                                     onChange={e => {
@@ -612,13 +685,13 @@ export const Socios = ({ user }: { user?: any }) => {
                                     maxLength={10}
                                 />
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                            <div className="space-y-0.5">
+                                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
                                     Último Pago
                                     {(() => {
                                         const status = calculateSocioStatus(formData.last_month_paid || '');
                                         return (
-                                            <span className={`px-1.5 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest ${status.color}`}>
+                                            <span className={`px-1.5 py-0.5 rounded-full text-[6px] font-black uppercase tracking-widest ${status.color}`}>
                                                 {status.label}
                                             </span>
                                         );
@@ -626,7 +699,7 @@ export const Socios = ({ user }: { user?: any }) => {
                                 </label>
                                 <input 
                                     type="text" 
-                                    className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none text-[#001d4a] tracking-widest" 
+                                    className="w-full bg-white border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none text-[#001d4a] tracking-widest" 
                                     placeholder="jj-mm-aaaa" 
                                     value={formatDateFromDB(formData.last_month_paid || '')}
                                     onChange={e => {
@@ -639,42 +712,146 @@ export const Socios = ({ user }: { user?: any }) => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-[#001d4a] p-4 rounded-xl border border-[#FCB131]/30 shadow-lg relative overflow-hidden">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#001d4a] p-3 rounded-lg border border-[#FCB131]/30 shadow-lg relative overflow-hidden">
                         <div className="space-y-1 relative z-10">
-                            <label className="text-[9px] font-black text-[#FCB131] uppercase tracking-widest flex items-center gap-1"><BadgeCheck size={10} /> Numéro de Socio</label>
+                            <label className="text-[8px] font-black text-[#FCB131] uppercase tracking-widest flex items-center gap-1"><BadgeCheck size={9} /> Numéro de Socio</label>
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
-                                    <input type="text" disabled={isIdLocked} maxLength={10} className={`w-full rounded-xl py-3 px-4 font-black text-xs outline-none transition-all ${isIdLocked ? 'bg-white/10 text-white border-white/20' : 'bg-white text-[#001d4a] border-[#FCB131]'}`} value={tempId} onChange={e => checkId(e.target.value)} />
-                                    <button onClick={() => { setIsIdLocked(false); setIdStatus('IDLE'); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-[#FCB131] transition-colors">{isIdLocked ? <Lock size={14} /> : <Unlock size={14} />}</button>
+                                    <input 
+                                        type="text" 
+                                        disabled={isIdLocked} 
+                                        maxLength={10} 
+                                        className={`w-full rounded-lg py-2 px-3 font-black text-xs outline-none transition-all border ${isIdLocked ? 'bg-white/10 text-white border-white/20' : idStatus === 'ERROR' ? 'bg-red-50 text-red-600 border-red-300' : 'bg-white text-[#001d4a] border-[#FCB131]'}`} 
+                                        value={tempId} 
+                                        onChange={e => checkId(e.target.value)} 
+                                    />
+                                    <button onClick={() => { setIsIdLocked(false); setIdStatus('IDLE'); setPendingIdChange(null); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-[#FCB131] transition-colors">{isIdLocked ? <Lock size={12} /> : <Unlock size={12} />}</button>
                                 </div>
-                                {idStatus === 'VALID' && <button onClick={() => { setPendingIdChange({ old: selectedSocio?.id || '', new: tempId }); setIdStatus('CONFIRMED'); setIsIdLocked(true); }} className="bg-[#FCB131] text-[#001d4a] px-3 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-white transition-all shadow-lg">Validar</button>}
+                                {idStatus === 'VALID' && !isIdLocked && (
+                                    <button 
+                                        onClick={() => { 
+                                            setPendingIdChange({ 
+                                                old: selectedSocio?.numero_socio || selectedSocio?.id || '', 
+                                                new: tempId 
+                                            }); 
+                                            setIdStatus('CONFIRMED'); 
+                                            setIsIdLocked(true); 
+                                        }} 
+                                        className="bg-[#FCB131] text-[#001d4a] px-2.5 rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-white transition-all shadow-lg"
+                                    >
+                                        Validar
+                                    </button>
+                                )}
+                                {idStatus === 'ERROR' && !isIdLocked && (
+                                    <button 
+                                        disabled
+                                        className="bg-gray-400 text-white px-2.5 rounded-lg font-black text-[8px] uppercase tracking-widest cursor-not-allowed opacity-50"
+                                    >
+                                        Ocupado
+                                    </button>
+                                )}
                             </div>
+                            {/* Alerte si le numéro est en cours de modification */}
+                            {!isIdLocked && tempId !== (selectedSocio?.numero_socio || selectedSocio?.id) && tempId.length > 0 && (
+                                <div className={`mt-1.5 p-2 rounded-lg text-[7px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${idStatus === 'ERROR' ? 'bg-red-100 text-red-700 border border-red-200' : idStatus === 'VALID' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
+                                    {idStatus === 'ERROR' && <AlertTriangle size={10} />}
+                                    {idStatus === 'VALID' && <CheckCircle2 size={10} />}
+                                    {idStatus === 'ERROR' ? 'Número ya utilizado' : idStatus === 'VALID' ? 'Número disponible' : 'Verificando...'}
+                                </div>
+                            )}
+                            {/* Message de confirmation intermédiaire */}
+                            {pendingIdChange && idStatus === 'CONFIRMED' && (
+                                <div className="mt-1.5 bg-[#FFFCE4] border border-[#FCB131] rounded-lg p-2 flex items-center justify-between text-[8px] font-bold text-[#001d4a]">
+                                    <span className="flex items-center gap-1.5">
+                                        <CheckCircle2 size={10} className="text-[#FCB131]" />
+                                        Cambio: <span className="font-black">{pendingIdChange.old}</span> → <span className="font-black text-[#003B94]">{pendingIdChange.new}</span>
+                                    </span>
+                                    <button 
+                                        onClick={() => { 
+                                            setPendingIdChange(null); 
+                                            setIdStatus('IDLE'); 
+                                            setTempId(selectedSocio?.numero_socio || selectedSocio?.id || ''); 
+                                            setIsIdLocked(true);
+                                        }} 
+                                        className="text-red-500 hover:text-red-700 font-black uppercase text-[7px] tracking-widest"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            )}
                         </div>
                         <div className="space-y-1 relative z-10">
-                            <label className="text-[9px] font-black text-white uppercase tracking-widest flex items-center gap-1"><Building2 size={10} /> Consulado</label>
+                            <label className="text-[8px] font-black text-white uppercase tracking-widest flex items-center gap-1"><Building2 size={9} /> Consulado</label>
                             {pendingConsulado === null ? (
-                                <div className="flex gap-2">
-                                    <div className="relative flex-1">
-                                        <select className="w-full bg-white/10 border border-white/20 text-white rounded-xl py-3 px-4 font-bold text-xs outline-none focus:border-[#FCB131] transition-all appearance-none cursor-pointer" value={consuladoSelection} onChange={e => setConsuladoSelection(e.target.value)}>
-                                            <option value="" className="text-black">Sede Central</option>
-                                            {consulados.map(c => <option key={c.id} value={c.name} className="text-black">{c.name}</option>)}
-                                        </select>
+                                <div className="space-y-1.5">
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <select 
+                                                disabled={isConsuladoLocked}
+                                                className={`w-full rounded-lg py-2 px-3 font-bold text-xs outline-none transition-all appearance-none cursor-pointer border ${isConsuladoLocked ? 'bg-white/10 text-white border-white/20' : 'bg-white/10 text-white border-white/20 focus:border-[#FCB131]'}`} 
+                                                value={consuladoSelection} 
+                                                onChange={e => setConsuladoSelection(e.target.value)}
+                                            >
+                                                <option value="" className="text-black">Sede Central</option>
+                                                {consulados.map(c => <option key={c.id} value={c.name} className="text-black">{c.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <button 
+                                            onClick={() => { 
+                                                setIsConsuladoLocked(false); 
+                                                setPendingConsulado(null);
+                                            }} 
+                                            className="text-white/50 hover:text-[#FCB131] transition-colors"
+                                        >
+                                            {isConsuladoLocked ? <Lock size={12} /> : <Unlock size={12} />}
+                                        </button>
+                                        {!isConsuladoLocked && consuladoSelection !== (formData.consulado || '') && consuladoSelection !== '' && (
+                                            <button 
+                                                onClick={() => { 
+                                                    setPendingConsulado(consuladoSelection); 
+                                                    setIsConsuladoLocked(true);
+                                                }} 
+                                                className="bg-[#FCB131] text-[#001d4a] px-2.5 rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-white transition-all shadow-lg"
+                                            >
+                                                Validar
+                                            </button>
+                                        )}
                                     </div>
-                                    {consuladoSelection !== (formData.consulado || '') && <button onClick={() => setPendingConsulado(consuladoSelection)} className="bg-[#FCB131] text-[#001d4a] px-3 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-white transition-all shadow-lg">Validar</button>}
+                                    {/* Alerte si le consulado est en cours de modification */}
+                                    {!isConsuladoLocked && consuladoSelection !== (formData.consulado || '') && consuladoSelection !== '' && (
+                                        <div className="p-2 rounded-lg text-[7px] font-bold uppercase tracking-widest flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-200">
+                                            <AlertTriangle size={10} />
+                                            Cambio de consulado pendiente
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
-                                <div className="bg-[#FFFCE4] border border-[#FCB131] rounded-xl p-2 flex items-center justify-between text-[9px] font-bold text-[#001d4a]">
-                                    <span>Traslado: {pendingConsulado}</span>
-                                    <button onClick={() => { setConsuladoSelection(formData.consulado || ''); setPendingConsulado(null); }} className="text-gray-500 hover:text-red-500">Cancelar</button>
+                                <div className="space-y-1.5">
+                                    <div className="bg-[#FFFCE4] border border-[#FCB131] rounded-lg p-2 flex items-center justify-between text-[8px] font-bold text-[#001d4a]">
+                                        <span className="flex items-center gap-1.5">
+                                            <CheckCircle2 size={10} className="text-[#FCB131]" />
+                                            Traslado: <span className="font-black">{(formData.consulado || 'Sede Central')}</span> → <span className="font-black text-[#003B94]">{pendingConsulado || 'Sede Central'}</span>
+                                        </span>
+                                        <button 
+                                            onClick={() => { 
+                                                setConsuladoSelection(formData.consulado || ''); 
+                                                setPendingConsulado(null);
+                                                setIsConsuladoLocked(true);
+                                            }} 
+                                            className="text-red-500 hover:text-red-700 font-black uppercase text-[7px] tracking-widest"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
 
-                <div className="p-4 bg-[#FCB131] border-t border-[#e5a02d] flex justify-end gap-3 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-20 relative">
-                    <button onClick={() => setIsEditModalOpen(false)} className="px-5 py-2 rounded-lg font-black uppercase text-[9px] tracking-widest text-[#001d4a] bg-white border border-white/50 hover:bg-white/90 transition-colors shadow-sm">Cancelar</button>
-                    <button onClick={() => setShowSaveConfirm(true)} className="bg-[#003B94] text-white px-6 py-2 rounded-lg font-black uppercase text-[9px] tracking-widest shadow-xl flex items-center gap-1.5 hover:bg-[#001d4a] transition-all"><Save size={14} /> Guardar</button>
+                <div className="p-3 bg-[#FCB131] border-t border-[#e5a02d] flex justify-end gap-2 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-20 relative">
+                    <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-1.5 rounded-lg font-black uppercase text-[8px] tracking-widest text-[#001d4a] bg-white border border-white/50 hover:bg-white/90 transition-colors shadow-sm">Cancelar</button>
+                    <button onClick={() => setShowSaveConfirm(true)} className="bg-[#003B94] text-white px-5 py-1.5 rounded-lg font-black uppercase text-[8px] tracking-widest shadow-xl flex items-center gap-1.5 hover:bg-[#001d4a] transition-all"><Save size={12} /> Guardar</button>
                 </div>
              </div>
         </div>
@@ -682,7 +859,7 @@ export const Socios = ({ user }: { user?: any }) => {
 
       {/* ... Other modals (Save, Delete, Export) remain the same */}
       {showSaveConfirm && (
-        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-[#001d4a]/40 backdrop-blur-sm animate-in fade-in" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-[#001d4a]/40 backdrop-blur-sm animate-in fade-in" >
             <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-sm text-center animate-in zoom-in-95">
                 <h3 className="oswald text-xl font-bold text-[#001d4a] mb-2">¿Confirmar cambios?</h3>
                 <div className="flex gap-3 mt-6">
@@ -694,7 +871,7 @@ export const Socios = ({ user }: { user?: any }) => {
       )}
 
       {isDeleteModalOpen && selectedSocio && (
-        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-[#001d4a]/40 backdrop-blur-sm animate-in fade-in" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-[#001d4a]/40 backdrop-blur-sm animate-in fade-in" >
             <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-sm text-center animate-in zoom-in-95">
                 <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4"><AlertTriangle size={32}/></div>
                 <h3 className="oswald text-xl font-bold text-red-600 mb-2">Eliminar Socio</h3>

@@ -24,6 +24,8 @@ export const Mensajes = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [vigenciaWarning, setVigenciaWarning] = useState<string | null>(null);
+  const [lastEditingId, setLastEditingId] = useState<string | null>(null);
 
   useEffect(() => {
       const load = () => {
@@ -38,6 +40,8 @@ export const Mensajes = () => {
   useEffect(() => {
       if (isModalOpen) {
           setShowSuccess(false);
+          setVigenciaWarning(null);
+          setDateError(null);
       }
   }, [isModalOpen]);
 
@@ -70,10 +74,27 @@ export const Mensajes = () => {
           else current.add(id);
       }
       const newTargets = Array.from(current);
+      
+      // Construire le nom des destinataires
+      let targetName = 'Todos';
+      if (!newTargets.includes('ALL') && newTargets.length > 0) {
+          const selectedNames = newTargets
+              .map(targetId => {
+                  const consulado = consulados.find(c => c.id === targetId);
+                  return consulado ? consulado.name : targetId;
+              })
+              .filter(Boolean);
+          targetName = selectedNames.length > 0 
+              ? (selectedNames.length <= 3 
+                  ? selectedNames.join(', ') 
+                  : `${selectedNames.slice(0, 3).join(', ')} y ${selectedNames.length - 3} más`)
+              : `${newTargets.length} Seleccionados`;
+      }
+      
       setFormData({ 
           ...formData, 
           target_ids: newTargets,
-          target_consulado_name: newTargets.includes('ALL') ? 'Todos' : `${newTargets.length} Seleccionados`
+          target_consulado_name: targetName
       });
   };
 
@@ -104,9 +125,9 @@ export const Mensajes = () => {
             return `${d}-${m}-${y}`;
           })(), // Display date au format jj-mm-aaaa
           created_at: Date.now(),
-          target_ids: formData.target_ids || ['ALL'],
+          target_ids: formData.target_ids && formData.target_ids.length > 0 ? formData.target_ids : ['ALL'],
           target_consulado_id: formData.target_ids?.includes('ALL') ? 'ALL' : (formData.target_ids?.[0] || 'ALL'), // Legacy support
-          target_consulado_name: formData.target_consulado_name || 'Todos',
+          target_consulado_name: formData.target_consulado_name || (formData.target_ids?.includes('ALL') ? 'Todos' : 'Seleccionados'),
           start_date: formData.start_date || undefined,
           end_date: formData.end_date || undefined,
           archived: formData.archived || false,
@@ -120,20 +141,51 @@ export const Mensajes = () => {
       }
       
       setIsSending(false);
-      setShowSuccess(true);
       setShowSaveConfirm(false);
+      // Stocker editingId avant de le réinitialiser pour l'afficher dans la modale de succès
+      setLastEditingId(editingId);
+      setShowSuccess(true);
+      
+      // Fermer automatiquement après 3 secondes
       setTimeout(() => {
-          setIsModalOpen(false);
           setShowSuccess(false);
-      }, 500);
+          setIsModalOpen(false);
+          setEditingId(null);
+          setLastEditingId(null);
+          setFormData({ 
+              title: '', body: '', type: 'INSTITUCIONAL', 
+              target_ids: ['ALL'], target_consulado_id: 'ALL', target_consulado_name: 'Todos',
+              start_date: '', end_date: ''
+          });
+          setVigenciaWarning(null);
+          setDateError(null);
+      }, 3000);
   };
 
   const requestSave = () => {
       if (!formData.title || !formData.body) return;
+      
+      // Vérifier la validité des dates
       if (formData.end_date && formData.start_date && formData.end_date < formData.start_date) {
           setDateError("La fecha final no peut pas être antérieure à la date initiale");
           return;
       }
+      
+      // Vérifier si la date de vigencia est inférieure au lendemain
+      if (formData.end_date) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          
+          const endDate = new Date(formData.end_date);
+          endDate.setHours(0, 0, 0, 0);
+          
+          if (endDate < tomorrow) {
+              setVigenciaWarning("⚠️ La fecha de vigencia es anterior o igual a mañana. El mensaje expirará pronto.");
+          }
+      }
+      
       setShowSaveConfirm(true);
   };
 
@@ -196,7 +248,7 @@ export const Mensajes = () => {
         </div>
 
       {confirmAction && (
-          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" >
               <div className="relative w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-xl text-center border border-white overflow-hidden animate-in zoom-in-95">
                   <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner relative z-0 ${ confirmAction.type === 'DELETE' || confirmAction.type === 'EMPTY_TRASH' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-[#003B94]' }`}>
                       <AlertTriangle size={32} />
@@ -213,8 +265,8 @@ export const Mensajes = () => {
       )}
 
       {isModalOpen && createPortal(
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
-             <div className="relative w-full max-w-4xl bg-white rounded-[2rem] shadow-[0_50px_100px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col border border-white/60 max-h-[calc(100vh-7rem-2rem)] animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" >
+             <div className="relative w-full max-w-4xl bg-white rounded-[2rem] shadow-[0_50px_100px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col border border-white/60 max-h-[90vh] animate-in zoom-in-95 duration-300">
                 <div className="liquid-glass-dark p-4 text-white flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-4">
                         <div className="bg-white/10 p-2 rounded-xl"><Send size={20} className="text-[#FCB131]" /></div>
@@ -243,10 +295,39 @@ export const Mensajes = () => {
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1">Vigencia (Hasta)</label>
-                                <input type="date" className={`w-full bg-gray-50 border rounded-xl py-2.5 px-3 font-bold text-xs text-[#001d4a] outline-none ${dateError ? 'border-red-500' : 'border-gray-200'}`} value={formData.end_date || ''} min={formData.start_date || ''} onChange={e => setFormData({...formData, end_date: e.target.value})} />
+                                <input 
+                                    type="date" 
+                                    className={`w-full bg-gray-50 border rounded-xl py-2.5 px-3 font-bold text-xs text-[#001d4a] outline-none ${dateError || vigenciaWarning ? 'border-amber-500' : 'border-gray-200'} focus:border-[#003B94]`} 
+                                    value={formData.end_date || ''} 
+                                    min={formData.start_date || ''} 
+                                    onChange={e => {
+                                        const selectedDate = e.target.value;
+                                        setFormData({...formData, end_date: selectedDate});
+                                        
+                                        // Vérifier si la date est inférieure au lendemain
+                                        if (selectedDate) {
+                                            const today = new Date();
+                                            today.setHours(0, 0, 0, 0);
+                                            const tomorrow = new Date(today);
+                                            tomorrow.setDate(tomorrow.getDate() + 1);
+                                            
+                                            const selected = new Date(selectedDate);
+                                            selected.setHours(0, 0, 0, 0);
+                                            
+                                            if (selected < tomorrow) {
+                                                setVigenciaWarning("⚠️ La fecha de vigencia es anterior o igual a mañana. El mensaje expirará pronto.");
+                                            } else {
+                                                setVigenciaWarning(null);
+                                            }
+                                        } else {
+                                            setVigenciaWarning(null);
+                                        }
+                                    }} 
+                                />
                             </div>
                         </div>
-                        {dateError && <span className="text-[8px] text-red-500 font-bold block">{dateError}</span>}
+                        {dateError && <span className="text-[8px] text-red-500 font-bold block flex items-center gap-1"><AlertTriangle size={10} /> {dateError}</span>}
+                        {vigenciaWarning && !dateError && <span className="text-[8px] text-amber-600 font-bold block flex items-center gap-1 bg-amber-50 p-2 rounded-lg border border-amber-200"><AlertTriangle size={10} /> {vigenciaWarning}</span>}
 
                         <div className="space-y-1 flex-1 flex flex-col">
                             <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1">Cuerpo del Mensaje</label>
@@ -293,14 +374,121 @@ export const Mensajes = () => {
       )}
 
       {showSaveConfirm && (
-          <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-[#001d4a]/60 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
-              <div className="relative w-full max-w-md bg-white rounded-[2rem] p-10 shadow-[0_50px_150px_rgba(0,29,74,0.3)] text-center border border-white animate-in zoom-in-95">
-                  <div className="w-20 h-20 bg-[#FCB131]/10 text-[#FCB131] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner"><CheckCircle2 size={40} /></div>
-                  <h2 className="oswald text-3xl font-black text-[#001d4a] uppercase mb-4 tracking-tighter">¿Guardar Cambios?</h2>
-                  <p className="text-[#003B94]/70 font-bold mb-10 text-[10px] leading-relaxed uppercase tracking-widest">Se guardará el mensaje en el sistema.</p>
-                  <div className="flex gap-4">
-                      <button onClick={() => setShowSaveConfirm(false)} className="flex-1 py-4 rounded-xl bg-slate-100 text-slate-500 uppercase text-[9px] font-black tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
-                      <button onClick={executeSave} className="flex-1 py-4 rounded-xl bg-[#003B94] text-white uppercase text-[9px] font-black tracking-widest shadow-2xl hover:opacity-90 transition-all">Confirmar</button>
+          <div className="fixed inset-0 z-[1500] flex items-center justify-center p-4 bg-[#001d4a]/80 backdrop-blur-lg animate-in fade-in duration-300" >
+              <div className="relative w-full max-w-lg bg-white rounded-3xl p-8 md:p-10 shadow-2xl text-center border border-white/20 overflow-hidden animate-in zoom-in-95 z-[1501] transform transition-all">
+                  {/* Background gradient decoration */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#FCB131]/5 via-transparent to-[#003B94]/5 opacity-50"></div>
+                  
+                  {/* Animated icon container */}
+                  <div className="relative z-10 mb-6">
+                      <div className="w-24 h-24 md:w-28 md:h-28 bg-gradient-to-br from-[#FCB131]/20 to-[#FCB131]/10 rounded-3xl flex items-center justify-center mx-auto shadow-lg border border-[#FCB131]/20 animate-pulse">
+                          <div className="w-20 h-20 md:w-24 md:h-24 bg-gradient-to-br from-[#FCB131] to-[#FFD23F] rounded-2xl flex items-center justify-center shadow-inner">
+                              <Send size={32} className="text-[#001d4a] animate-bounce" />
+                          </div>
+                      </div>
+                  </div>
+                  
+                  <div className="relative z-10">
+                      <h2 className="oswald text-3xl md:text-4xl font-black text-[#001d4a] uppercase mb-3 tracking-tighter">
+                          {editingId ? '¿Actualizar Mensaje?' : '¿Publicar Mensaje?'}
+                      </h2>
+                      <p className="text-[#003B94]/80 font-bold mb-2 text-xs leading-relaxed uppercase tracking-wider">
+                          {editingId ? 'Se actualizará el mensaje en el sistema.' : 'Se publicará el mensaje y estará visible para los destinatarios seleccionados.'}
+                      </p>
+                      
+                      {/* Info box */}
+                      <div className="mt-6 mb-8 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
+                          <div className="flex items-start gap-3 text-left">
+                              <div className="bg-[#003B94]/10 p-2 rounded-lg shrink-0">
+                                  <Globe size={16} className="text-[#003B94]" />
+                              </div>
+                              <div className="flex-1">
+                                  <p className="text-[10px] font-black text-[#003B94] uppercase tracking-wider mb-1">Destinatarios</p>
+                                  <p className="text-xs font-bold text-gray-700">{formData.target_consulado_name || 'Todos'}</p>
+                              </div>
+                          </div>
+                          {vigenciaWarning && (
+                              <div className="mt-3 pt-3 border-t border-amber-200">
+                                  <p className="text-[9px] text-amber-700 font-bold flex items-center gap-2">
+                                      <AlertTriangle size={12} className="shrink-0" />
+                                      {vigenciaWarning.replace('⚠️ ', '')}
+                                  </p>
+                              </div>
+                          )}
+                      </div>
+                      
+                      <div className="flex gap-3">
+                          <button 
+                              onClick={() => {
+                                  setShowSaveConfirm(false);
+                                  setVigenciaWarning(null);
+                              }} 
+                              className="flex-1 py-3.5 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 text-slate-600 uppercase text-[10px] font-black tracking-widest hover:from-slate-200 hover:to-slate-100 transition-all shadow-md border border-slate-200"
+                          >
+                              Cancelar
+                          </button>
+                          <button 
+                              onClick={executeSave} 
+                              className="flex-1 py-3.5 rounded-2xl bg-gradient-to-br from-[#003B94] to-[#001d4a] text-white uppercase text-[10px] font-black tracking-widest shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all transform"
+                          >
+                              {editingId ? 'Actualizar' : 'Publicar'}
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {showSuccess && (
+          <div className="fixed inset-0 z-[1600] flex items-center justify-center p-4 bg-[#001d4a]/90 backdrop-blur-xl animate-in fade-in duration-300" >
+              <div className="relative w-full max-w-md bg-white rounded-3xl p-8 md:p-10 shadow-2xl text-center border border-white/20 overflow-hidden animate-in zoom-in-95 z-[1601] transform transition-all">
+                  {/* Animated success background */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 opacity-60"></div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#FCB131]/10 to-transparent"></div>
+                  
+                  {/* Animated success icon */}
+                  <div className="relative z-10 mb-6">
+                      <div className="w-28 h-28 md:w-32 md:h-32 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-2xl animate-bounce border-4 border-white">
+                          <CheckCircle2 size={48} className="text-white drop-shadow-lg" strokeWidth={3} />
+                      </div>
+                  </div>
+                  
+                  <div className="relative z-10">
+                      <h2 className="oswald text-4xl md:text-5xl font-black text-[#001d4a] uppercase mb-3 tracking-tighter animate-in slide-in-from-bottom-4">
+                          ¡Mensaje {lastEditingId ? 'Actualizado' : 'Publicado'}!
+                      </h2>
+                      <p className="text-[#003B94]/80 font-bold mb-6 text-xs leading-relaxed uppercase tracking-wider">
+                          El mensaje ha sido {lastEditingId ? 'actualizado' : 'publicado'} exitosamente en el sistema.
+                      </p>
+                      
+                      {/* Success details */}
+                      <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-200">
+                          <div className="flex items-center justify-center gap-2 text-green-700">
+                              <CheckCircle2 size={16} className="text-green-600" />
+                              <p className="text-[10px] font-black uppercase tracking-wider">
+                                  Visible para: {formData.target_consulado_name || 'Todos'}
+                              </p>
+                          </div>
+                      </div>
+                      
+                      <button 
+                          onClick={() => {
+                              setShowSuccess(false);
+                              setIsModalOpen(false);
+                              setEditingId(null);
+                              setLastEditingId(null);
+                              setFormData({ 
+                                  title: '', body: '', type: 'INSTITUCIONAL', 
+                                  target_ids: ['ALL'], target_consulado_id: 'ALL', target_consulado_name: 'Todos',
+                                  start_date: '', end_date: ''
+                              });
+                              setVigenciaWarning(null);
+                              setDateError(null);
+                          }} 
+                          className="w-full py-3.5 rounded-2xl bg-gradient-to-br from-[#003B94] to-[#001d4a] text-white uppercase text-[10px] font-black tracking-widest shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all transform"
+                      >
+                          Cerrar
+                      </button>
                   </div>
               </div>
           </div>

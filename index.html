@@ -11,6 +11,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Oswald:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.cdnfonts.com">
+    <link href="https://fonts.cdnfonts.com/css/bison" rel="stylesheet">
     <style>
         :root {
             --boca-blue: #003B94;
@@ -34,6 +36,7 @@
         }
         
         .oswald { font-family: 'Oswald', sans-serif; }
+        .bison { font-family: 'Bison', sans-serif; font-weight: 900; }
 
         /* --- SCROLLBAR PREMIUM --- */
         .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -66,10 +69,13 @@
         }
 
         .liquid-glass-gold {
-            background: linear-gradient(135deg, rgba(252, 177, 49, 0.85), rgba(255, 210, 63, 0.75));
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.25);
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.95), rgba(255, 193, 37, 0.9), rgba(255, 165, 0, 0.95));
+            backdrop-filter: blur(30px) saturate(200%);
+            -webkit-backdrop-filter: blur(30px) saturate(200%);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 
+                0 8px 32px 0 rgba(255, 215, 0, 0.3),
+                inset 0 0 30px rgba(255, 255, 255, 0.8);
             color: #001d4a;
         }
 

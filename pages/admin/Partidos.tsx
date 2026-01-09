@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { GlassCard } from '../../components/GlassCard';
-import { Sword, Calendar, MapPin, Edit2, Trash2, Plus, Search, X, Save, Ticket, AlertTriangle, Loader2, CheckCircle2 } from 'lucide-react';
+import { Sword, Calendar, MapPin, Edit2, Trash2, Plus, Search, X, Save, Ticket, AlertTriangle, Loader2, CheckCircle2, Ban } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { Match, Team, Competition } from '../../types';
-import { COUNTRY_OPTIONS } from '../../constants';
+import { COUNTRY_OPTIONS, BocaLogoSVG } from '../../constants';
 import { formatDateDisplay, formatDateToDB } from '../../utils/dateFormat';
 
 // Constants for dropdowns
@@ -36,6 +36,7 @@ export const Partidos = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const [settings, setSettings] = useState(dataService.getAppSettings());
   
   // Modal States
   const [editingMatch, setEditingMatch] = useState<Partial<Match> | null>(null);
@@ -53,6 +54,7 @@ export const Partidos = () => {
           setMatches(dataService.getMatches());
           setTeams(dataService.getTeams());
           setCompetitions(dataService.getCompetitions());
+          setSettings(dataService.getAppSettings());
       };
       load();
       const unsub = dataService.subscribe(load);
@@ -280,69 +282,255 @@ export const Partidos = () => {
            </button>
        </div>
 
-       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
            {sortedMatches.map(m => {
                const isHome = m.is_home && !m.is_neutral;
                const rivalTeam = teams.find(t => t.id === m.rival_id || t.name === m.rival);
                const rivalLogo = rivalTeam?.logo;
+               const bocaLogo = settings.matchLogoUrl || null;
+               const logoMatchSize = settings.logoMatchSize || 64;
+               const logoRivalSize = settings.logoRivalSize || 64;
+               
+               // Déterminer quelle équipe est locale et laquelle est visiteuse
+               const localTeamName = isHome ? 'Boca Juniors' : m.rival;
+               const localTeamLogo = isHome ? bocaLogo : rivalLogo;
+               const localLogoSize = isHome ? logoMatchSize : logoRivalSize;
+               const visitorTeamName = isHome ? m.rival : 'Boca Juniors';
+               const visitorTeamLogo = isHome ? rivalLogo : bocaLogo;
+               const visitorLogoSize = isHome ? logoRivalSize : logoMatchSize;
+               
                return (
-               <GlassCard key={m.id} className={`p-5 border-l-4 group ${isHome ? 'liquid-glass-dark text-white border-l-[#FCB131]' : 'border-l-[#003B94]'}`}>
-                   <div className="flex justify-between items-start mb-3">
-                       <div className="flex items-center gap-2">
-                           <span className={`text-[9px] font-bold uppercase tracking-widest ${isHome ? 'text-white/70' : 'text-gray-400'}`}>{m.competition}</span>
+               <GlassCard 
+                   key={m.id} 
+                   className={`relative p-5 group overflow-hidden transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl ${
+                       isHome 
+                           ? 'liquid-glass-dark text-white border-l-[#FCB131]' 
+                           : 'liquid-glass border-l-[#003B94]'
+                   } ${m.is_suspended ? 'opacity-75' : ''}`}
+               >
+                   {/* Effets de glow futuristes */}
+                   <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${
+                       isHome 
+                           ? 'bg-gradient-to-r from-[#FCB131]/10 via-transparent to-[#FCB131]/10' 
+                           : 'bg-gradient-to-r from-[#003B94]/10 via-transparent to-[#003B94]/10'
+                   }`}></div>
+                   
+                   {/* Bordure animée */}
+                   <div className={`absolute top-0 left-0 w-1 h-full ${
+                       isHome ? 'bg-gradient-to-b from-[#FCB131] to-[#FFD23F]' : 'bg-gradient-to-b from-[#003B94] to-[#001d4a]'
+                   } shadow-[0_0_20px_rgba(252,177,49,0.5)] group-hover:shadow-[0_0_30px_rgba(252,177,49,0.8)] transition-all duration-500`}></div>
+                   
+                   {/* Lignes de grille futuristes */}
+                   <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-500">
+                       <div className="absolute inset-0" style={{
+                           backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+                           backgroundSize: '20px 20px'
+                       }}></div>
+                   </div>
+                   
+                   <div className="relative z-10 flex items-center gap-6">
+                       {/* GAUCHE: Actions et Competition, Fecha, Date */}
+                       <div className="flex-shrink-0 w-48 space-y-2">
+                           {/* Actions (stylo, corbeille, suspendre) au-dessus */}
+                           <div className="flex items-center gap-2 mb-1">
+                               <button 
+                                   onClick={() => handleEdit(m)} 
+                                   className={`${isHome ? 'text-white hover:bg-white/10' : 'text-[#003B94] hover:bg-blue-50'} p-1.5 rounded transition-all`}
+                                   title="Editar"
+                               >
+                                   <Edit2 size={14}/>
+                               </button>
+                               <button 
+                                   onClick={() => setDeletingMatch(m)} 
+                                   className={`${isHome ? 'text-red-300 hover:bg-red-500/20' : 'text-red-500 hover:bg-red-50'} p-1.5 rounded transition-all`}
+                                   title="Eliminar"
+                               >
+                                   <Trash2 size={14}/>
+                               </button>
+                               {/* Bouton suspendre uniquement pour les matchs locaux */}
+                               {isHome && (
+                                   <button 
+                                       onClick={async () => {
+                                           const updatedMatch = { ...m, is_suspended: !m.is_suspended };
+                                           const originalId = (m as any)._originalId;
+                                           if (originalId) {
+                                               await dataService.updateMatch({ ...updatedMatch, _originalId: originalId } as any);
+                                           } else {
+                                               await dataService.updateMatch(updatedMatch as any);
+                                           }
+                                           setMatches(dataService.getMatches());
+                                       }}
+                                       className={`${m.is_suspended 
+                                           ? 'text-yellow-300 hover:bg-yellow-500/20' 
+                                           : 'text-white/70 hover:bg-white/10'
+                                       } p-1.5 rounded transition-all`}
+                                       title={m.is_suspended ? "Activar habilitaciones" : "Suspendre habilitaciones"}
+                                   >
+                                       <Ban size={14} className={m.is_suspended ? 'fill-current' : ''}/>
+                                   </button>
+                               )}
+                           </div>
+                           
+                           {/* Competition sur une ligne */}
+                           <div className="relative">
+                               <span className={`text-[9px] font-bold uppercase tracking-widest ${isHome ? 'text-white/70' : 'text-gray-400'}`}>{m.competition}</span>
+                               <div className={`absolute -left-2 top-0 bottom-0 w-0.5 ${isHome ? 'bg-[#FCB131]/30' : 'bg-[#003B94]/30'} group-hover:bg-opacity-100 transition-all duration-500`}></div>
+                           </div>
+                           
+                           {/* Fecha en dessous, plus grande et colorée */}
                            {m.fecha_jornada && (
-                               <>
-                                   <span className={`text-[#FCB131] ${isHome ? 'text-white/50' : 'text-gray-300'}`}>•</span>
-                                   <span className={`text-[9px] font-bold uppercase tracking-widest ${isHome ? 'text-white/70' : 'text-gray-400'}`}>{m.fecha_jornada}</span>
-                               </>
+                               <div className="relative">
+                                   <span className={`oswald text-3xl md:text-4xl font-black uppercase tracking-tighter drop-shadow-lg ${
+                                       isHome 
+                                           ? 'text-[#FCB131] [text-shadow:0_0_20px_rgba(252,177,49,0.5),0_2px_4px_rgba(0,0,0,0.3)]' 
+                                           : 'text-[#001d4a] [text-shadow:0_0_15px_rgba(0,29,74,0.4),0_2px_4px_rgba(0,0,0,0.2)]'
+                                   }`}>
+                                       {m.fecha_jornada}
+                                   </span>
+                               </div>
+                           )}
+                           
+                           {/* Date en dessous */}
+                           <div className={`text-xs font-bold flex items-center gap-2 ${isHome ? 'text-white/80' : 'text-gray-500'}`}>
+                               <Calendar size={12} className={isHome ? 'text-[#FCB131]/70' : 'text-[#003B94]/70'} /> 
+                               {formatDateDisplay(m.date)}
+                           </div>
+                           
+                           {m.is_suspended && (
+                               <div className="text-[8px] font-black uppercase tracking-widest text-red-500 bg-red-50/80 backdrop-blur-sm px-2 py-1 rounded border border-red-200/50 inline-block shadow-lg">
+                                   Habilitaciones Suspendidas
+                               </div>
                            )}
                        </div>
-                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                           <button onClick={() => handleEdit(m)} className={`${isHome ? 'text-white hover:bg-white/10' : 'text-[#003B94] hover:bg-blue-50'} p-1.5 rounded`}><Edit2 size={14}/></button>
-                           <button onClick={() => setDeletingMatch(m)} className={`${isHome ? 'text-red-300 hover:bg-red-500/20' : 'text-red-500 hover:bg-red-50'} p-1.5 rounded`}><Trash2 size={14}/></button>
+
+                       {/* CENTRE: Logos des équipes avec noms en dessous */}
+                       <div className="flex-1 flex items-center justify-center gap-3">
+                           {/* Équipe locale (à gauche) */}
+                           <div className="flex flex-col items-center gap-3">
+                               {/* Logo de l'équipe locale */}
+                               <div className="relative flex-shrink-0 group/logo">
+                                   {/* Glow effect autour du logo */}
+                                   <div className={`absolute inset-0 rounded-full blur-xl opacity-0 group-hover/logo:opacity-50 transition-opacity duration-500 ${
+                                       isHome ? 'bg-[#FCB131]/30' : 'bg-[#003B94]/30'
+                                   }`} style={{ transform: 'scale(1.5)' }}></div>
+                                   
+                                   <div className="relative z-10 p-2 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 group-hover:border-white/20 transition-all duration-300">
+                                       {isHome ? (
+                                           bocaLogo ? (
+                                               <img 
+                                                   src={bocaLogo} 
+                                                   alt="Boca Juniors" 
+                                                   style={{ width: `${logoMatchSize}px`, height: `${logoMatchSize}px` }}
+                                                   className="object-contain drop-shadow-[0_0_20px_rgba(252,177,49,0.3)] group-hover/logo:scale-110 transition-transform duration-300"
+                                               />
+                                           ) : (
+                                               <div className="drop-shadow-[0_0_20px_rgba(252,177,49,0.3)] group-hover/logo:scale-110 transition-transform duration-300">
+                                                   <BocaLogoSVG 
+                                                       style={{ width: `${logoMatchSize}px`, height: `${logoMatchSize}px` }}
+                                                   />
+                                               </div>
+                                           )
+                                       ) : (
+                                           rivalLogo ? (
+                                               <img 
+                                                   src={rivalLogo} 
+                                                   alt={m.rival} 
+                                                   style={{ width: `${logoRivalSize}px`, height: `${logoRivalSize}px` }}
+                                                   className="object-contain drop-shadow-lg group-hover/logo:scale-110 transition-transform duration-300"
+                                                   onError={(e) => {
+                                                       (e.target as HTMLImageElement).style.display = 'none';
+                                                   }}
+                                               />
+                                           ) : (
+                                               <div style={{ width: `${logoRivalSize}px`, height: `${logoRivalSize}px` }} className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center border border-gray-300/50 shadow-inner">
+                                                   <span className="text-[10px] font-bold text-gray-500">{m.rival_short || m.rival.substring(0, 3).toUpperCase()}</span>
+                                               </div>
+                                           )
+                                       )}
+                                   </div>
+                               </div>
+                               {/* Nom de l'équipe locale en dessous */}
+                               <span className={`text-xs font-black uppercase tracking-tight text-center max-w-[120px] truncate ${
+                                   isHome 
+                                       ? 'text-white drop-shadow-md' 
+                                       : 'text-[#001d4a]'
+                               }`}>
+                                   {localTeamName}
+                               </span>
+                           </div>
+                           
+                           {/* VS avec style futuriste */}
+                           <div className="relative flex-shrink-0">
+                               <div className={`absolute inset-0 blur-xl opacity-30 ${
+                                   isHome ? 'bg-[#FCB131]' : 'bg-[#003B94]'
+                               }`}></div>
+                               <span className={`relative text-xl font-black ${
+                                   isHome ? 'text-white/90' : 'text-[#003B94]'
+                               } drop-shadow-lg`}>VS</span>
+                           </div>
+                           
+                           {/* Équipe visiteuse (à droite) */}
+                           <div className="flex flex-col items-center gap-3">
+                               {/* Logo de l'équipe visiteuse */}
+                               <div className="relative flex-shrink-0 group/logo">
+                                   {/* Glow effect autour du logo */}
+                                   <div className={`absolute inset-0 rounded-full blur-xl opacity-0 group-hover/logo:opacity-50 transition-opacity duration-500 ${
+                                       isHome ? 'bg-[#FCB131]/30' : 'bg-[#003B94]/30'
+                                   }`} style={{ transform: 'scale(1.5)' }}></div>
+                                   
+                                   <div className="relative z-10 p-2 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 group-hover:border-white/20 transition-all duration-300">
+                                       {isHome ? (
+                                           rivalLogo ? (
+                                               <img 
+                                                   src={rivalLogo} 
+                                                   alt={m.rival} 
+                                                   style={{ width: `${logoRivalSize}px`, height: `${logoRivalSize}px` }}
+                                                   className="object-contain drop-shadow-lg group-hover/logo:scale-110 transition-transform duration-300"
+                                                   onError={(e) => {
+                                                       (e.target as HTMLImageElement).style.display = 'none';
+                                                   }}
+                                               />
+                                           ) : (
+                                               <div style={{ width: `${logoRivalSize}px`, height: `${logoRivalSize}px` }} className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center border border-gray-300/50 shadow-inner">
+                                                   <span className="text-[10px] font-bold text-gray-500">{m.rival_short || m.rival.substring(0, 3).toUpperCase()}</span>
+                                               </div>
+                                           )
+                                       ) : (
+                                           bocaLogo ? (
+                                               <img 
+                                                   src={bocaLogo} 
+                                                   alt="Boca Juniors" 
+                                                   style={{ width: `${logoMatchSize}px`, height: `${logoMatchSize}px` }}
+                                                   className="object-contain drop-shadow-[0_0_20px_rgba(0,59,148,0.3)] group-hover/logo:scale-110 transition-transform duration-300"
+                                               />
+                                           ) : (
+                                               <div className="drop-shadow-[0_0_20px_rgba(0,59,148,0.3)] group-hover/logo:scale-110 transition-transform duration-300">
+                                                   <BocaLogoSVG 
+                                                       style={{ width: `${logoMatchSize}px`, height: `${logoMatchSize}px` }}
+                                                   />
+                                               </div>
+                                           )
+                                       )}
+                                   </div>
+                               </div>
+                               {/* Nom de l'équipe visiteuse en dessous */}
+                               <span className={`text-xs font-black uppercase tracking-tight text-center max-w-[120px] truncate ${
+                                   isHome 
+                                       ? 'text-white drop-shadow-md' 
+                                       : 'text-[#001d4a]'
+                               }`}>
+                                   {visitorTeamName}
+                               </span>
                        </div>
                    </div>
-                   <div className="flex items-center gap-4">
-                       {/* Logo à gauche */}
-                       {rivalLogo && (
-                           <div className="flex-shrink-0">
-                               <img 
-                                   src={rivalLogo} 
-                                   alt={m.rival} 
-                                   className="w-12 h-12 object-contain"
-                                   onError={(e) => {
-                                       (e.target as HTMLImageElement).style.display = 'none';
-                                   }}
-                               />
-                           </div>
-                       )}
-                       {/* Nom, date et heure à droite du logo */}
-                       <div className="flex-1 min-w-0">
-                           <h3 className={`oswald text-xl font-black uppercase mb-2 flex items-center gap-2 ${isHome ? 'text-white' : 'text-[#001d4a]'}`}>
-                               <span>vs</span>
-                               <span className="truncate">{m.rival}</span>
-                           </h3>
-                           <div className={`text-xs font-bold flex items-center gap-2 ${isHome ? 'text-white/80' : 'text-gray-500'}`}>
-                               <Calendar size={12} /> {formatDateDisplay(m.date)} <span className="text-[#FCB131]">•</span> {formatHourDisplay(m.hour)}
-                           </div>
-                       </div>
-                   </div>
-                   <div className={`mt-3 pt-3 border-t flex items-center gap-2 text-[9px] font-black uppercase tracking-widest ${isHome ? 'border-white/10 text-white/90' : 'border-gray-100 text-[#003B94]'}`}>
-                       <MapPin size={12} /> {m.venue}
-                       {m.city && (
-                           <>
-                               <span className={`text-[#FCB131] ${isHome ? 'text-white/50' : 'text-gray-300'}`}>•</span>
-                               <span>{m.city}</span>
-                           </>
-                       )}
                    </div>
                </GlassCard>
            )})}
        </div>
 
       {editingMatch && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
-          <div className="relative w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-7rem-2rem)] animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="relative w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
             <div className="liquid-glass-dark p-3 flex items-center justify-between text-white">
                <div className="flex items-center gap-2">
                   <Edit2 size={16} className="text-[#FCB131]" />
@@ -436,7 +624,7 @@ export const Partidos = () => {
       )}
 
       {showSaveConfirm && (
-          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/60 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/60 backdrop-blur-sm animate-in fade-in duration-300">
               <div className="relative w-full max-w-md bg-white rounded-[2rem] p-10 shadow-[0_50px_150px_rgba(0,29,74,0.3)] text-center border border-white animate-in zoom-in-95">
                   <div className="w-20 h-20 bg-[#FCB131]/10 text-[#FCB131] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner"><CheckCircle2 size={40} /></div>
                   <h2 className="oswald text-3xl font-black text-[#001d4a] uppercase mb-4 tracking-tighter">¿Guardar Cambios?</h2>
@@ -444,13 +632,13 @@ export const Partidos = () => {
                   <div className="flex gap-4">
                       <button onClick={() => setShowSaveConfirm(false)} className="flex-1 py-4 rounded-xl bg-slate-100 text-slate-500 uppercase text-[9px] font-black tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
                       <button onClick={() => { setShowSaveConfirm(false); handleSave(); }} className="flex-1 py-4 rounded-xl bg-[#003B94] text-white uppercase text-[9px] font-black tracking-widest shadow-2xl hover:opacity-90 transition-all">Confirmar</button>
-                  </div>
-              </div>
+            </div>
           </div>
+        </div>
       )}
 
       {deletingMatch && (
-          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300">
               <div className="relative w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-2xl text-center border border-white animate-in zoom-in-95 overflow-hidden">
                   <div className="w-16 h-16 bg-red-50 text-red-500 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner border border-red-100">
                       <AlertTriangle size={32} />

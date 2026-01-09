@@ -85,7 +85,7 @@ export interface Team {
   name: string;
   short_name: string;
   country_id: string;
-  confederation: 'CONMEBOL' | 'UEFA' | 'OTHER';
+  confederation: 'CONMEBOL' | 'UEFA' | 'CONCACAF' | 'OFC' | 'CAF' | 'AFC' | 'OTHER' | string; // Accepte toutes les confédérations de la base de données
   city: string;
   stadium: string;
   logo?: string;

@@ -203,7 +203,7 @@ export const Dashboard = () => {
 
       {/* Detail Modal */}
       {selectedDay && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" >
               <div className="relative w-full max-w-5xl bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-white/20 animate-in zoom-in-95 max-h-[85vh]">
                   <div className="bg-[#003B94] p-6 text-white flex items-center justify-between shrink-0">
                       <div className="flex items-center gap-4">

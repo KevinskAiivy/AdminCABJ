@@ -203,8 +203,8 @@ export const Competitions = () => {
         </div>
 
         {isModalOpen && (
-            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
-                <div className="relative w-full max-w-lg bg-white rounded-[1.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-7rem-2rem)] animate-in zoom-in-95 duration-300">
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" >
+                <div className="relative w-full max-w-lg bg-white rounded-[1.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
                     <div className="liquid-glass-dark p-4 text-white flex items-center justify-between shrink-0">
                         <div className="flex items-center gap-3"><Trophy size={18} className="text-[#FCB131]" /><h2 className="oswald text-lg font-black uppercase tracking-tight">{editingId ? 'Editar' : 'Nueva'} Competición</h2></div>
                         <button onClick={() => setIsModalOpen(false)} className="p-1.5 hover:bg-white/10 rounded-full transition-colors"><X size={18} /></button>
@@ -255,7 +255,7 @@ export const Competitions = () => {
         )}
 
         {showSaveConfirm && (
-            <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/60 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+            <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/60 backdrop-blur-sm animate-in fade-in duration-300" >
                 <div className="relative w-full max-w-md bg-white rounded-[2rem] p-10 shadow-[0_50px_150px_rgba(0,29,74,0.3)] text-center border border-white animate-in zoom-in-95">
                     <div className="w-20 h-20 bg-[#FCB131]/10 text-[#FCB131] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner"><CheckCircle2 size={40} /></div>
                     <h2 className="oswald text-3xl font-black text-[#001d4a] uppercase mb-4 tracking-tighter">¿Guardar Cambios?</h2>

@@ -95,9 +95,13 @@ export const Habilitaciones = () => {
           return { ...m, status, activeRequests: dataService.getSolicitudes(m.id).length };
       })
       .sort((a, b) => {
+          // Tri systématique par date (plus ancien en premier)
+          const dateA = parseDate(a.date, a.hour).getTime();
+          const dateB = parseDate(b.date, b.hour).getTime();
+          if (dateA !== dateB) return dateA - dateB;
+          // Si même date, trier par statut (OPEN > SCHEDULED > CLOSED)
           const priority = { 'OPEN': 0, 'SCHEDULED': 1, 'CLOSED': 2 };
-          if (priority[a.status] !== priority[b.status]) return priority[a.status] - priority[b.status];
-          return parseDate(a.date, a.hour).getTime() - parseDate(b.date, b.hour).getTime();
+          return priority[a.status] - priority[b.status];
       });
   }, [matches, now]);
 
@@ -166,13 +170,14 @@ export const Habilitaciones = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4">
             {processedMatches.map(match => {
                 const isDark = match.status === 'OPEN' || (match.is_home && match.status !== 'SCHEDULED');
                 const isYellow = match.status === 'CLOSED' && !match.is_home;
                 const isScheduled = match.status === 'SCHEDULED';
+                const isOpen = match.status === 'OPEN';
                 return (
-                <GlassCard key={match.id} className={`p-6 border flex flex-col relative overflow-hidden ${getContainerStyle(match.status, match.is_home)}`}>
+                <GlassCard key={match.id} className={`p-6 border flex flex-col relative overflow-hidden ${getContainerStyle(match.status, match.is_home)} ${isOpen ? 'col-span-full' : ''}`}>
                     
                     <div className={`absolute top-0 right-0 p-2 rounded-bl-xl ${isDark ? 'bg-white/10' : isYellow ? 'bg-[#001d4a]/10' : isScheduled ? 'bg-blue-100' : 'bg-gray-100'}`}>
                         {match.is_home ? <Home size={14} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} /> : <Plane size={14} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} />}
@@ -234,7 +239,7 @@ export const Habilitaciones = () => {
         </div>
 
         {selectedMatch && (
-            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" >
                 <div className="relative w-full max-w-4xl bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-white/60 max-h-[80vh] animate-in zoom-in-95 duration-200">
                     <div className="liquid-glass-dark p-5 text-white flex justify-between items-center shrink-0">
                         <div>

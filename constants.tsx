@@ -95,8 +95,8 @@ export const WORLD_CITIES = [
     { city: 'Buenos Aires', country: 'Argentina', tz: 'UTC-03:00 (Buenos Aires)' }
 ];
 
-export const BocaLogoSVG = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg">
+export const BocaLogoSVG = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
+  <svg viewBox="0 0 100 100" className={className} style={style} xmlns="http://www.w3.org/2000/svg">
     <path fill="#003B94" d="M50 5 L85 20 L85 80 L50 95 L15 80 L15 20 Z" />
     <path fill="#FCB131" d="M15 40 H85 V60 H15 Z" />
     <text x="50" y="32" fontSize="10" fill="#FCB131" textAnchor="middle" fontWeight="bold" fontFamily="Arial">C A B J</text>

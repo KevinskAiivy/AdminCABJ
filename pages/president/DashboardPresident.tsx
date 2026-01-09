@@ -244,26 +244,28 @@ export const DashboardPresident = ({ consulado_id }: { consulado_id: string }) =
         
         {/* Message Modal */}
         {viewingMessage && (
-            <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-[#001d4a]/80 backdrop-blur-md animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
-                <div className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-[0_50px_200px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col border border-white/20 animate-in zoom-in-95">
-                    <div className="bg-[#003B94] p-8 text-white flex items-center justify-between shrink-0">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-white/10 rounded-2xl"><Mail size={24} className="text-[#FCB131]" /></div>
+            <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-[#001d4a]/80 backdrop-blur-md animate-in fade-in duration-300" >
+                <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-[0_50px_200px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col border border-white/20 animate-in zoom-in-95">
+                    <div className="bg-[#003B94] p-4 text-white flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-white/10 rounded-xl"><Mail size={18} className="text-[#FCB131]" /></div>
                             <div>
-                                <h2 className="oswald text-2xl font-black uppercase tracking-tight leading-none mb-1">Comunicado Central</h2>
-                                <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Emitido el {viewingMessage.date}</p>
+                                <h2 className="oswald text-lg font-black uppercase tracking-tight leading-none mb-0.5">Comunicado Central</h2>
+                                <p className="text-white/40 text-[9px] font-bold uppercase tracking-wider">Emitido el {viewingMessage.date}</p>
                             </div>
                         </div>
-                        <X onClick={() => setViewingMessage(null)} className="cursor-pointer opacity-40 hover:opacity-100 p-2 hover:bg-white/10 rounded-full transition-all" size={32} />
+                        <X onClick={() => setViewingMessage(null)} className="cursor-pointer opacity-40 hover:opacity-100 p-1.5 hover:bg-white/10 rounded-full transition-all shrink-0" size={20} />
                     </div>
-                    <div className="p-10 overflow-y-auto custom-scrollbar max-h-[60vh] bg-white">
-                        <h3 className="oswald text-3xl font-black text-[#001d4a] uppercase mb-6 leading-tight border-b border-gray-100 pb-6">{viewingMessage.title}</h3>
-                        <div className="prose prose-blue max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap font-medium">
-                            {viewingMessage.body}
+                    <div className="p-5 overflow-y-auto custom-scrollbar max-h-[65vh] bg-white">
+                        <div className="mb-4 pb-3 border-b border-gray-100">
+                            <h3 className="oswald text-xl font-black text-[#001d4a] uppercase leading-tight">{viewingMessage.title}</h3>
                         </div>
-                    </div>
-                    <div className="p-8 bg-gray-50 border-t border-gray-100 flex justify-end">
-                        <button onClick={() => setViewingMessage(null)} className="px-12 py-4 rounded-2xl bg-[#001d4a] text-white text-[11px] font-black uppercase tracking-[0.2em] hover:bg-[#003B94] transition-all shadow-xl shadow-[#001d4a]/20">Entendido</button>
+                        <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap mb-5">
+                            {viewingMessage.body}
+                        </p>
+                        <div className="flex justify-center pt-2">
+                            <button onClick={() => setViewingMessage(null)} className="px-8 py-2.5 rounded-xl bg-[#001d4a] text-white text-[10px] font-black uppercase tracking-wider hover:bg-[#003B94] transition-all shadow-lg">Entendido</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -271,7 +273,7 @@ export const DashboardPresident = ({ consulado_id }: { consulado_id: string }) =
 
         {/* Modal: Daily Details (Categorized Columns) */}
         {selectedDayDetails && (
-            <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-[#001d4a]/80 backdrop-blur-md animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+            <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-[#001d4a]/80 backdrop-blur-md animate-in fade-in duration-300" >
                 <div className="relative w-full max-w-5xl bg-white rounded-[2rem] shadow-[0_50px_200px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col border border-white/20 animate-in zoom-in-95 max-h-[80vh]">
                     <div className="bg-[#003B94] p-6 text-white flex items-center justify-between shrink-0">
                         <div className="flex items-center gap-4">

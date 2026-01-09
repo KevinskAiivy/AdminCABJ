@@ -1,29 +1,270 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { GlassCard } from '../../components/GlassCard';
-import { Users, Search, MapPin, CheckCircle2, AlertTriangle, UserX } from 'lucide-react';
+import { Users, Search, CheckCircle2, AlertTriangle, UserX, Edit2, Trash2, Star, X, ChevronLeft, ChevronRight, User, Save, Phone, Mail, Loader2, Building2, Lock, Unlock, ArrowRightLeft, CheckCircle, XCircle, Clock, Inbox, Send } from 'lucide-react';
 import { dataService } from '../../services/dataService';
-import { Socio } from '../../types';
+import { Socio, TransferRequest } from '../../types';
+import { getGenderRoleLabel, getGenderLabel as getGenderLabelUtil } from '../../utils/genderLabels';
+import { formatDateFromDB, formatDateToDB } from '../../utils/dateFormat';
+import { SOCIO_CATEGORIES } from '../../constants';
 
 export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
-  const [socios] = useState<Socio[]>(dataService.getSocios(consulado_id));
+  const [socios, setSocios] = useState<Socio[]>(dataService.getSocios(consulado_id));
+  const [consulados, setConsulados] = useState(dataService.getConsulados());
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSocio, setSelectedSocio] = useState<Socio | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [formData, setFormData] = useState<Partial<Socio>>({});
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
+  
+  // Transfer states
+  const [pendingConsulado, setPendingConsulado] = useState<string | null>(null);
+  const [consuladoSelection, setConsuladoSelection] = useState<string>('');
+  const [isConsuladoLocked, setIsConsuladoLocked] = useState(true);
+  const [socioTransfers, setSocioTransfers] = useState<TransferRequest[]>([]);
+  const [outgoingTransfers, setOutgoingTransfers] = useState<TransferRequest[]>([]);
+  const [incomingTransfers, setIncomingTransfers] = useState<TransferRequest[]>([]);
+  
+  // Get current consulado name
+  const currentConsulado = useMemo(() => {
+    if (!consulado_id) return null;
+    const found = consulados.find(c => c.id === consulado_id);
+    return found ? found.name : null;
+  }, [consulado_id, consulados]);
+
+  // SUBSCRIBE TO DATA SERVICE
+  useEffect(() => {
+      const loadData = () => {
+          setSocios(dataService.getSocios(consulado_id));
+          setConsulados(dataService.getConsulados());
+          if (currentConsulado) {
+              const transfers = dataService.getTransfers(currentConsulado);
+              setOutgoingTransfers(transfers.outgoing);
+              setIncomingTransfers(transfers.incoming);
+          }
+      };
+      loadData();
+      const unsubscribe = dataService.subscribe(loadData);
+      return () => unsubscribe();
+  }, [consulado_id, currentConsulado]);
 
   const filteredSocios = useMemo(() => {
     return socios.filter(s => {
       const q = searchQuery.toLowerCase();
-      return s.name.toLowerCase().includes(q) || s.dni.includes(q) || s.id.includes(q);
+      return s.name.toLowerCase().includes(q) || 
+             (s.numero_socio && s.numero_socio.includes(q)) ||
+             s.dni.includes(q) || 
+             s.id.includes(q);
     });
   }, [socios, searchQuery]);
 
+  const totalPages = Math.ceil(filteredSocios.length / itemsPerPage);
+  
+  const currentItems = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredSocios.slice(start, start + itemsPerPage);
+  }, [filteredSocios, currentPage]);
+
+  // Réinitialiser la page à 1 quand la recherche change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const calculateSocioStatus = (paymentStr: string) => {
+    if (!paymentStr) return { label: 'EN DEUDA', color: 'text-amber-600 bg-amber-50 border-amber-200', dot: 'bg-amber-500' };
+    
+    let paymentDate: Date | null = null;
+    
+    if (paymentStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [y, m, d] = paymentStr.split('-').map(Number);
+        paymentDate = new Date(y, m - 1, d);
+    } 
+    else if (paymentStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+        const [d, m, y] = paymentStr.split('/').map(Number);
+        paymentDate = new Date(y, m - 1, d);
+    }
+    else if (paymentStr.length === 7 && paymentStr.includes('/')) {
+        const [m, y] = paymentStr.split('/').map(Number);
+        paymentDate = new Date(y, m - 1, 1);
+    }
+
+    if (!paymentDate || isNaN(paymentDate.getTime())) {
+        return { label: 'EN DEUDA', color: 'text-amber-600 bg-amber-50 border-amber-200', dot: 'bg-amber-500' };
+    }
+
+    const now = new Date();
+    const currentAbsMonth = now.getFullYear() * 12 + now.getMonth();
+    const paymentAbsMonth = paymentDate.getFullYear() * 12 + paymentDate.getMonth();
+    const diffMonths = currentAbsMonth - paymentAbsMonth;
+    
+    if (diffMonths <= 0) return { label: 'AL DÍA', color: 'text-emerald-600 bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500' };
+    if (diffMonths <= 6) return { label: 'EN DEUDA', color: 'text-amber-600 bg-amber-50 border-amber-200', dot: 'bg-amber-500' };
+    return { label: 'DE BAJA', color: 'text-red-600 bg-red-50 border-red-200', dot: 'bg-red-500' };
+  };
+
   const stats = useMemo(() => {
-    let alDia = 0, deuda = 0;
+    let alDia = 0, deuda = 0, deBaja = 0;
     socios.forEach(s => {
-        if (s.status === 'AL DÍA') alDia++;
-        else deuda++;
+        const computed = calculateSocioStatus(s.last_month_paid || '');
+        if (computed.label === 'AL DÍA') alDia++;
+        else if (computed.label === 'EN DEUDA') deuda++;
+        else if (computed.label === 'DE BAJA') deBaja++;
     });
-    return { total: socios.length, alDia, deuda };
+    return { total: socios.length, alDia, deuda, deBaja };
   }, [socios]);
+
+  // Fonction helper pour formater automatiquement une date lors de la saisie (jj-mm-aaaa)
+  const formatDateInput = (value: string): string => {
+    let cleaned = value.replace(/\D/g, '');
+    if (cleaned.length >= 2) cleaned = cleaned.slice(0, 2) + '-' + cleaned.slice(2);
+    if (cleaned.length >= 5) cleaned = cleaned.slice(0, 5) + '-' + cleaned.slice(5, 9);
+    return cleaned;
+  };
+
+  const handleEdit = (socio: Socio) => {
+    setSelectedSocio(socio);
+    // Convertir toutes les dates du format DB (YYYY-MM-DD) vers format affichage (DD/MM/YYYY)
+    const paidDate = formatDateFromDB(socio.last_month_paid || '');
+    const birthDateFormatted = formatDateFromDB(socio.birth_date || '');
+    const joinDateFormatted = formatDateFromDB(socio.join_date || '');
+    const expirationDateFormatted = formatDateFromDB(socio.expiration_date || '');
+    
+    setFormData({ 
+        ...socio, 
+        last_month_paid: paidDate, 
+        birth_date: birthDateFormatted,
+        join_date: joinDateFormatted,
+        expiration_date: expirationDateFormatted
+    });
+    setPendingConsulado(null);
+    setConsuladoSelection(socio.consulado || '');
+    setIsConsuladoLocked(true);
+    setSocioTransfers(dataService.getSocioTransfers ? dataService.getSocioTransfers(socio.id) : []);
+    setIsEditModalOpen(true);
+    setShowSaveConfirm(false);
+  };
+
+  const requestSave = () => {
+    setShowSaveConfirm(true);
+  };
+
+  const executeSave = async () => {
+    if (!selectedSocio || !currentConsulado) return;
+    setIsSaving(true);
+    try {
+        // Si un transfert est en attente, créer un TransferRequest
+        if (pendingConsulado !== null && pendingConsulado !== selectedSocio.consulado) {
+            // Trouver les IDs des consulados
+            const fromConsulado = consulados.find(c => c.name === currentConsulado);
+            const toConsulado = consulados.find(c => c.name === pendingConsulado);
+            
+            if (!toConsulado) {
+                alert('Consulado de destino no encontrado');
+                setIsSaving(false);
+                return;
+            }
+            
+            // Créer le TransferRequest
+            await dataService.createTransferRequest({
+                socio_id: selectedSocio.id,
+                socio_name: `${selectedSocio.first_name} ${selectedSocio.last_name}`,
+                from_consulado_id: fromConsulado?.id || '',
+                from_consulado_name: currentConsulado,
+                to_consulado_id: toConsulado.id,
+                to_consulado_name: pendingConsulado,
+                status: 'PENDING'
+            });
+            
+            alert('Solicitud de transferencia creada. El consulado de destino debe aprobarla.');
+        } else {
+            // Sinon, mettre à jour normalement le socio (sans changer le consulado)
+            const updatedSocio: Socio = {
+                ...selectedSocio,
+                ...formData,
+                last_month_paid: formData.last_month_paid ? formatDateToDB(formData.last_month_paid) : selectedSocio.last_month_paid || null,
+                birth_date: formData.birth_date ? formatDateToDB(formData.birth_date) : selectedSocio.birth_date || null,
+                join_date: formData.join_date ? formatDateToDB(formData.join_date) : selectedSocio.join_date || null,
+                expiration_date: formData.expiration_date ? formatDateToDB(formData.expiration_date) : selectedSocio.expiration_date || null,
+            } as Socio;
+            await dataService.updateSocio(updatedSocio);
+        }
+        
+        setIsEditModalOpen(false);
+        setShowSaveConfirm(false);
+        setFormData({});
+        setSelectedSocio(null);
+        setPendingConsulado(null);
+        setConsuladoSelection('');
+        setIsConsuladoLocked(true);
+    } catch (e: any) { 
+        alert(`Error al guardar: ${e.message || 'Error desconocido'}`); 
+    } finally { 
+        setIsSaving(false); 
+    }
+  };
+  
+  const handleAcceptTransfer = async (transferId: string) => {
+      try {
+          await dataService.updateTransferStatus(transferId, 'APPROVED');
+          if (currentConsulado) {
+              const transfers = dataService.getTransfers(currentConsulado);
+              setOutgoingTransfers(transfers.outgoing);
+              setIncomingTransfers(transfers.incoming);
+          }
+          alert('Transferencia aprobada. El socio ha sido transferido.');
+      } catch (e: any) {
+          alert(`Error al aprobar transferencia: ${e.message || 'Error desconocido'}`);
+      }
+  };
+  
+  const handleRejectTransfer = async (transferId: string) => {
+      if (!confirm('¿Estás seguro de que deseas rechazar esta solicitud de transferencia?')) return;
+      try {
+          await dataService.updateTransferStatus(transferId, 'REJECTED');
+          if (currentConsulado) {
+              const transfers = dataService.getTransfers(currentConsulado);
+              setOutgoingTransfers(transfers.outgoing);
+              setIncomingTransfers(transfers.incoming);
+          }
+          alert('Transferencia rechazada.');
+      } catch (e: any) {
+          alert(`Error al rechazar transferencia: ${e.message || 'Error desconocido'}`);
+      }
+  };
+  
+  const handleCancelTransfer = async (transferId: string) => {
+      if (!confirm('¿Estás seguro de que deseas cancelar esta solicitud de transferencia?')) return;
+      try {
+          await dataService.updateTransferStatus(transferId, 'CANCELLED');
+          if (currentConsulado) {
+              const transfers = dataService.getTransfers(currentConsulado);
+              setOutgoingTransfers(transfers.outgoing);
+              setIncomingTransfers(transfers.incoming);
+          }
+          alert('Transferencia cancelada.');
+      } catch (e: any) {
+          alert(`Error al cancelar transferencia: ${e.message || 'Error desconocido'}`);
+      }
+  };
+
+  const getGenderLabel = (label: string, gender: string = 'M') => {
+    return getGenderLabelUtil(label, gender as 'M' | 'F' | 'X');
+  };
+
+  const formatLastPaymentDate = (dateStr?: string) => {
+    if (!dateStr) return '-';
+    if (dateStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) return dateStr;
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [y, m, d] = dateStr.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    if (dateStr.length === 7 && dateStr.includes('/')) return dateStr;
+    return dateStr;
+  };
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 px-4 animate-boca-entrance">
@@ -54,23 +295,517 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
             </div>
         </div>
 
-        {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredSocios.map(socio => (
-                <GlassCard key={socio.id} className="p-5 flex items-start gap-4 bg-white border border-[#003B94]/10 hover:shadow-lg transition-all">
-                    <div className={`w-12 h-12 rounded-full ${socio.avatar_color || 'bg-gray-300'} flex items-center justify-center text-white font-black text-sm shadow-md`}>
-                        {socio.first_name[0]}{socio.last_name[0]}
+        {/* Transferts entrants (PENDING) */}
+        {incomingTransfers.length > 0 && (
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-6 shadow-lg">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-amber-500 p-3 rounded-xl"><Inbox size={24} className="text-white" /></div>
+                    <div>
+                        <h2 className="oswald text-xl font-black text-[#001d4a] uppercase">Transferencias Entrantes Pendientes</h2>
+                        <p className="text-xs text-amber-700 font-bold uppercase tracking-widest">{incomingTransfers.length} solicitud(es) de transferencia</p>
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <h4 className="oswald text-base font-bold text-[#001d4a] truncate leading-tight">{socio.last_name} {socio.first_name}</h4>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mb-1.5">{socio.category} • {socio.dni}</p>
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${socio.status === 'AL DÍA' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
-                            {socio.status}
-                        </span>
+                </div>
+                <div className="space-y-3">
+                    {incomingTransfers.map(transfer => (
+                        <GlassCard key={transfer.id} className="p-4 bg-white/80 border border-amber-200">
+                            <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Clock size={16} className="text-amber-600" />
+                                        <span className="text-xs font-black text-[#001d4a] uppercase">{transfer.socio_name}</span>
+                                        <span className="text-[9px] font-bold text-gray-500">({transfer.socio_id})</span>
+                                    </div>
+                                    <p className="text-xs text-gray-600 mb-1">
+                                        <span className="font-bold">Desde:</span> {transfer.from_consulado_name}
+                                    </p>
+                                    <p className="text-[9px] text-gray-500">
+                                        Solicitado el: {new Date(transfer.request_date).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                    </p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleAcceptTransfer(transfer.id)}
+                                        className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all font-black text-[9px] uppercase tracking-widest flex items-center gap-2"
+                                    >
+                                        <CheckCircle size={14} /> Aprobar
+                                    </button>
+                                    <button
+                                        onClick={() => handleRejectTransfer(transfer.id)}
+                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all font-black text-[9px] uppercase tracking-widest flex items-center gap-2"
+                                    >
+                                        <XCircle size={14} /> Rechazar
+                                    </button>
+                                </div>
+                            </div>
+                        </GlassCard>
+                    ))}
+                </div>
+            </div>
+        )}
+
+        {/* Transferts sortants (PENDING uniquement) */}
+        {outgoingTransfers.filter(t => t.status === 'PENDING').length > 0 && (
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 shadow-lg">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-blue-500 p-3 rounded-xl"><Send size={24} className="text-white" /></div>
+                    <div>
+                        <h2 className="oswald text-xl font-black text-[#001d4a] uppercase">Transferencias Salientes En Curso</h2>
+                        <p className="text-xs text-blue-700 font-bold uppercase tracking-widest">{outgoingTransfers.filter(t => t.status === 'PENDING').length} solicitud(es) en espera</p>
+                    </div>
+                </div>
+                <div className="space-y-3">
+                    {outgoingTransfers.filter(t => t.status === 'PENDING').map(transfer => (
+                        <GlassCard key={transfer.id} className={`p-4 bg-white/80 border ${
+                            transfer.status === 'PENDING' ? 'border-blue-200' :
+                            transfer.status === 'APPROVED' ? 'border-emerald-200' :
+                            'border-gray-200'
+                        }`}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        {transfer.status === 'PENDING' && <Clock size={16} className="text-blue-600" />}
+                                        {transfer.status === 'APPROVED' && <CheckCircle size={16} className="text-emerald-600" />}
+                                        {transfer.status === 'REJECTED' && <XCircle size={16} className="text-red-600" />}
+                                        {transfer.status === 'CANCELLED' && <X size={16} className="text-gray-600" />}
+                                        <span className="text-xs font-black text-[#001d4a] uppercase">{transfer.socio_name}</span>
+                                        <span className="text-[9px] font-bold text-gray-500">({transfer.socio_id})</span>
+                                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
+                                            transfer.status === 'PENDING' ? 'bg-blue-100 text-blue-700' :
+                                            transfer.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                                            transfer.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                                            'bg-gray-100 text-gray-700'
+                                        }`}>
+                                            {transfer.status === 'PENDING' ? 'Pendiente' :
+                                             transfer.status === 'APPROVED' ? 'Aprobado' :
+                                             transfer.status === 'REJECTED' ? 'Rechazado' :
+                                             'Cancelado'}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-gray-600 mb-1">
+                                        <span className="font-bold">Hacia:</span> {transfer.to_consulado_name}
+                                    </p>
+                                    <p className="text-[9px] text-gray-500">
+                                        Solicitado el: {new Date(transfer.request_date).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                    </p>
+                                </div>
+                                {transfer.status === 'PENDING' && (
+                                    <button
+                                        onClick={() => handleCancelTransfer(transfer.id)}
+                                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all font-black text-[9px] uppercase tracking-widest flex items-center gap-2"
+                                    >
+                                        <X size={14} /> Cancelar
+                                    </button>
+                                )}
+                            </div>
+                        </GlassCard>
+                    ))}
+                </div>
+            </div>
+        )}
+
+        {/* Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 min-h-[500px]">
+            {currentItems.map(socio => {
+                const isPresident = socio.role === 'PRESIDENTE';
+                const isReferente = socio.role === 'REFERENTE';
+                const computedStatus = calculateSocioStatus(socio.last_month_paid || '');
+                let containerClass = "";
+                let variant: 'light' | 'gold' | 'dark' = 'light';
+                
+                if (isPresident) {
+                    variant = 'gold';
+                    containerClass = "border-[#001d4a]/20";
+                } else if (isReferente) {
+                    variant = 'dark';
+                    containerClass = "border-white/10 shadow-[0_8px_32px_rgba(0,29,74,0.4)]";
+                } else if (computedStatus.label === 'EN DEUDA') {
+                    variant = 'light';
+                    containerClass = "border-amber-300/40 shadow-[0_4px_16px_rgba(245,158,11,0.1)]";
+                } else if (computedStatus.label === 'DE BAJA') {
+                    variant = 'light';
+                    containerClass = "border-red-300/40 shadow-[0_4px_16px_rgba(239,68,68,0.1)]";
+                } else {
+                    variant = 'light';
+                    containerClass = "";
+                }
+
+                return (
+                <GlassCard 
+                    key={socio.id} 
+                    className={`flex flex-col group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_-5px_rgba(0,29,74,0.2)] ${containerClass} p-0`}
+                    variant={variant}
+                >
+                    {/* Action buttons - toujours visibles en haut à droite */}
+                    <div className="absolute top-3 right-3 z-10 flex gap-2 opacity-100">
+                        <button 
+                            onClick={(e) => { 
+                                e.stopPropagation(); 
+                                handleEdit(socio); 
+                            }} 
+                            className={`p-2 backdrop-blur-sm rounded-lg hover:text-white transition-all shadow-lg border hover:scale-110 ${
+                                isPresident || isReferente
+                                    ? 'bg-white/20 text-white border-white/30 hover:bg-white/30'
+                                    : 'bg-white/80 text-[#003B94] border-white/20 hover:bg-[#003B94]'
+                            }`}
+                            title="Editar socio"
+                        >
+                            <Edit2 size={14} />
+                        </button>
+                        <button 
+                            onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setSelectedSocio(socio); 
+                                setIsDeleteModalOpen(true); 
+                            }} 
+                            className={`p-2 backdrop-blur-sm text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-lg border hover:scale-110 ${
+                                isPresident || isReferente
+                                    ? 'bg-white/20 border-white/30'
+                                    : 'bg-white/80 border-white/20'
+                            }`}
+                            title="Eliminar socio"
+                        >
+                            <Trash2 size={14} />
+                        </button>
+                    </div>
+
+                    <div className="p-5 pb-3 flex items-start gap-4 relative">
+                        {/* Étoile pour les présidents */}
+                        {isPresident && (
+                            <div className="absolute top-4 left-4 w-12 h-12 rounded-full bg-[#001d4a] flex items-center justify-center shadow-lg border-2 border-[#FCB131]/30 z-10">
+                                <Star size={20} className="text-[#FCB131] fill-[#FCB131]" strokeWidth={3} />
+                            </div>
+                        )}
+                        <div className={`flex-1 min-w-0 ${isPresident ? 'pl-16' : 'pr-16'}`}>
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                {/* Badge d'état de cotisation à gauche */}
+                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
+                                    computedStatus.label === 'AL DÍA' ? 'bg-emerald-100 text-emerald-600 border-emerald-200 border' :
+                                    computedStatus.label === 'EN DEUDA' ? 'bg-amber-100 text-amber-600 border-amber-200 border' :
+                                    'bg-red-100 text-red-600 border-red-200 border'
+                                }`}>
+                                    {computedStatus.label}
+                                </span>
+                                {/* Nom */}
+                                <h4 className={`oswald text-lg tracking-tight leading-none truncate ${isPresident || isReferente ? 'text-white' : 'text-[#001d4a]'}`}>
+                                    <span className="font-black uppercase">{socio.last_name.toUpperCase()}</span> <span className="font-normal capitalize">{socio.first_name.toLowerCase()}</span>
+                                </h4>
+                            </div>
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className={`text-[9px] font-bold uppercase tracking-wider ${isPresident || isReferente ? 'text-white/70' : 'text-gray-500'}`}>N° Socio:</span>
+                                <span className={`text-[10px] font-black ${isPresident || isReferente ? 'text-white' : 'text-[#001d4a]'}`}>{socio.numero_socio || socio.dni || 'N/A'}</span>
+                            </div>
+                            <div className="flex flex-col gap-0.5 mb-2">
+                                <span className={`text-[9px] font-bold uppercase tracking-wider ${isPresident || isReferente ? 'text-white/70' : 'text-gray-500'}`}>CAT:</span>
+                                <span className={`text-[9px] font-bold ${isPresident || isReferente ? 'text-white' : 'text-gray-700'}`}>{socio.category}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2 items-center mt-2">
+                                <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest backdrop-blur-sm border shadow-sm ${
+                                    isPresident || isReferente 
+                                        ? 'bg-white/20 border-white/30 text-white' 
+                                        : 'bg-white/60 border-white/30 text-gray-700'
+                                }`}>{getGenderRoleLabel(socio.role || 'SOCIO', socio.gender)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="px-5 py-3 space-y-3">
+                        <div className={`text-[9px] font-bold flex items-center justify-between ${isPresident || isReferente ? 'text-white bg-white/10' : 'text-[#001d4a] bg-white/20'} backdrop-blur-sm rounded-lg px-3 py-2`}>
+                            <span className={`uppercase opacity-70 ${isPresident || isReferente ? 'text-white/70' : ''}`}>Ultimo Pago:</span>
+                            <span className={`font-black ${isPresident || isReferente ? 'text-white' : 'text-[#003B94]'}`}>{formatLastPaymentDate(socio.last_month_paid)}</span>
+                        </div>
                     </div>
                 </GlassCard>
-            ))}
+                );
+            })}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 mt-8 pb-10">
+                <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                    disabled={currentPage === 1} 
+                    className="flex items-center gap-2 px-6 py-2 rounded-lg bg-white border border-[#003B94]/10 text-[#003B94] font-black uppercase text-[10px] tracking-widest disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#003B94]/5 transition-all"
+                >
+                    <ChevronLeft size={16} /> Anterior
+                </button>
+                <div className="h-12 px-6 rounded-xl bg-[#003B94] flex items-center justify-center text-white oswald font-black text-lg shadow-lg">
+                    {currentPage} <span className="mx-2 text-white/50 text-sm">/</span> {totalPages}
+                </div>
+                <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                    disabled={currentPage === totalPages} 
+                    className="flex items-center gap-2 px-6 py-2 rounded-lg bg-white border border-[#003B94]/10 text-[#003B94] font-black uppercase text-[10px] tracking-widest disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#003B94]/5 transition-all"
+                >
+                    Siguiente <ChevronRight size={16} />
+                </button>
+            </div>
+        )}
+
+        {/* Edit Modal */}
+        {isEditModalOpen && selectedSocio && (
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" >
+                <div className="relative w-full max-w-4xl bg-white/95 backdrop-blur-xl rounded-xl shadow-[0_50px_100px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col border border-white/60 max-h-[90vh] animate-in zoom-in-95 duration-300">
+                    <div className="relative bg-gradient-to-r from-[#003B94] to-[#001d4a] p-3 text-white shrink-0 overflow-hidden">
+                        <div className="flex items-center gap-3 relative z-10">
+                            <div className="w-10 h-10 rounded-lg bg-white/10 border border-white/20 shadow-inner flex items-center justify-center text-lg font-black text-[#FCB131]">
+                                {formData.first_name ? `${formData.first_name[0]}${formData.last_name ? formData.last_name[0] : ''}` : <User size={20}/>}
+                            </div>
+                            <div>
+                                <h2 className="oswald text-xl font-black uppercase tracking-tight leading-none mb-0.5">Editar {getGenderLabel('Socio', formData.gender || 'M')}</h2>
+                                <p className="text-[#FCB131] text-[8px] font-bold uppercase tracking-widest">N° Socio: {selectedSocio.numero_socio || selectedSocio.id}</p>
+                            </div>
+                        </div>
+                        <X onClick={() => { 
+                            setIsEditModalOpen(false); 
+                            setFormData({}); 
+                            setSelectedSocio(null); 
+                            setPendingConsulado(null);
+                            setConsuladoSelection('');
+                            setIsConsuladoLocked(true);
+                        }} className="cursor-pointer opacity-60 hover:opacity-100 p-1 hover:bg-white/10 rounded-full transition-colors absolute top-3 right-3 z-20" size={20} />
+                    </div>
+
+                    <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1 bg-white/50">
+                        <div className="space-y-2">
+                            <h3 className="text-[#003B94] font-black uppercase text-[9px] tracking-widest border-b border-[#003B94]/10 pb-1 flex items-center gap-1.5"><User size={11}/> {getGenderLabel('Datos del Socio', formData.gender || 'M')}</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <div className="space-y-0.5"><label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Apellido</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 uppercase text-[#001d4a]" value={formData.last_name || ''} onChange={e => setFormData({...formData, last_name: e.target.value.toUpperCase()})}/></div>
+                                <div className="space-y-0.5"><label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Nombre</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 capitalize text-[#001d4a]" value={formData.first_name || ''} onChange={e => setFormData({...formData, first_name: e.target.value})}/></div>
+                                <div className="space-y-0.5"><label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Género</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value as any})}><option value="M">Masculino</option><option value="F">Femenino</option><option value="X">X (No binario)</option></select></div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div className="space-y-0.5"><label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">DNI / Pasaporte</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" value={formData.dni || ''} onChange={e => setFormData({...formData, dni: e.target.value})}/></div>
+                                <div className="space-y-0.5">
+                                    <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Fecha de Nacimiento</label>
+                                    <input 
+                                        type="text" 
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest" 
+                                        placeholder="jj-mm-aaaa" 
+                                        value={formatDateFromDB(formData.birth_date || '')}
+                                        onChange={e => {
+                                            const formatted = formatDateInput(e.target.value);
+                                            setFormData({...formData, birth_date: formatted});
+                                        }}
+                                        maxLength={10}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <h3 className="text-[#003B94] font-black uppercase text-[9px] tracking-widest border-b border-[#003B94]/10 pb-1 flex items-center gap-1.5"><Mail size={11}/> Contacto</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div className="space-y-0.5">
+                                    <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Mail size={8}/> Email</label>
+                                    <input 
+                                        type="email" 
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" 
+                                        value={formData.email || ''} 
+                                        onChange={e => setFormData({...formData, email: e.target.value})}
+                                        placeholder="ejemplo@email.com"
+                                    />
+                                </div>
+                                <div className="space-y-0.5">
+                                    <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Phone size={8}/> Teléfono</label>
+                                    <input 
+                                        type="tel" 
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" 
+                                        value={formData.phone || ''} 
+                                        onChange={e => setFormData({...formData, phone: e.target.value})}
+                                        placeholder="+54 9 11 1234-5678"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <h3 className="text-[#003B94] font-black uppercase text-[9px] tracking-widest border-b border-[#003B94]/10 pb-1 flex items-center gap-1.5">Membresía</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <div className="space-y-0.5">
+                                    <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Categoría</label>
+                                    <select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value as any})}>
+                                        {SOCIO_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-0.5">
+                                    <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Desde el</label>
+                                    <input 
+                                        type="text" 
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest" 
+                                        placeholder="jj-mm-aaaa" 
+                                        value={formatDateFromDB(formData.join_date || '')}
+                                        onChange={e => {
+                                            const formatted = formatDateInput(e.target.value);
+                                            setFormData({...formData, join_date: formatted});
+                                        }}
+                                        maxLength={10}
+                                    />
+                                </div>
+                                <div className="space-y-0.5">
+                                    <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                        Último Pago
+                                        {(() => {
+                                            const status = calculateSocioStatus(formData.last_month_paid || '');
+                                            return (
+                                                <span className={`px-1.5 py-0.5 rounded-full text-[6px] font-black uppercase tracking-widest ${status.color}`}>
+                                                    {status.label}
+                                                </span>
+                                            );
+                                        })()}
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        className="w-full bg-white border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none text-[#001d4a] tracking-widest" 
+                                        placeholder="jj-mm-aaaa" 
+                                        value={formatDateFromDB(formData.last_month_paid || '')}
+                                        onChange={e => {
+                                            const formatted = formatDateInput(e.target.value);
+                                            setFormData({...formData, last_month_paid: formatted});
+                                        }}
+                                        maxLength={10}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <h3 className="text-[#003B94] font-black uppercase text-[9px] tracking-widest border-b border-[#003B94]/10 pb-1 flex items-center gap-1.5"><Building2 size={11}/> Transferir a Otro Consulado</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 bg-gradient-to-br from-[#001d4a] to-[#003B94] p-3 rounded-lg border border-[#FCB131]/30 shadow-lg relative overflow-hidden">
+                                <div className="space-y-1 relative z-10">
+                                    <label className="text-[8px] font-black text-white uppercase tracking-widest flex items-center gap-1"><ArrowRightLeft size={9} /> Consulado</label>
+                                    {pendingConsulado === null ? (
+                                        <div className="space-y-1.5">
+                                            <div className="flex gap-2">
+                                                <div className="relative flex-1">
+                                                    <select 
+                                                        disabled={isConsuladoLocked}
+                                                        className={`w-full rounded-lg py-2 px-3 font-bold text-xs outline-none transition-all appearance-none cursor-pointer border ${isConsuladoLocked ? 'bg-white/10 text-white border-white/20' : 'bg-white/10 text-white border-white/20 focus:border-[#FCB131]'}`} 
+                                                        value={consuladoSelection} 
+                                                        onChange={e => setConsuladoSelection(e.target.value)}
+                                                    >
+                                                        <option value="" className="text-black">Sede Central</option>
+                                                        {consulados.map(c => <option key={c.id} value={c.name} className="text-black">{c.name}</option>)}
+                                                    </select>
+                                                </div>
+                                                <button 
+                                                    onClick={() => { 
+                                                        setIsConsuladoLocked(false); 
+                                                        setPendingConsulado(null);
+                                                    }} 
+                                                    className="text-white/50 hover:text-[#FCB131] transition-colors"
+                                                >
+                                                    {isConsuladoLocked ? <Lock size={12} /> : <Unlock size={12} />}
+                                                </button>
+                                                {!isConsuladoLocked && consuladoSelection !== (formData.consulado || '') && consuladoSelection !== '' && (
+                                                    <button 
+                                                        onClick={() => { 
+                                                            setPendingConsulado(consuladoSelection); 
+                                                            setIsConsuladoLocked(true);
+                                                        }} 
+                                                        className="bg-[#FCB131] text-[#001d4a] px-2.5 rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-white transition-all shadow-lg"
+                                                    >
+                                                        Validar
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {/* Alerte si le consulado est en cours de modification */}
+                                            {!isConsuladoLocked && consuladoSelection !== (formData.consulado || '') && consuladoSelection !== '' && (
+                                                <div className="p-2 rounded-lg text-[7px] font-bold uppercase tracking-widest flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-200">
+                                                    <AlertTriangle size={10} />
+                                                    Cambio de consulado pendiente
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-1.5">
+                                            <div className="bg-[#FFFCE4] border border-[#FCB131] rounded-lg p-2 flex items-center justify-between text-[8px] font-bold text-[#001d4a]">
+                                                <span className="flex items-center gap-1.5">
+                                                    <CheckCircle2 size={10} className="text-[#FCB131]" />
+                                                    Traslado: <span className="font-black">{(formData.consulado || 'Sede Central')}</span> → <span className="font-black text-[#003B94]">{pendingConsulado || 'Sede Central'}</span>
+                                                </span>
+                                                <button 
+                                                    onClick={() => { 
+                                                        setConsuladoSelection(formData.consulado || ''); 
+                                                        setPendingConsulado(null);
+                                                        setIsConsuladoLocked(true);
+                                                    }} 
+                                                    className="text-red-500 hover:text-red-700 font-black uppercase text-[7px] tracking-widest"
+                                                >
+                                                    Cancelar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-4 border-t border-gray-200 bg-white/80 flex justify-end gap-3 shrink-0">
+                        <button onClick={() => { 
+                            setIsEditModalOpen(false); 
+                            setFormData({}); 
+                            setSelectedSocio(null); 
+                            setPendingConsulado(null);
+                            setConsuladoSelection('');
+                            setIsConsuladoLocked(true);
+                        }} className="px-6 py-2 rounded-lg bg-gray-100 text-gray-500 font-black uppercase text-[9px] tracking-widest hover:bg-gray-200 transition-all">Cancelar</button>
+                        <button onClick={requestSave} disabled={isSaving} className="px-6 py-2 rounded-lg bg-[#003B94] text-white font-black uppercase text-[9px] tracking-widest shadow-lg hover:bg-[#001d4a] transition-all disabled:opacity-50 flex items-center gap-2">
+                            {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                            Guardar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Save Confirmation Modal */}
+        {showSaveConfirm && (
+            <div className="fixed inset-0 z-[1500] flex items-center justify-center p-4 bg-[#001d4a]/70 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200" >
+                <div className="relative w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-[0_50px_100px_rgba(0,0,0,0.3)] text-center border border-white">
+                    <div className="w-16 h-16 bg-[#003B94] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 text-white shadow-lg"><Save size={32} /></div>
+                    <h2 className="oswald text-2xl font-black text-[#001d4a] uppercase mb-3">Confirmar Cambios</h2>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                        <p className="text-gray-700 text-[10px] font-bold uppercase tracking-widest mb-3 leading-relaxed">
+                            Se actualizarán los datos del socio <strong className="text-[#001d4a]">{selectedSocio?.last_name.toUpperCase()} {selectedSocio?.first_name}</strong>.
+                        </p>
+                        <p className="text-amber-700 text-[9px] font-black uppercase tracking-wider leading-relaxed border-t border-amber-200 pt-3 mt-3">
+                            ⚠️ IMPORTANTE:<br/>
+                            Los cambios serán guardados de forma permanente.
+                        </p>
+                    </div>
+                    <div className="flex gap-3">
+                        <button onClick={() => setShowSaveConfirm(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-500 text-[9px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all">Revisar</button>
+                        <button onClick={executeSave} disabled={isSaving} className="flex-1 py-3 rounded-xl bg-[#001d4a] text-white text-[9px] font-black uppercase tracking-widest shadow-lg hover:bg-[#003B94] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                            {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                            Confirmar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {isDeleteModalOpen && selectedSocio && (
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200" >
+                <div className="relative w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-[0_50px_100px_rgba(0,0,0,0.3)] text-center border border-white">
+                    <div className="w-16 h-16 bg-red-50 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 text-red-500 shadow-inner"><Trash2 size={32} /></div>
+                    <h2 className="oswald text-2xl font-black text-[#001d4a] uppercase mb-2">Eliminar Socio</h2>
+                    <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-6 leading-relaxed">
+                        ¿Está seguro que desea eliminar a <strong>{selectedSocio.last_name.toUpperCase()} {selectedSocio.first_name}</strong>?<br/>
+                        Esta acción no se puede deshacer.
+                    </p>
+                    <div className="flex gap-3">
+                        <button onClick={() => { setIsDeleteModalOpen(false); setSelectedSocio(null); }} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-500 text-[9px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all">Cancelar</button>
+                        <button onClick={() => { 
+                            dataService.deleteSocio(selectedSocio.id); 
+                            setIsDeleteModalOpen(false); 
+                            setSelectedSocio(null); 
+                        }} className="flex-1 py-3 rounded-xl bg-red-500 text-white text-[9px] font-black uppercase tracking-widest shadow-lg hover:bg-red-600 transition-all">Eliminar</button>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
   );
 };

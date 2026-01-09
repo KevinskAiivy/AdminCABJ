@@ -313,18 +313,20 @@ const mapMatchToDB = (m: Partial<Match> & { _originalId?: string | number }, isN
 };
 
 // Mapping pour Teams
-const mapTeamFromDB = (db: any): Team => ({
-    id: db.id || crypto.randomUUID(),
-    name: db.name || '',
-    short_name: db.short_name || '',
-    country_id: db.country_id || 'AR',
-    confederation: (db.confederation === 'CONMEBOL' || db.confederation === 'UEFA' || db.confederation === 'OTHER') 
-        ? db.confederation 
-        : 'CONMEBOL',
-    city: db.city || '',
-    stadium: db.stadium || '',
-    logo: db.logo || undefined
-});
+const mapTeamFromDB = (db: any): Team => {
+    // Accepter n'importe quelle valeur de confédération depuis la base de données
+    // Les confédérations incluent: CONMEBOL, UEFA, CONCACAF, OFC, CAF, AFC, OTHER, etc.
+    return {
+        id: db.id || crypto.randomUUID(),
+        name: db.name || '',
+        short_name: db.short_name || '',
+        country_id: db.country_id || 'AR',
+        confederation: (db.confederation || 'CONMEBOL') as any, // Utiliser directement la valeur de la DB
+        city: db.city || '',
+        stadium: db.stadium || '',
+        logo: db.logo || undefined
+    };
+};
 
 const mapTeamToDB = (t: Partial<Team>) => {
     const payload: any = { ...t };
@@ -369,32 +371,137 @@ const parseTargetIds = (value: any): string[] | undefined => {
     return undefined;
 };
 
-const mapMensajeFromDB = (db: any): Mensaje => ({
-    id: db.id || crypto.randomUUID(),
-    title: db.title || '',
-    body: db.body || '',
-    target_consulado_id: db.target_consulado_id || 'ALL',
-    target_ids: parseTargetIds(db.target_ids),
-    target_consulado_name: db.target_consulado_name || 'Todos',
-    type: (db.type === 'INSTITUCIONAL' || db.type === 'URGENTE' || db.type === 'CONSULAR') 
-        ? db.type 
-        : 'INSTITUCIONAL',
-    date: db.date || '',
-    start_date: db.start_date || undefined,
-    end_date: db.end_date || undefined,
-    created_at: db.created_at || Date.now(),
-    archived: db.archived !== undefined ? Boolean(db.archived) : false,
-    is_automatic: db.is_automatic !== undefined ? Boolean(db.is_automatic) : false
-});
+const mapMensajeFromDB = (db: any): Mensaje => {
+    // Convertir created_at en number si c'est une string ou une date
+    let created_at = Date.now();
+    if (db.created_at !== undefined && db.created_at !== null) {
+        if (typeof db.created_at === 'number') {
+            created_at = db.created_at;
+        } else if (typeof db.created_at === 'string') {
+            // Si c'est une string, essayer de parser comme timestamp ou date
+            const parsed = Date.parse(db.created_at);
+            created_at = isNaN(parsed) ? Date.now() : parsed;
+        } else if (db.created_at instanceof Date) {
+            created_at = db.created_at.getTime();
+        }
+    }
+    
+    // Formater la date pour l'affichage si elle n'est pas déjà formatée
+    let displayDate = db.date || '';
+    if (!displayDate && db.created_at) {
+        const dateObj = typeof db.created_at === 'number' 
+            ? new Date(db.created_at) 
+            : new Date(db.created_at);
+        if (!isNaN(dateObj.getTime())) {
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const y = dateObj.getFullYear();
+            displayDate = `${d}-${m}-${y}`;
+        }
+    }
+    
+    return {
+        id: db.id || crypto.randomUUID(),
+        title: db.title || '',
+        body: db.body || '',
+        target_consulado_id: db.target_consulado_id || 'ALL',
+        target_ids: parseTargetIds(db.target_ids),
+        target_consulado_name: db.target_consulado_name || 'Todos',
+        type: (db.type === 'INSTITUCIONAL' || db.type === 'URGENTE' || db.type === 'CONSULAR') 
+            ? db.type 
+            : 'INSTITUCIONAL',
+        date: displayDate,
+        start_date: db.start_date || undefined,
+        end_date: db.end_date || undefined,
+        created_at: created_at,
+        archived: db.archived !== undefined ? (typeof db.archived === 'boolean' ? db.archived : Boolean(db.archived)) : false,
+        is_automatic: db.is_automatic !== undefined ? (typeof db.is_automatic === 'boolean' ? db.is_automatic : Boolean(db.is_automatic)) : false
+    };
+};
 
 const mapMensajeToDB = (m: Partial<Mensaje>) => {
     const payload: any = { ...m };
+    
+    // Convertir target_ids en JSON string pour la base de données si c'est un array
+    if (payload.target_ids !== undefined && payload.target_ids !== null) {
+        if (Array.isArray(payload.target_ids)) {
+            // S'assurer que target_ids est bien un array et le convertir en JSON
+            payload.target_ids = JSON.stringify(payload.target_ids);
+        } else if (typeof payload.target_ids === 'string') {
+            // Si c'est déjà une string, vérifier si c'est du JSON valide
+            try {
+                JSON.parse(payload.target_ids);
+                // C'est déjà du JSON valide, on le garde tel quel
+            } catch {
+                // Ce n'est pas du JSON valide, on essaie de le convertir
+                payload.target_ids = JSON.stringify([payload.target_ids]);
+            }
+        }
+    }
+    
+    // S'assurer que created_at est un number (timestamp)
+    if (payload.created_at === undefined || payload.created_at === null) {
+        payload.created_at = Date.now();
+    } else if (typeof payload.created_at !== 'number') {
+        // Convertir en timestamp si c'est une date ou une string
+        if (typeof payload.created_at === 'string') {
+            const parsed = Date.parse(payload.created_at);
+            payload.created_at = isNaN(parsed) ? Date.now() : parsed;
+        } else if (payload.created_at instanceof Date) {
+            payload.created_at = payload.created_at.getTime();
+        } else {
+            payload.created_at = Date.now();
+        }
+    }
+    
+    // S'assurer que archived est un boolean
+    if (payload.archived !== undefined && payload.archived !== null) {
+        payload.archived = typeof payload.archived === 'boolean' 
+            ? payload.archived 
+            : Boolean(payload.archived);
+    } else {
+        payload.archived = false;
+    }
+    
+    // S'assurer que is_automatic est un boolean
+    if (payload.is_automatic !== undefined && payload.is_automatic !== null) {
+        payload.is_automatic = typeof payload.is_automatic === 'boolean' 
+            ? payload.is_automatic 
+            : Boolean(payload.is_automatic);
+    }
+    
+    // S'assurer que date est une string valide
+    if (!payload.date && payload.created_at) {
+        const dateObj = new Date(payload.created_at);
+        if (!isNaN(dateObj.getTime())) {
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const y = dateObj.getFullYear();
+            payload.date = `${d}-${m}-${y}`;
+        }
+    }
+    
+    // S'assurer que target_consulado_id est bien défini (legacy support)
+    if (!payload.target_consulado_id && payload.target_ids) {
+        try {
+            const targetIds = typeof payload.target_ids === 'string' 
+                ? JSON.parse(payload.target_ids) 
+                : payload.target_ids;
+            if (Array.isArray(targetIds) && targetIds.length > 0) {
+                payload.target_consulado_id = targetIds.includes('ALL') ? 'ALL' : targetIds[0];
+            } else {
+                payload.target_consulado_id = 'ALL';
+            }
+        } catch {
+            payload.target_consulado_id = 'ALL';
+        }
+    }
+    
+    // Transformer undefined en null seulement après toutes les conversions
     Object.keys(payload).forEach(key => {
         if (payload[key] === undefined) payload[key] = null;
     });
-    if (payload.created_at === undefined || payload.created_at === null) {
-        payload.created_at = Date.now();
-    }
+    
     return payload;
 };
 
@@ -495,6 +602,40 @@ const mapNotificationToDB = (n: Partial<AppNotification>) => {
     if (n.read !== undefined) payload.read = Boolean(n.read);
     if (n.link !== undefined) payload.link = n.link || null;
     if (n.data !== undefined) payload.data = n.data ? JSON.stringify(n.data) : null;
+    return payload;
+};
+
+// Mapping pour TransferRequest
+const mapTransferFromDB = (db: any): TransferRequest => ({
+    id: db.id || crypto.randomUUID(),
+    socio_id: db.socio_id || '',
+    socio_name: db.socio_name || '',
+    from_consulado_id: db.from_consulado_id || '',
+    from_consulado_name: db.from_consulado_name || '',
+    to_consulado_id: db.to_consulado_id || '',
+    to_consulado_name: db.to_consulado_name || '',
+    comments: db.comments || undefined,
+    status: (db.status === 'PENDING' || db.status === 'APPROVED' || db.status === 'REJECTED' || db.status === 'CANCELLED') 
+        ? db.status 
+        : 'PENDING',
+    request_date: db.request_date || db.created_at || new Date().toISOString()
+});
+
+const mapTransferToDB = (t: Partial<TransferRequest>) => {
+    const payload: any = {};
+    if (t.id !== undefined) payload.id = t.id;
+    if (t.socio_id !== undefined) payload.socio_id = t.socio_id;
+    if (t.socio_name !== undefined) payload.socio_name = t.socio_name;
+    if (t.from_consulado_id !== undefined) payload.from_consulado_id = t.from_consulado_id || null;
+    if (t.from_consulado_name !== undefined) payload.from_consulado_name = t.from_consulado_name || null;
+    if (t.to_consulado_id !== undefined) payload.to_consulado_id = t.to_consulado_id || null;
+    if (t.to_consulado_name !== undefined) payload.to_consulado_name = t.to_consulado_name || null;
+    if (t.comments !== undefined) payload.comments = t.comments || null;
+    if (t.status !== undefined) payload.status = t.status || 'PENDING';
+    if (t.request_date !== undefined) payload.request_date = t.request_date || new Date().toISOString();
+    Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined) payload[key] = null;
+    });
     return payload;
 };
 
@@ -716,12 +857,13 @@ class DataService {
           this.teams = allTeams.map(mapTeamFromDB);
           if (isDevelopment) console.log(`✅ ${this.teams.length} équipes chargées`);
 
-          // 4. Charger Solicitudes et Notifications depuis Supabase (si la table existe)
+          // 4. Charger Solicitudes, Notifications et TransferRequests depuis Supabase (si la table existe)
           this.loadingMessage = "Chargement des demandes...";
           try {
-              const [solicitudesResult, notificationsResult] = await Promise.all([
+              const [solicitudesResult, notificationsResult, transfersResult] = await Promise.all([
                   supabase.from('solicitudes').select('*').catch(() => ({ data: null, error: null })),
-                  supabase.from('notifications').select('*').catch(() => ({ data: null, error: null }))
+                  supabase.from('notifications').select('*').catch(() => ({ data: null, error: null })),
+                  supabase.from('transfer_requests').select('*').catch(() => ({ data: null, error: null }))
               ]);
 
               // Traitement des Solicitudes
@@ -735,9 +877,15 @@ class DataService {
                   this.notifications = notificationsResult.data.map(mapNotificationFromDB);
                   if (isDevelopment) console.log(`✅ ${this.notifications.length} notifications chargées`);
               }
+
+              // Traitement des TransferRequests
+              if (transfersResult.data && !transfersResult.error) {
+                  this.transfers = transfersResult.data.map(mapTransferFromDB);
+                  if (isDevelopment) console.log(`✅ ${this.transfers.length} transferts chargés`);
+              }
           } catch (error) {
               // Les tables peuvent ne pas exister, ce n'est pas critique
-              if (isDevelopment) console.log("ℹ️ Tables solicitudes/notifications non disponibles");
+              if (isDevelopment) console.log("ℹ️ Tables solicitudes/notifications/transfer_requests non disponibles");
           }
 
           // Assigner SEDE CENTRAL en arrière-plan (ne bloque pas l'initialisation)
@@ -771,10 +919,38 @@ class DataService {
 
           // Traitement des Mensajes
           if (mensajesResult.data) {
-              this.mensajes = mensajesResult.data.map(mapMensajeFromDB);
-              if (isDevelopment) console.log(`✅ ${this.mensajes.length} messages chargés`);
+              if (isDevelopment) {
+                  console.log("📊 Données brutes des mensajes:", {
+                      count: mensajesResult.data.length,
+                      isArray: Array.isArray(mensajesResult.data),
+                      sample: mensajesResult.data.slice(0, 2)
+                  });
+              }
+              
+              this.mensajes = mensajesResult.data.map((dbItem: any, index: number) => {
+                  try {
+                      const mapped = mapMensajeFromDB(dbItem);
+                      if (isDevelopment && index < 3) {
+                          console.log(`🔍 Mapping mensaje ${index + 1}/${mensajesResult.data.length}:`, {
+                              raw: { id: dbItem?.id, title: dbItem?.title, target_consulado_id: dbItem?.target_consulado_id },
+                              mapped: mapped ? { id: mapped.id, title: mapped.title, target_consulado_id: mapped.target_consulado_id } : null,
+                              success: mapped !== null
+                          });
+                      }
+                      return mapped;
+                  } catch (error: any) {
+                      console.error(`❌ Erreur lors du mapping du mensaje ${index + 1}:`, error, dbItem);
+                      return null;
+                  }
+              }).filter((m): m is Mensaje => m !== null);
+              
+              if (isDevelopment) console.log(`✅ ${this.mensajes.length} messages chargés et mappés`);
           } else if (mensajesResult.error) {
               console.error("❌ Erreur lors du chargement des mensajes:", mensajesResult.error);
+              this.mensajes = [];
+          } else {
+              console.warn("⚠️ Aucune donnée retournée pour mensajes (data est null/undefined)");
+              this.mensajes = [];
           }
 
           const endTime = performance.now();
@@ -1356,15 +1532,40 @@ class DataService {
   }
 
   getMensajes(cId?: string) { 
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      
+      // Filtrer les messages actifs (non archivés et dans la période de validité)
+      let activeMessages = this.mensajes.filter(m => {
+          // Exclure les messages archivés
+          if (m.archived) return false;
+          
+          // Vérifier start_date si défini
+          if (m.start_date) {
+              const startDate = new Date(m.start_date);
+              startDate.setHours(0, 0, 0, 0);
+              if (startDate > now) return false; // Message pas encore actif
+          }
+          
+          // Vérifier end_date si défini
+          if (m.end_date) {
+              const endDate = new Date(m.end_date);
+              endDate.setHours(0, 0, 0, 0);
+              if (endDate < now) return false; // Message expiré
+          }
+          
+          return true;
+      });
+      
       // Filtrer par consulado si spécifié
       if (cId && cId !== 'ALL') {
-          return this.mensajes.filter(m => 
+          return activeMessages.filter(m => 
               m.target_consulado_id === cId || 
               m.target_consulado_id === 'ALL' ||
               (m.target_ids && m.target_ids.includes(cId))
           );
       }
-      return this.mensajes; 
+      return activeMessages; 
   }
   getMensajeById(id: string) { return this.mensajes.find(m => m.id === id); }
   async addMensaje(m: Mensaje) { 
@@ -1598,8 +1799,35 @@ class DataService {
   }
 
   getNotificationsForUser(u: any) { 
-      // Filtrer par utilisateur si nécessaire
-      return this.notifications.filter(n => !n.read || true); // Toutes les notifications pour l'instant
+      // Filtrer par utilisateur selon son rôle et consulado
+      return this.notifications.filter(n => {
+          // Les SUPERADMIN et ADMIN voient toutes les notifications
+          if (u.role === 'SUPERADMIN' || u.role === 'ADMIN') {
+              return true;
+          }
+          
+          // Les PRESIDENTE et REFERENTE voient les notifications liées à leur consulado
+          if ((u.role === 'PRESIDENTE' || u.role === 'REFERENTE') && u.consulado_id) {
+              const consulado = this.consulados.find(c => c.id === u.consulado_id);
+              if (consulado) {
+                  // Vérifier si la notification concerne leur consulado
+                  if (n.type === 'TRANSFER' && n.data && n.data.transfer_id) {
+                      const transfer = this.transfers.find(t => t.id === n.data.transfer_id);
+                      if (transfer && (transfer.to_consulado_name === consulado.name || transfer.from_consulado_name === consulado.name)) {
+                          return true;
+                      }
+                  }
+                  // Pour les autres types, vérifier si le message mentionne le consulado
+                  if (n.message && n.message.includes(consulado.name)) {
+                      return true;
+                  }
+              }
+              return false;
+          }
+          
+          // Par défaut, ne rien retourner
+          return false;
+      });
   }
   getNotificationById(id: string) { return this.notifications.find(n => n.id === id); }
   async addNotification(n: AppNotification) {
@@ -1687,8 +1915,167 @@ class DataService {
   }
   
   getBirthdays(c: string, d: number) { return []; }
-  getTransfers(consulado_id: string) { return { incoming: [], outgoing: [] }; }
-  getSocioTransfers(socio_id: string) { return []; }
+  
+  getTransfers(consulado_name: string) {
+      // Transferts entrants: seulement ceux en attente d'approbation
+      const incoming = this.transfers.filter(t => 
+          t.to_consulado_name === consulado_name && t.status === 'PENDING'
+      );
+      // Transferts sortants: ceux en attente (pour pouvoir les annuler) et ceux approuvés (pour voir l'historique)
+      const outgoing = this.transfers.filter(t => 
+          t.from_consulado_name === consulado_name && (t.status === 'PENDING' || t.status === 'APPROVED' || t.status === 'REJECTED' || t.status === 'CANCELLED')
+      );
+      return { incoming, outgoing };
+  }
+  
+  getSocioTransfers(socio_id: string) {
+      return this.transfers.filter(t => t.socio_id === socio_id);
+  }
+  
+  async createTransferRequest(transfer: Omit<TransferRequest, 'id' | 'request_date'>): Promise<TransferRequest> {
+      try {
+          const newTransfer: TransferRequest = {
+              ...transfer,
+              id: crypto.randomUUID(),
+              request_date: new Date().toISOString(),
+              status: 'PENDING'
+          };
+          
+          // Ajouter localement
+          this.transfers.push(newTransfer);
+          this.notify();
+          
+          // Créer notification pour le consulado recevant
+          const toConsulado = this.consulados.find(c => c.name === transfer.to_consulado_name);
+          if (toConsulado) {
+              const notification: AppNotification = {
+                  id: crypto.randomUUID(),
+                  type: 'TRANSFER',
+                  title: `Solicitud de Transferencia de Socio`,
+                  message: `El consulado "${transfer.from_consulado_name}" solicita transferir al socio ${transfer.socio_name} a su consulado.`,
+                  date: new Date().toISOString(),
+                  read: false,
+                  data: { transfer_id: newTransfer.id, socio_id: transfer.socio_id }
+              };
+              await this.addNotification(notification);
+          }
+          
+          // Sauvegarder dans Supabase
+          try {
+              const payload = mapTransferToDB(newTransfer);
+              const { data, error } = await supabase.from('transfer_requests').insert([payload]).select().single();
+              if (error) {
+                  if (error.code !== '42P01') {
+                      console.error("❌ Erreur lors de la création du transfert:", error);
+                  }
+              } else if (data) {
+                  const mappedTransfer = mapTransferFromDB(data);
+                  this.transfers = this.transfers.map(t => t.id === newTransfer.id ? mappedTransfer : t);
+                  this.notify();
+                  return mappedTransfer;
+              }
+          } catch (dbError: any) {
+              if (dbError.code !== '42P01') {
+                  console.error("❌ Erreur DB lors de la création du transfert:", dbError);
+              }
+          }
+          
+          return newTransfer;
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la création du transfert:", error);
+          throw error;
+      }
+  }
+  
+  async updateTransferStatus(transferId: string, status: 'APPROVED' | 'REJECTED' | 'CANCELLED'): Promise<TransferRequest> {
+      try {
+          const transfer = this.transfers.find(t => t.id === transferId);
+          if (!transfer) throw new Error('Transfert introuvable');
+          
+          // Mettre à jour localement
+          const updatedTransfer: TransferRequest = { ...transfer, status };
+          this.transfers = this.transfers.map(t => t.id === transferId ? updatedTransfer : t);
+          this.notify();
+          
+          // Si approuvé, modifier le consulado du socio dans la base de données
+          if (status === 'APPROVED') {
+              const socio = this.socios.find(s => s.id === transfer.socio_id);
+              if (socio) {
+                  const updatedSocio: Socio = { ...socio, consulado: transfer.to_consulado_name };
+                  await this.updateSocio(updatedSocio);
+              }
+              
+              // Créer notification pour le consulado sortant
+              const notification: AppNotification = {
+                  id: crypto.randomUUID(),
+                  type: 'TRANSFER',
+                  title: `Transferencia Aprobada`,
+                  message: `El consulado "${transfer.to_consulado_name}" ha aprobado el traslado del socio ${transfer.socio_name}.`,
+                  date: new Date().toISOString(),
+                  read: false,
+                  data: { transfer_id: transferId, socio_id: transfer.socio_id }
+              };
+              await this.addNotification(notification);
+          } else if (status === 'REJECTED') {
+              // Créer notification pour le consulado sortant
+              const notification: AppNotification = {
+                  id: crypto.randomUUID(),
+                  type: 'TRANSFER',
+                  title: `Transferencia Rechazada`,
+                  message: `El consulado "${transfer.to_consulado_name}" ha rechazado el traslado del socio ${transfer.socio_name}.`,
+                  date: new Date().toISOString(),
+                  read: false,
+                  data: { transfer_id: transferId, socio_id: transfer.socio_id }
+              };
+              await this.addNotification(notification);
+          } else if (status === 'CANCELLED') {
+              // Créer notification pour le consulado recevant
+              const toConsulado = this.consulados.find(c => c.name === transfer.to_consulado_name);
+              if (toConsulado) {
+                  const notification: AppNotification = {
+                      id: crypto.randomUUID(),
+                      type: 'TRANSFER',
+                      title: `Transferencia Cancelada`,
+                      message: `El consulado "${transfer.from_consulado_name}" ha cancelado la solicitud de traslado del socio ${transfer.socio_name}.`,
+                      date: new Date().toISOString(),
+                      read: false,
+                      data: { transfer_id: transferId, socio_id: transfer.socio_id }
+                  };
+                  await this.addNotification(notification);
+              }
+          }
+          
+          // Sauvegarder dans Supabase
+          try {
+              const { data, error } = await supabase
+                  .from('transfer_requests')
+                  .update({ status })
+                  .eq('id', transferId)
+                  .select()
+                  .single();
+              
+              if (error) {
+                  if (error.code !== '42P01') {
+                      console.error("❌ Erreur lors de la mise à jour du transfert:", error);
+                  }
+              } else if (data) {
+                  const mappedTransfer = mapTransferFromDB(data);
+                  this.transfers = this.transfers.map(t => t.id === transferId ? mappedTransfer : t);
+                  this.notify();
+                  return mappedTransfer;
+              }
+          } catch (dbError: any) {
+              if (dbError.code !== '42P01') {
+                  console.error("❌ Erreur DB lors de la mise à jour du transfert:", dbError);
+              }
+          }
+          
+          return updatedTransfer;
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la mise à jour du transfert:", error);
+          throw error;
+      }
+  }
   
   async factoryReset() { localStorage.clear(); window.location.reload(); }
   
@@ -1902,7 +2289,7 @@ class DataService {
           { dbField: 'name', appField: 'name', type: 'text', nullable: false },
           { dbField: 'short_name', appField: 'short_name', type: 'text', nullable: false },
           { dbField: 'country_id', appField: 'country_id', type: 'text', nullable: false },
-          { dbField: 'confederation', appField: 'confederation', type: 'text', nullable: false }, // CONMEBOL, UEFA, OTHER
+          { dbField: 'confederation', appField: 'confederation', type: 'text', nullable: false }, // CONMEBOL, UEFA, CONCACAF, OFC, CAF, AFC, OTHER, etc.
           { dbField: 'city', appField: 'city', type: 'text', nullable: true },
           { dbField: 'stadium', appField: 'stadium', type: 'text', nullable: true },
           { dbField: 'logo', appField: 'logo', type: 'text', nullable: true }
@@ -1940,14 +2327,14 @@ class DataService {
           { dbField: 'title', appField: 'title', type: 'text', nullable: false },
           { dbField: 'body', appField: 'body', type: 'text', nullable: false },
           { dbField: 'target_consulado_id', appField: 'target_consulado_id', type: 'text', nullable: false },
-          { dbField: 'target_ids', appField: 'target_ids', type: 'json', nullable: true },
+          { dbField: 'target_ids', appField: 'target_ids', type: 'jsonb', nullable: true }, // jsonb pour Supabase PostgreSQL
           { dbField: 'target_consulado_name', appField: 'target_consulado_name', type: 'text', nullable: false },
           { dbField: 'type', appField: 'type', type: 'text', nullable: false },
-          { dbField: 'date', appField: 'date', type: 'text', nullable: false },
-          { dbField: 'start_date', appField: 'start_date', type: 'text', nullable: true },
-          { dbField: 'end_date', appField: 'end_date', type: 'text', nullable: true },
-          { dbField: 'created_at', appField: 'created_at', type: 'number', nullable: false },
-          { dbField: 'archived', appField: 'archived', type: 'boolean', nullable: false },
+          { dbField: 'date', appField: 'date', type: 'text', nullable: true }, // nullable car peut être généré depuis created_at
+          { dbField: 'start_date', appField: 'start_date', type: 'date', nullable: true },
+          { dbField: 'end_date', appField: 'end_date', type: 'date', nullable: true },
+          { dbField: 'created_at', appField: 'created_at', type: 'bigint', nullable: false }, // bigint pour timestamp
+          { dbField: 'archived', appField: 'archived', type: 'boolean', nullable: true }, // nullable avec défaut false
           { dbField: 'is_automatic', appField: 'is_automatic', type: 'boolean', nullable: true }
         );
         break;

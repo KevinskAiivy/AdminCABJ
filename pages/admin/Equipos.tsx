@@ -16,8 +16,7 @@ export const Equipos = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   
-  const [filterConfederation, setFilterConfederation] = useState<string>('ALL');
-  const [filterCountry, setFilterCountry] = useState<string>('ALL');
+  const [filterCountry, setFilterCountry] = useState<string>('AR'); // Par défaut: Argentine
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -31,11 +30,30 @@ export const Equipos = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-      const load = () => setTeams(dataService.getTeams());
+      const load = () => {
+          const loadedTeams = dataService.getTeams();
+          setTeams(loadedTeams);
+      };
       load();
       const unsub = dataService.subscribe(load);
       return () => unsub();
   }, []);
+
+  // S'assurer que le pays sélectionné existe dans les équipes disponibles
+  useEffect(() => {
+      if (teams.length > 0) {
+          const countriesWithTeams = new Set(teams.map(t => t.country_id).filter(Boolean));
+          // Si le pays sélectionné n'existe pas dans les équipes, utiliser le premier pays disponible ou 'AR'
+          if (!countriesWithTeams.has(filterCountry)) {
+              const firstAvailableCountry = countriesWithTeams.has('AR') 
+                  ? 'AR' 
+                  : (countriesWithTeams.size > 0 ? Array.from(countriesWithTeams)[0] as string : 'AR');
+              if (firstAvailableCountry) {
+                  setFilterCountry(firstAvailableCountry);
+              }
+          }
+      }
+  }, [teams]); // Ne pas inclure filterCountry dans les dépendances pour éviter les boucles
 
   const handleCreate = () => {
       setEditingId(null);
@@ -106,47 +124,64 @@ export const Equipos = () => {
 
   const resetFilters = () => {
       setSearchQuery('');
-      setFilterConfederation('ALL');
-      setFilterCountry('ALL');
+      setFilterCountry('AR'); // Réinitialiser à Argentine
   };
 
-  // Confédérations disponibles dans la base de données
-  const availableConfederations = useMemo(() => {
-      const confederations = new Set(teams.map(t => t.confederation).filter(Boolean));
-      return Array.from(confederations).sort().map(conf => {
-          const config = CONFEDERATIONS_CONFIG.find(c => c.id === conf);
-          return config || { id: conf, name: conf };
-      });
+  // Pays disponibles basés sur la colonne country_id de la table Teams dans la base de données
+  const availableCountries = useMemo(() => {
+      // Toujours afficher au moins tous les pays de COUNTRY_OPTIONS par défaut
+      const defaultCountries = [...COUNTRY_OPTIONS].sort((a,b) => a.name.localeCompare(b.name));
+      
+      // Si pas d'équipes ou équipes vides, afficher tous les pays de COUNTRY_OPTIONS
+      if (!teams || teams.length === 0) {
+          return defaultCountries;
+      }
+      
+      // Récupérer tous les country_id uniques depuis la colonne country_id de la table Teams
+      const countriesWithTeams = Array.from(new Set(teams.map(t => t.country_id).filter(Boolean)));
+      
+      // Si aucun country_id valide, afficher tous les pays de COUNTRY_OPTIONS
+      if (countriesWithTeams.length === 0) {
+          return defaultCountries;
+      }
+      
+      // Créer une liste de pays avec ceux de COUNTRY_OPTIONS qui existent dans la DB
+      const countriesFromOptions = COUNTRY_OPTIONS.filter(c => countriesWithTeams.includes(c.code))
+          .sort((a,b) => a.name.localeCompare(b.name));
+      
+      // Ajouter les pays qui existent dans la DB mais pas dans COUNTRY_OPTIONS
+      const countriesNotInOptions = countriesWithTeams
+          .filter(code => !COUNTRY_OPTIONS.find(c => c.code === code))
+          .map(code => ({
+              code: code,
+              name: code, // Utiliser le code comme nom si pas trouvé dans COUNTRY_OPTIONS
+              flag: '🏳️'
+          }));
+      
+      const result = [...countriesFromOptions, ...countriesNotInOptions]
+          .sort((a,b) => {
+              // Trier par nom si disponible, sinon par code
+              const nameA = a.name || a.code;
+              const nameB = b.name || b.code;
+              return nameA.localeCompare(nameB);
+          });
+      
+      // Toujours retourner au moins les pays par défaut
+      return result.length > 0 ? result : defaultCountries;
   }, [teams]);
 
-  // Pays disponibles selon la confédération sélectionnée (basé sur les teams existants)
-  const availableCountries = useMemo(() => {
-      if (filterConfederation === 'ALL') {
-          // Si pas de filtre de confédération, montrer tous les pays qui ont des teams
-          const countriesWithTeams = new Set(teams.map(t => t.country_id));
-          return COUNTRY_OPTIONS.filter(c => countriesWithTeams.has(c.code))
-              .sort((a,b) => a.name.localeCompare(b.name));
-      }
-      // Si confédération sélectionnée, montrer uniquement les pays des teams de cette confédération
-      const countriesInConfederation = new Set(
-          teams
-              .filter(t => t.confederation === filterConfederation)
-              .map(t => t.country_id)
-      );
-      return COUNTRY_OPTIONS.filter(c => countriesInConfederation.has(c.code))
-          .sort((a,b) => a.name.localeCompare(b.name));
-  }, [filterConfederation, teams]);
-
-  const sortedCountries = useMemo(() => {
-      return availableCountries;
-  }, [availableCountries]);
-
-  const filteredTeams = teams.filter(t => {
-      const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) || t.short_name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesConfederation = filterConfederation === 'ALL' || t.confederation === filterConfederation;
-      const matchesCountry = filterCountry === 'ALL' || t.country_id === filterCountry;
-      return matchesSearch && matchesConfederation && matchesCountry;
-  });
+  const filteredTeams = useMemo(() => {
+      if (!filterCountry) return teams; // Si pas de pays sélectionné, retourner toutes les équipes
+      
+      return teams.filter(t => {
+          const matchesSearch = searchQuery === '' || 
+              t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+              t.short_name.toLowerCase().includes(searchQuery.toLowerCase());
+          // Filtrer par la colonne country_id de la table Teams
+          const matchesCountry = t.country_id === filterCountry;
+          return matchesSearch && matchesCountry;
+      });
+  }, [teams, searchQuery, filterCountry]);
 
   return (
     <div className="space-y-8 pb-20">
@@ -160,30 +195,23 @@ export const Equipos = () => {
                 <div className="flex gap-2 w-full sm:w-auto overflow-x-auto">
                     <div className="relative min-w-[180px]">
                         <select 
-                            value={filterConfederation} 
-                            onChange={(e) => {
-                                setFilterConfederation(e.target.value);
-                                setFilterCountry('ALL'); // Reset country filter when confederation changes
-                            }} 
-                            className="w-full bg-[#003B94]/5 border border-transparent rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:bg-white focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide transition-all"
-                        >
-                            <option value="ALL">Todas las Confederaciones</option>
-                            {availableConfederations.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                    </div>
-                    <div className="relative min-w-[180px]">
-                        <select 
-                            value={filterCountry} 
+                            value={filterCountry || 'AR'} 
                             onChange={(e) => setFilterCountry(e.target.value)} 
                             className="w-full bg-[#003B94]/5 border border-transparent rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:bg-white focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide transition-all"
                         >
-                            <option value="ALL">Todos los Países</option>
-                            {sortedCountries.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+                            {availableCountries && availableCountries.length > 0 ? (
+                                availableCountries.map(c => (
+                                    <option key={c.code} value={c.code}>{c.name}</option>
+                                ))
+                            ) : (
+                                // Fallback: afficher au moins AR si availableCountries est vide
+                                <option value="AR">Argentina</option>
+                            )}
                         </select>
                         <Flag className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 pointer-events-none" size={12} />
                     </div>
                     
-                    {(filterConfederation !== 'ALL' || filterCountry !== 'ALL' || searchQuery) && (
+                    {(filterCountry !== 'AR' || searchQuery) && (
                         <button onClick={resetFilters} className="p-2.5 bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200 transition-colors" title="Limpiar Filtros">
                             <RotateCcw size={14} />
                         </button>
@@ -235,8 +263,8 @@ export const Equipos = () => {
         </div>
 
         {isModalOpen && (
-            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
-                <div className="relative w-full max-w-2xl bg-white rounded-[1.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-7rem-2rem)] animate-in zoom-in-95 duration-300">
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" >
+                <div className="relative w-full max-w-2xl bg-white rounded-[1.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
                     <div className="liquid-glass-dark p-4 text-white flex items-center justify-between shrink-0">
                         <div className="flex items-center gap-3"><ShieldCheck size={18} className="text-[#FCB131]" /><h2 className="oswald text-lg font-black uppercase tracking-tight">{editingId ? 'Editar Equipo' : 'Nuevo Equipo'}</h2></div>
                         <button onClick={() => setIsModalOpen(false)} className="p-1.5 hover:bg-white/10 rounded-full transition-colors"><X size={18} /></button>
@@ -269,7 +297,13 @@ export const Equipos = () => {
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Confederación</label>
-                                        <select className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" value={formData.confederation} onChange={e => setFormData({...formData, confederation: e.target.value as any})}>{CONFEDERATIONS_CONFIG.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+                                        <select className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" value={formData.confederation} onChange={e => setFormData({...formData, confederation: e.target.value as any})}>
+                                            {availableConfederations.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                            {/* Si la confédération actuelle n'est pas dans la liste, l'ajouter */}
+                                            {formData.confederation && !availableConfederations.find(c => c.id === formData.confederation) && (
+                                                <option key={formData.confederation} value={formData.confederation}>{formData.confederation}</option>
+                                            )}
+                                        </select>
                                     </div>
                                 </div>
 
@@ -303,7 +337,7 @@ export const Equipos = () => {
         )}
 
         {showSaveConfirm && (
-            <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/60 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+            <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/60 backdrop-blur-sm animate-in fade-in duration-300" >
                 <div className="relative w-full max-w-md bg-white rounded-[2rem] p-10 shadow-[0_50px_150px_rgba(0,29,74,0.3)] text-center border border-white animate-in zoom-in-95">
                     <div className="w-20 h-20 bg-[#FCB131]/10 text-[#FCB131] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner"><CheckCircle2 size={40} /></div>
                     <h2 className="oswald text-3xl font-black text-[#001d4a] uppercase mb-4 tracking-tighter">¿Guardar Cambios?</h2>
@@ -317,7 +351,7 @@ export const Equipos = () => {
         )}
 
         {deletingTeam && (
-            <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+            <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" >
                 <div className="relative w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-2xl text-center border border-white animate-in zoom-in-95 overflow-hidden">
                     <div className="w-16 h-16 bg-red-50 text-red-500 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner border border-red-100">
                         <AlertTriangle size={32} />

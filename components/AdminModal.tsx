@@ -59,12 +59,18 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Limiter le déplacement pour garder la modale dans le viewport
+  const constrainedPosition = {
+    x: typeof window !== 'undefined' ? Math.max(Math.min(position.x, window.innerWidth * 0.3), -window.innerWidth * 0.3) : 0,
+    y: typeof window !== 'undefined' ? Math.max(Math.min(position.y, window.innerHeight * 0.3), -window.innerHeight * 0.3) : 0
+  };
+
   return createPortal(
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300">
       <div
         ref={modalRef}
-        style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
-        className={`relative w-full ${maxWidth} bg-white rounded-[2rem] shadow-[0_50px_100px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col border border-white/60 max-h-[calc(100vh-7rem-2rem)] animate-in zoom-in-95 duration-300`}
+        style={{ transform: `translate(${constrainedPosition.x}px, ${constrainedPosition.y}px)` }}
+        className={`relative w-full ${maxWidth} bg-white rounded-[2rem] shadow-[0_50px_100px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col border border-white/60 max-h-[90vh] animate-in zoom-in-95 duration-300`}
       >
         <div
           onMouseDown={handleDragStart}

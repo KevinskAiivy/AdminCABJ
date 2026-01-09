@@ -16,15 +16,15 @@ const getFlag = (code: string) => {
 
 const CountdownUnit = ({ value, label }: { value: number, label: string }) => (
   <div className="flex flex-col items-center gap-0.5 group">
-    <div className="relative w-12 h-14 md:w-14 md:h-16 bg-[#FCB131] rounded-xl flex items-center justify-center shadow-[0_4px_15px_rgba(252,177,49,0.4)] overflow-hidden group-hover:scale-105 transition-all duration-300 border border-[#FFD23F]">
+    <div className="relative w-10 h-12 md:w-11 md:h-14 bg-[#FCB131] rounded-lg flex items-center justify-center shadow-[0_4px_15px_rgba(252,177,49,0.4)] overflow-hidden group-hover:scale-105 transition-all duration-300 border border-[#FFD23F]">
         <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <div key={value} className="relative z-10 animate-in slide-in-from-bottom-2 fade-in duration-500">
-            <span className="oswald text-3xl md:text-4xl font-black text-[#001d4a] leading-none tracking-tighter">
+            <span className="oswald text-2xl md:text-3xl font-black text-[#001d4a] leading-none tracking-tighter">
                 {value.toString().padStart(2, '0')}
             </span>
         </div>
     </div>
-    <span className="text-[7px] md:text-[8px] text-[#FCB131] font-black uppercase tracking-[0.2em] opacity-80">{label}</span>
+    <span className="text-[6px] md:text-[7px] text-[#FCB131] font-black uppercase tracking-[0.2em] opacity-80">{label}</span>
   </div>
 );
 
@@ -274,14 +274,14 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
                       </span>
                   </div>
 
-                  {/* Countdown (Larger, Yellow BG, Blue Text, WITH SECONDS) */}
-                  <div className="flex items-center gap-2 md:gap-3 bg-black/40 backdrop-blur-xl p-5 rounded-2xl border border-white/5 shadow-2xl transform scale-105">
+                  {/* Countdown (Smaller, Yellow BG, Blue Text, WITH SECONDS) */}
+                  <div className="flex items-center gap-1.5 md:gap-2 bg-black/40 backdrop-blur-xl p-3 md:p-4 rounded-xl border border-white/5 shadow-2xl">
                       <CountdownUnit value={timeLeft.days} label="DÍAS" />
-                      <span className="oswald text-3xl text-[#FCB131] mt-[-20px] font-bold animate-pulse">:</span>
+                      <span className="oswald text-2xl md:text-2xl text-[#FCB131] mt-[-15px] font-bold animate-pulse">:</span>
                       <CountdownUnit value={timeLeft.hours} label="HRS" />
-                      <span className="oswald text-3xl text-[#FCB131] mt-[-20px] font-bold animate-pulse">:</span>
+                      <span className="oswald text-2xl md:text-2xl text-[#FCB131] mt-[-15px] font-bold animate-pulse">:</span>
                       <CountdownUnit value={timeLeft.mins} label="MIN" />
-                      <span className="oswald text-3xl text-[#FCB131] mt-[-20px] font-bold animate-pulse">:</span>
+                      <span className="oswald text-2xl md:text-2xl text-[#FCB131] mt-[-15px] font-bold animate-pulse">:</span>
                       <CountdownUnit value={timeLeft.secs} label="SEG" />
                   </div>
               </div>
