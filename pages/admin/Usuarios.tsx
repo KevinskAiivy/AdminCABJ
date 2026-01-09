@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { GlassCard } from '../../components/GlassCard';
-import { User, Plus, Edit2, Trash2, Search, X, Save, AlertCircle, Fingerprint, Mail, KeyRound, Building2, AlertTriangle, Loader2, ChevronDown, Check, ShieldCheck } from 'lucide-react';
+import { User, Plus, Edit2, Trash2, Search, X, Save, AlertCircle, Fingerprint, Mail, KeyRound, Building2, AlertTriangle, Loader2, ChevronDown, Check, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { AppUser } from '../../types';
 
@@ -15,6 +15,7 @@ export const Usuarios = () => {
   const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [consulados, setConsulados] = useState(dataService.getConsulados());
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
   const [formData, setFormData] = useState<Partial<AppUser>>({
       username: '', password: '', email: '', full_name: '', role: 'PRESIDENTE', active: true, consulado_id: ''
@@ -64,14 +65,16 @@ export const Usuarios = () => {
       }
   };
 
-  const handleSave = async () => {
+  const executeSave = async () => {
       setError(null);
       if (!formData.username || !formData.email || !formData.full_name) {
           setError("Complete todos los campos obligatorios");
+          setShowSaveConfirm(false);
           return;
       }
       if (!editingUser && !formData.password) {
           setError("La contraseña es obligatoria para nuevos usuarios");
+          setShowSaveConfirm(false);
           return;
       }
 
@@ -96,11 +99,24 @@ export const Usuarios = () => {
               await dataService.addUser(payload);
           }
           setIsModalOpen(false);
+          setShowSaveConfirm(false);
       } catch (e: any) {
           setError(e.message || "Error al guardar usuario");
       } finally {
           setIsSaving(false);
       }
+  };
+
+  const handleSave = () => {
+      if (!formData.username || !formData.email || !formData.full_name) {
+          setError("Complete todos los campos obligatorios");
+          return;
+      }
+      if (!editingUser && !formData.password) {
+          setError("La contraseña es obligatoria para nuevos usuarios");
+          return;
+      }
+      setShowSaveConfirm(true);
   };
 
   const filteredUsers = users.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase()) || u.full_name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -339,6 +355,20 @@ export const Usuarios = () => {
                         <button onClick={handleSave} disabled={isSaving} className="bg-[#003B94] text-white px-5 py-2 rounded-lg font-black uppercase text-[8px] tracking-widest shadow-xl flex items-center gap-1.5 hover:bg-[#001d4a] transition-all disabled:opacity-50">
                             {isSaving ? <Loader2 size={12} className="animate-spin"/> : <Save size={12} />} Guardar
                         </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {showSaveConfirm && (
+            <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/60 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+                <div className="relative w-full max-w-md bg-white rounded-[2rem] p-10 shadow-[0_50px_150px_rgba(0,29,74,0.3)] text-center border border-white animate-in zoom-in-95">
+                    <div className="w-20 h-20 bg-[#FCB131]/10 text-[#FCB131] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner"><CheckCircle2 size={40} /></div>
+                    <h2 className="oswald text-3xl font-black text-[#001d4a] uppercase mb-4 tracking-tighter">¿Guardar Cambios?</h2>
+                    <p className="text-[#003B94]/70 font-bold mb-10 text-[10px] leading-relaxed uppercase tracking-widest">Se guardará la información del usuario en el sistema.</p>
+                    <div className="flex gap-4">
+                        <button onClick={() => setShowSaveConfirm(false)} className="flex-1 py-4 rounded-xl bg-slate-100 text-slate-500 uppercase text-[9px] font-black tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
+                        <button onClick={executeSave} className="flex-1 py-4 rounded-xl bg-[#003B94] text-white uppercase text-[9px] font-black tracking-widest shadow-2xl hover:opacity-90 transition-all">Confirmar</button>
                     </div>
                 </div>
             </div>

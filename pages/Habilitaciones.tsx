@@ -27,12 +27,39 @@ const parseDate = (d: string, h: string) => {
 };
 
 const formatDateDisplay = (dateStr: string) => {
-    if (!dateStr) return '--/--/----';
+    if (!dateStr || dateStr.trim() === '') return '--/--/----';
     if (dateStr.includes('-')) {
         const [y, m, d] = dateStr.split('-');
-        return `${d}/${m}/${y}`;
+        // Format jj-mm-aaaa
+        return `${d.padStart(2, '0')}-${m.padStart(2, '0')}-${y}`;
+    }
+    if (dateStr.includes('/')) {
+        const [d, m, y] = dateStr.split('/');
+        // Format jj-mm-aaaa
+        return `${d.padStart(2, '0')}-${m.padStart(2, '0')}-${y}`;
     }
     return dateStr;
+};
+
+const formatHourDisplay = (hourStr: string) => {
+    if (!hourStr) return '--:-- hs';
+    // Si l'heure contient déjà "hs", on la nettoie
+    const cleaned = hourStr.replace(/\s*hs\s*/i, '').trim();
+    
+    // Si l'heure est au format HH:mm:ss, on supprime les secondes
+    if (cleaned.match(/^\d{1,2}:\d{2}:\d{2}$/)) {
+        const [h, m] = cleaned.split(':');
+        return `${h.padStart(2, '0')}:${m.padStart(2, '0')} hs`;
+    }
+    
+    // Si l'heure est au format HH:mm, on l'utilise directement
+    if (cleaned.match(/^\d{1,2}:\d{2}$/)) {
+        const [h, m] = cleaned.split(':');
+        return `${h.padStart(2, '0')}:${m.padStart(2, '0')} hs`;
+    }
+    
+    // Sinon, on retourne tel quel avec "hs"
+    return `${cleaned} hs`;
 };
 
 export const Habilitaciones = () => {
@@ -105,10 +132,20 @@ export const Habilitaciones = () => {
       }
   };
 
-  const getContainerStyle = (status: string) => {
+  const getContainerStyle = (status: string, isHome: boolean) => {
+      // SCHEDULED : toujours blanc avec texte bleu, indépendamment de isHome
+      if (status === 'SCHEDULED') return 'bg-white border-blue-100 opacity-90 shadow-sm text-[#003B94]';
+      
+      // Matchs locaux (sauf SCHEDULED) : fond bleu foncé avec style glassmorphing
+      if (isHome) {
+          return 'liquid-glass-dark text-white border-white/10 shadow-[0_10px_30px_rgba(0,59,148,0.3)]';
+      }
+      
+      // Matchs visiteurs/neutres : style basé sur le statut
+      // OPEN : bleu foncé
       if (status === 'OPEN') return 'bg-gradient-to-br from-[#001d4a] to-[#003B94] text-white border-[#FCB131]/30 shadow-[0_10px_30px_rgba(0,59,148,0.3)]';
-      if (status === 'SCHEDULED') return 'bg-white border-blue-100 opacity-90 shadow-sm';
-      return 'bg-gray-50 border-gray-200 opacity-60 grayscale-[0.5] hover:grayscale-0 transition-all';
+      // CLOSED : jaune
+      return 'bg-[#FCB131] border-[#FFD23F] text-[#001d4a] shadow-lg';
   };
 
   return (
@@ -131,12 +168,14 @@ export const Habilitaciones = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {processedMatches.map(match => {
-                const isDark = match.status === 'OPEN';
+                const isDark = match.status === 'OPEN' || (match.is_home && match.status !== 'SCHEDULED');
+                const isYellow = match.status === 'CLOSED' && !match.is_home;
+                const isScheduled = match.status === 'SCHEDULED';
                 return (
-                <GlassCard key={match.id} className={`p-6 border flex flex-col relative overflow-hidden ${getContainerStyle(match.status)}`}>
+                <GlassCard key={match.id} className={`p-6 border flex flex-col relative overflow-hidden ${getContainerStyle(match.status, match.is_home)}`}>
                     
-                    <div className={`absolute top-0 right-0 p-2 rounded-bl-xl ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
-                        {match.is_home ? <Home size={14} className={isDark ? 'text-[#FCB131]' : 'text-[#003B94]'} /> : <Plane size={14} className={isDark ? 'text-[#FCB131]' : 'text-[#003B94]'} />}
+                    <div className={`absolute top-0 right-0 p-2 rounded-bl-xl ${isDark ? 'bg-white/10' : isYellow ? 'bg-[#001d4a]/10' : isScheduled ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                        {match.is_home ? <Home size={14} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} /> : <Plane size={14} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} />}
                     </div>
 
                     <div className="flex justify-between items-start mb-4 pr-8">
@@ -144,44 +183,43 @@ export const Habilitaciones = () => {
                     </div>
                     
                     <div className="mb-6">
-                        <p className={`text-[9px] font-bold uppercase mb-1 ${isDark ? 'text-white/60' : 'text-gray-400'}`}>{match.competition}</p>
-                        <h3 className={`oswald text-2xl font-black uppercase leading-tight ${isDark ? 'text-white' : 'text-[#001d4a]'}`}>vs {match.rival}</h3>
-                        <div className={`flex items-center gap-2 mt-2 text-[10px] font-bold ${isDark ? 'text-white/80' : 'text-[#003B94]'}`}>
-                            <Calendar size={12} /> {formatDateDisplay(match.date)} {match.hour}
+                        <p className={`text-[9px] font-bold uppercase mb-1 ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>{match.competition}</p>
+                        <h3 className={`oswald text-2xl font-black uppercase leading-tight ${isDark ? 'text-white' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#001d4a]'}`}>vs {match.rival}</h3>
+                        <div className={`flex items-center gap-2 mt-2 text-[10px] font-bold ${isDark ? 'text-white/80' : isYellow ? 'text-[#001d4a]/80' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'}`}>
+                            <Calendar size={12} /> {formatDateDisplay(match.date)} {formatHourDisplay(match.hour)}
                         </div>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-3 mb-6">
-                        <div className={`text-center p-2 rounded-lg border flex flex-col items-center justify-center ${isDark ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-gray-100'}`}>
-                            <span className={`text-[7px] font-black uppercase block mb-1 ${isDark ? 'text-white/60' : 'text-gray-400'}`}>Apertura</span>
+                        <div className={`text-center p-2 rounded-lg border flex flex-col items-center justify-center ${isDark ? 'bg-black/20 border-white/10' : isYellow ? 'bg-[#FFD23F]/30 border-[#001d4a]/20' : isScheduled ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
+                            <span className={`text-[7px] font-black uppercase block mb-1 ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>Apertura</span>
                             <div className="flex flex-col items-center leading-tight">
-                                <span className={`text-xs font-black ${isDark ? 'text-[#FCB131]' : 'text-[#003B94]'}`}>{formatDateDisplay(match.apertura_date)}</span>
-                                <span className={`text-[9px] font-bold ${isDark ? 'text-white/80' : 'text-[#001d4a]/70'}`}>{match.apertura_hour} HS</span>
+                                <span className={`text-xs font-black ${isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'}`}>{formatDateDisplay(match.apertura_date)}</span>
+                                <span className={`text-[9px] font-bold ${isDark ? 'text-white/80' : isYellow ? 'text-[#001d4a]/80' : isScheduled ? 'text-[#003B94]/80' : 'text-[#001d4a]/70'}`}>{formatHourDisplay(match.apertura_hour)}</span>
                             </div>
                         </div>
-                        <div className={`text-center p-2 rounded-lg border flex flex-col items-center justify-center ${isDark ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-gray-100'}`}>
-                            <span className={`text-[7px] font-black uppercase block mb-1 ${isDark ? 'text-white/60' : 'text-gray-400'}`}>Cierre</span>
+                        <div className={`text-center p-2 rounded-lg border flex flex-col items-center justify-center ${isDark ? 'bg-black/20 border-white/10' : isYellow ? 'bg-[#FFD23F]/30 border-[#001d4a]/20' : isScheduled ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
+                            <span className={`text-[7px] font-black uppercase block mb-1 ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>Cierre</span>
                             <div className="flex flex-col items-center leading-tight">
-                                <span className={`text-xs font-black ${isDark ? 'text-white' : 'text-[#001d4a]'}`}>{formatDateDisplay(match.cierre_date)}</span>
-                                <span className={`text-[9px] font-bold ${isDark ? 'text-white/60' : 'text-[#001d4a]/60'}`}>{match.cierre_hour} HS</span>
+                                <span className={`text-xs font-black ${isDark ? 'text-white' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#001d4a]'}`}>{formatDateDisplay(match.cierre_date)}</span>
+                                <span className={`text-[9px] font-bold ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/80' : 'text-[#001d4a]/60'}`}>{formatHourDisplay(match.cierre_hour)}</span>
                             </div>
                         </div>
                     </div>
 
                     <div className="mt-auto">
                         <div className="flex items-center justify-between mb-3 px-1">
-                            <span className={`text-[9px] font-bold uppercase tracking-widest ${isDark ? 'text-white/50' : 'text-gray-400'}`}>Solicitudes</span>
-                            <span className={`text-lg font-black oswald ${isDark ? 'text-white' : 'text-[#001d4a]'}`}>{match.activeRequests}</span>
+                            <span className={`text-[9px] font-bold uppercase tracking-widest ${isDark ? 'text-white/50' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>Solicitudes</span>
+                            <span className={`text-lg font-black oswald ${isDark ? 'text-white' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#001d4a]'}`}>{match.activeRequests}</span>
                         </div>
-                        <button 
-                            onClick={() => handleOpenMatch(match)} 
-                            className={`w-full py-3 rounded-xl font-black uppercase text-xs shadow-lg transition-all flex items-center justify-center gap-2
-                                ${match.status === 'OPEN' 
-                                    ? 'bg-[#FCB131] text-[#001d4a] hover:bg-white' 
-                                    : 'bg-[#001d4a] text-white hover:bg-[#003B94]'}`}
-                        >
-                            {match.status === 'OPEN' ? 'Gestionar en Vivo' : 'Ver Solicitudes'}
-                        </button>
+                        {match.status === 'OPEN' && (
+                            <button 
+                                onClick={() => handleOpenMatch(match)} 
+                                className="w-full py-3 rounded-xl font-black uppercase text-xs shadow-lg transition-all flex items-center justify-center gap-2 bg-[#FCB131] text-[#001d4a] hover:bg-white"
+                            >
+                                Gestionar en Vivo
+                            </button>
+                        )}
                     </div>
                 </GlassCard>
             )})}

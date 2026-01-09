@@ -2,9 +2,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { GlassCard } from '../../components/GlassCard';
-import { Calendar, Plus, Edit2, Trash2, X, Save, Building2, Star, Trophy, Globe, Users, Gift, MapPin, AlertTriangle, Loader2, Clock } from 'lucide-react';
+import { Calendar, Plus, Edit2, Trash2, X, Save, Building2, Star, Trophy, Globe, Users, Gift, MapPin, AlertTriangle, Loader2, Clock, CheckCircle2 } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { AgendaEvent } from '../../types';
+import { formatDateDisplay } from '../../utils/dateFormat';
 
 // Icons mapping for visual
 const EVENT_TYPES = [
@@ -18,17 +19,18 @@ const EVENT_TYPES = [
 
 const formatDateHeader = (dateStr: string) => {
     if (!dateStr) return '';
-    const date = new Date(dateStr);
-    // Adjust for UTC if needed, assuming input is YYYY-MM-DD local
-    const [y, m, d] = dateStr.split('-').map(Number);
+    const formatted = formatDateDisplay(dateStr);
+    // Convertir jj-mm-aaaa vers Date pour obtenir le nom du jour
+    const [d, m, y] = formatted.split('-').map(Number);
     const localDate = new Date(y, m - 1, d);
     return localDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 };
 
 const formatDateCard = (dateStr: string) => {
     if (!dateStr) return '';
-    const [y, m, d] = dateStr.split('-');
-    return `${d}/${m}`;
+    const formatted = formatDateDisplay(dateStr);
+    const [d, m] = formatted.split('-');
+    return `${d}-${m}`;
 };
 
 export const Agenda = () => {
@@ -41,6 +43,7 @@ export const Agenda = () => {
   });
   
   const [dateError, setDateError] = useState<string | null>(null);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
   useEffect(() => {
       const load = () => setEvents(dataService.getAgendaEvents());
@@ -69,7 +72,7 @@ export const Agenda = () => {
       }
   };
 
-  const requestSave = () => {
+  const executeSave = () => {
       if (!formData.title || !formData.start_date) return;
       if (formData.end_date && formData.start_date > formData.end_date) {
           setDateError("La fecha final debe ser posterior a la inicial");
@@ -94,6 +97,16 @@ export const Agenda = () => {
           dataService.addAgendaEvent(payload);
       }
       setIsModalOpen(false);
+      setShowSaveConfirm(false);
+  };
+
+  const requestSave = () => {
+      if (!formData.title || !formData.start_date) return;
+      if (formData.end_date && formData.start_date > formData.end_date) {
+          setDateError("La fecha final debe ser posterior a la inicial");
+          return;
+      }
+      setShowSaveConfirm(true);
   };
 
   // Group events by Date
@@ -237,6 +250,20 @@ export const Agenda = () => {
              </div>
         </div>,
         document.body
+      )}
+
+      {showSaveConfirm && (
+          <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-[#001d4a]/60 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+              <div className="relative w-full max-w-md bg-white rounded-[2rem] p-10 shadow-[0_50px_150px_rgba(0,29,74,0.3)] text-center border border-white animate-in zoom-in-95">
+                  <div className="w-20 h-20 bg-[#FCB131]/10 text-[#FCB131] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner"><CheckCircle2 size={40} /></div>
+                  <h2 className="oswald text-3xl font-black text-[#001d4a] uppercase mb-4 tracking-tighter">¿Guardar Cambios?</h2>
+                  <p className="text-[#003B94]/70 font-bold mb-10 text-[10px] leading-relaxed uppercase tracking-widest">Se guardará el evento en el sistema.</p>
+                  <div className="flex gap-4">
+                      <button onClick={() => setShowSaveConfirm(false)} className="flex-1 py-4 rounded-xl bg-slate-100 text-slate-500 uppercase text-[9px] font-black tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
+                      <button onClick={executeSave} className="flex-1 py-4 rounded-xl bg-[#003B94] text-white uppercase text-[9px] font-black tracking-widest shadow-2xl hover:opacity-90 transition-all">Confirmar</button>
+                  </div>
+              </div>
+          </div>
       )}
     </div>
   );

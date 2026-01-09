@@ -13,6 +13,7 @@ import { dataService } from '../services/dataService';
 import { SOCIO_CATEGORIES, SOCIO_STATUS, COUNTRIES } from '../constants';
 import { CustomSelect } from '../components/CustomSelect';
 import { getGenderRoleLabel, getGenderLabel as getGenderLabelUtil } from '../utils/genderLabels';
+import { formatDateDisplay, formatDateToDB, formatDateFromDB } from '../utils/dateFormat';
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -170,12 +171,7 @@ export const Socios = ({ user }: { user?: any }) => {
 
   const formatLastPaymentDate = (dateStr?: string) => {
       if (!dateStr) return '-';
-      if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const [y, m, d] = dateStr.split('-');
-          return `${d}/${m}/${y}`;
-      }
-      if (dateStr.length === 7 && dateStr.includes('/')) return `01/${dateStr}`;
-      return dateStr;
+      return formatDateDisplay(dateStr);
   };
 
   const handleExportPDF = () => {
@@ -253,71 +249,72 @@ export const Socios = ({ user }: { user?: any }) => {
     setSelectedSocio(null);
     const today = new Date();
     const formattedToday = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+    const newTempId = Date.now().toString().slice(-10);
     setFormData({
         first_name: '', last_name: '', dni: '', category: 'ACTIVO', status: 'AL DÍA',
         email: '', phone: '+54 ', gender: 'M', birth_date: '', join_date: '',
-        last_month_paid: formattedToday, consulado: '', role: 'SOCIO', avatar_color: 'bg-blue-500', expiration_date: ''
+        last_month_paid: formattedToday, consulado: '', role: 'SOCIO', avatar_color: 'bg-blue-500', expiration_date: '',
+        numero_socio: newTempId // Initialiser numero_socio avec le nouveau tempId
     });
     setPendingConsulado(null); setConsuladoSelection(''); setPendingIdChange(null);
-    setIsIdLocked(true); setTempId(Date.now().toString().slice(-10)); setIdStatus('IDLE');
+    setIsIdLocked(true); setTempId(newTempId); setIdStatus('IDLE');
     setSocioTransfers([]); setActiveTab('INFO'); setIsEditModalOpen(true); setShowSaveConfirm(false);
   };
 
+  // Utilise la fonction utilitaire formatDateFromDB importée
+
   const handleEdit = (socio: Socio) => {
     setSelectedSocio(socio);
-    let paidDate = socio.last_month_paid || '';
-    if (paidDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        const [y, m, d] = paidDate.split('-');
-        paidDate = `${d}/${m}/${y}`; 
-    } else if (paidDate.length === 7) {
-        paidDate = `01/${paidDate}`;
-    }
-    let birthDateFormatted = socio.birth_date || '';
-    if (birthDateFormatted.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        const [y, m, d] = birthDateFormatted.split('-');
-        birthDateFormatted = `${d}/${m}/${y}`;
-    }
-    setFormData({ ...socio, last_month_paid: paidDate, birth_date: birthDateFormatted });
+    // Convertir toutes les dates du format DB (YYYY-MM-DD) vers format affichage (DD/MM/YYYY)
+    const paidDate = formatDateFromDB(socio.last_month_paid || '');
+    const birthDateFormatted = formatDateFromDB(socio.birth_date || '');
+    const joinDateFormatted = formatDateFromDB(socio.join_date || '');
+    const expirationDateFormatted = formatDateFromDB(socio.expiration_date || '');
+    
+    setFormData({ 
+        ...socio, 
+        last_month_paid: paidDate, 
+        birth_date: birthDateFormatted,
+        join_date: joinDateFormatted,
+        expiration_date: expirationDateFormatted
+    });
     setPendingConsulado(null); setConsuladoSelection(socio.consulado || '');
-    setPendingIdChange(null); setIsIdLocked(true); setTempId(socio.id);
+    setPendingIdChange(null); setIsIdLocked(true); setTempId(socio.numero_socio || socio.id);
     setIdStatus('IDLE'); setSocioTransfers(dataService.getSocioTransfers(socio.id));
     setActiveTab('INFO'); setIsEditModalOpen(true); setShowSaveConfirm(false);
+  };
+
+  // Fonction helper pour formater automatiquement une date lors de la saisie (jj-mm-aaaa)
+  const formatDateInput = (value: string): string => {
+    let cleaned = value.replace(/\D/g, '');
+    if (cleaned.length === 0) return '';
+    if (cleaned.length <= 2) return cleaned;
+    if (cleaned.length <= 4) return `${cleaned.slice(0, 2)}-${cleaned.slice(2)}`;
+    return `${cleaned.slice(0, 2)}-${cleaned.slice(2, 4)}-${cleaned.slice(4, 8)}`;
   };
 
   const executeSave = async () => {
     setIsSaving(true);
     const finalStatus = calculateSocioStatus(formData.last_month_paid || '');
-    let dbPaymentDate = formData.last_month_paid || '';
-    if (dbPaymentDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-        const [d, m, y] = dbPaymentDate.split('/');
-        dbPaymentDate = `${y}-${m}-${d}`;
-    }
+    
+    // Convertir toutes les dates du format affichage (DD/MM/YYYY) vers format DB (YYYY-MM-DD)
+    const dbPaymentDate = formatDateToDB(formData.last_month_paid || '');
+    const dbBirthDate = formatDateToDB(formData.birth_date || '');
+    const dbJoinDate = formatDateToDB(formData.join_date || '');
+    const dbExpirationDate = formatDateToDB(formData.expiration_date || '');
+    
     let finalRole = formData.role;
     if (pendingConsulado) finalRole = 'SOCIO';
     let finalId = selectedSocio ? selectedSocio.id : tempId;
     if (pendingIdChange) finalId = pendingIdChange.new;
-
-    let dbBirthDate = formData.birth_date || '';
-    if (dbBirthDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-        const [d, m, y] = dbBirthDate.split('/');
-        dbBirthDate = `${y}-${m}-${d}`;
-    } else if (!dbBirthDate.match(/^\d{4}-\d{2}-\d{2}$/) && dbBirthDate) {
-        // Si c'est déjà au format DD/MM/AAAA mais pas encore converti
-        if (dbBirthDate.includes('/')) {
-            const parts = dbBirthDate.split('/');
-            if (parts.length === 3) {
-                const [d, m, y] = parts;
-                dbBirthDate = `${y}-${m}-${d}`;
-            }
-        }
-    }
 
     const finalData: Socio = {
         id: finalId || tempId || crypto.randomUUID().slice(-10),
         first_name: formData.first_name || '',
         last_name: formData.last_name || '',
         name: `${formData.first_name || ''} ${formData.last_name || ''}`.trim(),
-        numero_socio: formData.numero_socio || finalId || tempId || '',
+        // numero_socio : utiliser tempId (qui peut être modifié) ou formData.numero_socio (qui vient de la DB)
+        numero_socio: tempId || formData.numero_socio || (selectedSocio ? selectedSocio.numero_socio : '') || finalId || '',
         dni: formData.dni || '',
         category: formData.category || 'ADHERENTE',
         status: finalStatus.label as any || 'AL DÍA',
@@ -325,13 +322,13 @@ export const Socios = ({ user }: { user?: any }) => {
         phone: formData.phone || '', // Format international avec indicatif
         gender: (formData.gender === 'M' || formData.gender === 'F' || formData.gender === 'X') ? formData.gender : 'M',
         nationality: formData.nationality || undefined,
-        birth_date: dbBirthDate || '',
-        join_date: formData.join_date || '',
-        last_month_paid: dbPaymentDate || '',
+        birth_date: dbBirthDate || null,
+        join_date: dbJoinDate || null,
+        last_month_paid: dbPaymentDate || null,
         consulado: pendingConsulado !== null ? pendingConsulado : (formData.consulado || undefined),
         role: finalRole || 'SOCIO',
         avatar_color: formData.avatar_color || 'bg-blue-500',
-        expiration_date: formData.expiration_date || '',
+        expiration_date: dbExpirationDate || null,
         twitter: formData.twitter || undefined,
         youtube: formData.youtube || undefined
     };
@@ -369,6 +366,8 @@ export const Socios = ({ user }: { user?: any }) => {
   const checkId = (val: string) => {
       const clean = val.replace(/\D/g,'').slice(0,10);
       setTempId(clean);
+      // Mettre à jour aussi formData.numero_socio
+      setFormData({...formData, numero_socio: clean});
       if(clean === selectedSocio?.id) { setIdStatus('IDLE'); return; }
       setIdStatus(socios.some(s => s.id === clean) ? 'ERROR' : 'VALID');
   };
@@ -543,33 +542,11 @@ export const Socios = ({ user }: { user?: any }) => {
                                 <input 
                                     type="text" 
                                     className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest" 
-                                    placeholder="DD/MM/AAAA" 
-                                    value={(() => {
-                                        if (!formData.birth_date) return '';
-                                        if (formData.birth_date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                                            const [y, m, d] = formData.birth_date.split('-');
-                                            return `${d}/${m}/${y}`;
-                                        }
-                                        return formData.birth_date;
-                                    })()}
+                                    placeholder="jj-mm-aaaa" 
+                                    value={formatDateFromDB(formData.birth_date || '')}
                                     onChange={e => {
-                                        let value = e.target.value.replace(/\D/g, '');
-                                        let formatted = '';
-                                        if (value.length > 0) {
-                                            if (value.length <= 2) {
-                                                formatted = value;
-                                            } else if (value.length <= 4) {
-                                                formatted = value.slice(0, 2) + '/' + value.slice(2);
-                                            } else {
-                                                formatted = value.slice(0, 2) + '/' + value.slice(2, 4) + '/' + value.slice(4, 8);
-                                            }
-                                        }
-                                        if (formatted.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-                                            const [d, m, y] = formatted.split('/');
-                                            setFormData({...formData, birth_date: `${y}-${m}-${d}`});
-                                        } else {
-                                            setFormData({...formData, birth_date: formatted});
-                                        }
+                                        const formatted = formatDateInput(e.target.value);
+                                        setFormData({...formData, birth_date: formatted});
                                     }}
                                     maxLength={10}
                                 />
@@ -626,9 +603,13 @@ export const Socios = ({ user }: { user?: any }) => {
                                 <input 
                                     type="text" 
                                     className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest" 
-                                    placeholder="DD/MM/AAAA" 
-                                    value={formData.join_date || ''} 
-                                    onChange={e => setFormData({...formData, join_date: e.target.value})}
+                                    placeholder="jj-mm-aaaa" 
+                                    value={formatDateFromDB(formData.join_date || '')}
+                                    onChange={e => {
+                                        const formatted = formatDateInput(e.target.value);
+                                        setFormData({...formData, join_date: formatted});
+                                    }}
+                                    maxLength={10}
                                 />
                             </div>
                             <div className="space-y-1">
@@ -646,9 +627,13 @@ export const Socios = ({ user }: { user?: any }) => {
                                 <input 
                                     type="text" 
                                     className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs outline-none text-[#001d4a] tracking-widest" 
-                                    placeholder="DD/MM/AAAA" 
-                                    value={formData.last_month_paid || ''} 
-                                    onChange={e => setFormData({...formData, last_month_paid: e.target.value})}
+                                    placeholder="jj-mm-aaaa" 
+                                    value={formatDateFromDB(formData.last_month_paid || '')}
+                                    onChange={e => {
+                                        const formatted = formatDateInput(e.target.value);
+                                        setFormData({...formData, last_month_paid: formatted});
+                                    }}
+                                    maxLength={10}
                                 />
                             </div>
                         </div>

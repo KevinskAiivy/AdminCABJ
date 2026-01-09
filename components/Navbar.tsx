@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, MapPin, Ticket, Settings, ChevronDown, LogOut, MessageSquare, Database, Calendar, Sword, Shield, Lock } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Users, MapPin, Ticket, Settings, ChevronDown, LogOut, MessageSquare, Database, Calendar, Sword, Shield, Lock, Eye, EyeOff } from 'lucide-react';
 import { BocaLogoSVG } from '../constants';
 import { UserSession } from '../types';
+import { dataService } from '../services/dataService';
 
 const NavItem = ({ to, icon: Icon, label, isActive }: any) => (
   <Link
@@ -19,26 +20,72 @@ const NavItem = ({ to, icon: Icon, label, isActive }: any) => (
   </Link>
 );
 
-export const Navbar = ({ onLogout, user }: { onLogout: () => void, user: UserSession }) => {
-  const location = useLocation();
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+interface SimulatedView {
+  active: boolean;
+  consulado_id?: string;
+}
 
-  // Close dropdown when clicking outside
+export const Navbar = ({ 
+  onLogout, 
+  user, 
+  simulatedView, 
+  onSimulatedViewChange 
+}: { 
+  onLogout: () => void, 
+  user: UserSession,
+  simulatedView?: SimulatedView,
+  onSimulatedViewChange?: (view: SimulatedView) => void
+}) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isViewSelectorOpen, setIsViewSelectorOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const viewSelectorRef = useRef<HTMLDivElement>(null);
+  const isSuperAdmin = user.role === 'SUPERADMIN';
+  const consulados = dataService.getConsulados();
+
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsAdminOpen(false);
+      }
+      if (viewSelectorRef.current && !viewSelectorRef.current.contains(event.target as Node)) {
+        setIsViewSelectorOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Close dropdown on route change
+  // Close dropdowns on route change
   useEffect(() => {
     setIsAdminOpen(false);
+    setIsViewSelectorOpen(false);
   }, [location]);
+
+  const handleToggleSimulatedView = () => {
+    if (!onSimulatedViewChange) return;
+    
+    if (simulatedView?.active) {
+      // Désactiver la vue simulée
+      onSimulatedViewChange({ active: false });
+      navigate('/dashboard');
+    } else {
+      // Activer la vue simulée avec le premier consulado disponible
+      const firstConsulado = consulados.length > 0 ? consulados[0].id : undefined;
+      onSimulatedViewChange({ active: true, consulado_id: firstConsulado });
+      navigate('/dashboard');
+    }
+  };
+
+  const handleSelectConsulado = (consuladoId: string) => {
+    if (!onSimulatedViewChange) return;
+    onSimulatedViewChange({ active: true, consulado_id: consuladoId });
+    setIsViewSelectorOpen(false);
+    navigate('/dashboard');
+  };
 
   return (
     <div className="fixed top-0 left-0 right-0 z-[100] px-4 pt-4">
@@ -52,7 +99,9 @@ export const Navbar = ({ onLogout, user }: { onLogout: () => void, user: UserSes
           </div>
           <div className="leading-tight hidden lg:block">
             <h1 className="text-white font-black text-sm oswald tracking-tighter uppercase">Consulados CABJ</h1>
-            <p className="text-[#FCB131] text-[9px] font-black uppercase tracking-[0.2em]">{user.role}</p>
+            <p className="text-[#FCB131] text-[9px] font-black uppercase tracking-[0.2em]">
+              {simulatedView?.active ? 'PRESIDENTE (Vista Simulada)' : user.role}
+            </p>
           </div>
         </div>
 
@@ -65,8 +114,8 @@ export const Navbar = ({ onLogout, user }: { onLogout: () => void, user: UserSes
               <NavItem to="/habilitaciones" icon={Ticket} label="Habilitaciones" isActive={location.pathname === '/habilitaciones'} />
           </div>
           
-          {/* Admin Mega Menu Trigger */}
-          { (user.role === 'ADMIN' || user.role === 'SUPERADMIN') &&
+          {/* Admin Mega Menu Trigger - Seulement pour SUPERADMIN */}
+          { user.role === 'SUPERADMIN' &&
             <div className="relative ml-2" ref={dropdownRef}>
                 <button
                 onClick={() => setIsAdminOpen(!isAdminOpen)}
@@ -102,25 +151,29 @@ export const Navbar = ({ onLogout, user }: { onLogout: () => void, user: UserSes
                             </Link>
                         </div>
 
-                        {/* Section: System */}
-                        <div className="px-4 py-2 bg-white/5 border-y border-white/5 flex items-center gap-2 mt-1">
-                            <Shield size={10} className="text-blue-400" />
-                            <span className="text-[8px] font-black uppercase tracking-widest text-blue-200">Sistema</span>
-                        </div>
-                        <div className="p-1 space-y-0.5">
-                            <Link to="/admin/usuarios" className="flex items-center gap-3 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-all group">
-                                <div className="p-1.5 rounded-md bg-white/5 group-hover:bg-blue-500 group-hover:text-white transition-colors"><Users size={12}/></div> Usuarios
-                            </Link>
-                            <Link to="/admin/accesos" className="flex items-center gap-3 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-all group">
-                                <div className="p-1.5 rounded-md bg-white/5 group-hover:bg-blue-500 group-hover:text-white transition-colors"><Lock size={12}/></div> Permisos
-                            </Link>
-                            <Link to="/admin/configuracion" className="flex items-center gap-3 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-all group">
-                                <div className="p-1.5 rounded-md bg-white/5 group-hover:bg-blue-500 group-hover:text-white transition-colors"><Settings size={12}/></div> Configuración
-                            </Link>
-                            <Link to="/admin/database" className="flex items-center gap-3 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-red-300 hover:bg-red-500/10 hover:text-red-200 rounded-lg transition-all group">
-                                <div className="p-1.5 rounded-md bg-red-500/20 text-red-400 group-hover:bg-red-500 group-hover:text-white transition-colors"><Database size={12}/></div> Database
-                            </Link>
-                        </div>
+                        {/* Section: System - Seulement pour SUPERADMIN */}
+                        {user.role === 'SUPERADMIN' && (
+                          <>
+                            <div className="px-4 py-2 bg-white/5 border-y border-white/5 flex items-center gap-2 mt-1">
+                                <Shield size={10} className="text-blue-400" />
+                                <span className="text-[8px] font-black uppercase tracking-widest text-blue-200">Sistema</span>
+                            </div>
+                            <div className="p-1 space-y-0.5">
+                                <Link to="/admin/usuarios" className="flex items-center gap-3 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-all group">
+                                    <div className="p-1.5 rounded-md bg-white/5 group-hover:bg-blue-500 group-hover:text-white transition-colors"><Users size={12}/></div> Usuarios
+                                </Link>
+                                <Link to="/admin/accesos" className="flex items-center gap-3 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-all group">
+                                    <div className="p-1.5 rounded-md bg-white/5 group-hover:bg-blue-500 group-hover:text-white transition-colors"><Lock size={12}/></div> Permisos
+                                </Link>
+                                <Link to="/admin/configuracion" className="flex items-center gap-3 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-white/70 hover:bg-white/10 hover:text-white rounded-lg transition-all group">
+                                    <div className="p-1.5 rounded-md bg-white/5 group-hover:bg-blue-500 group-hover:text-white transition-colors"><Settings size={12}/></div> Configuración
+                                </Link>
+                                <Link to="/admin/database" className="flex items-center gap-3 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-red-300 hover:bg-red-500/10 hover:text-red-200 rounded-lg transition-all group">
+                                    <div className="p-1.5 rounded-md bg-red-500/20 text-red-400 group-hover:bg-red-500 group-hover:text-white transition-colors"><Database size={12}/></div> Database
+                                </Link>
+                            </div>
+                          </>
+                        )}
                     </div>
                     </div>
                 )}
@@ -129,10 +182,56 @@ export const Navbar = ({ onLogout, user }: { onLogout: () => void, user: UserSes
         </div>
 
         {/* User Actions */}
-        <div className="flex items-center gap-4 shrink-0 pl-4 border-l border-white/10">
+        <div className="flex items-center gap-3 shrink-0 pl-4 border-l border-white/10">
+          {/* Vue Simulée pour SUPERADMIN */}
+          {isSuperAdmin && onSimulatedViewChange && (
+            <div className="relative" ref={viewSelectorRef}>
+              <button
+                onClick={handleToggleSimulatedView}
+                className={`p-2.5 rounded-xl transition-all border group ${
+                  simulatedView?.active
+                    ? 'bg-[#FCB131] text-[#001d4a] border-[#FCB131] shadow-[0_0_15px_rgba(252,177,49,0.4)]'
+                    : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white'
+                }`}
+                title={simulatedView?.active ? "Désactiver la vue simulée" : "Voir comme un président"}
+              >
+                {simulatedView?.active ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+              
+              {/* Sélecteur de consulado (visible quand la vue simulée est active) */}
+              {simulatedView?.active && (
+                <div className="absolute top-full right-0 mt-2 w-64 bg-[#001d4a] border border-[#FCB131]/30 rounded-2xl p-2 shadow-[0_30px_80px_rgba(0,0,0,0.8)] backdrop-blur-2xl z-50">
+                  <div className="px-3 py-2 bg-[#FCB131]/10 border-b border-white/5">
+                    <span className="text-[8px] font-black uppercase tracking-widest text-[#FCB131]">
+                      Seleccionar Consulado
+                    </span>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto space-y-1 mt-2">
+                    {consulados.map(consulado => (
+                      <button
+                        key={consulado.id}
+                        onClick={() => handleSelectConsulado(consulado.id)}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
+                          simulatedView.consulado_id === consulado.id
+                            ? 'bg-[#FCB131] text-[#001d4a]'
+                            : 'text-white/70 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        {consulado.name}
+                        {consulado.city && ` - ${consulado.city}`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
           <div className="hidden sm:flex flex-col items-end leading-none">
             <span className="text-white text-[9px] font-black uppercase tracking-widest">{user.name}</span>
-            <span className="text-[#FCB131] text-[8px] font-black uppercase animate-pulse">{user.role}</span>
+            <span className="text-[#FCB131] text-[8px] font-black uppercase animate-pulse">
+              {simulatedView?.active ? 'PRESIDENTE' : user.role}
+            </span>
           </div>
           <button 
             onClick={onLogout}

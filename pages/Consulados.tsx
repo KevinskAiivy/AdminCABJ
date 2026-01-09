@@ -225,6 +225,17 @@ export const Consulados = () => {
   };
 
   const executeSave = () => {
+      // SEDE CENTRAL est un consulado virtuel, ne peut pas être sauvegardé dans la base de données
+      const isSedeCentral = editingConsulado.id === 'sede-central-virtual' || 
+                           (editingConsulado.name && editingConsulado.name.toUpperCase() === 'SEDE CENTRAL');
+      
+      if (isSedeCentral) {
+          // Ne pas sauvegarder SEDE CENTRAL dans la base de données
+          setShowSaveConfirm(false);
+          setIsEditModalOpen(false);
+          return;
+      }
+      
       // Construire l'objet Consulado complet avec toutes les valeurs nettoyées
       const payload: Consulado = {
           id: editingConsulado.id || crypto.randomUUID(),
@@ -414,8 +425,14 @@ export const Consulados = () => {
                         {consulado.is_official && (<div className="absolute top-3 right-3 bg-[#001d4a] w-10 h-10 rounded-full shadow-lg z-20 flex items-center justify-center border-2 border-[#FCB131] animate-in zoom-in duration-500"><Star size={18} className="text-[#FCB131] fill-[#FCB131] animate-pulse" /></div>)}
                         <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-[-10px] group-hover:translate-y-0 z-30">
                             <div className={`flex gap-2 ${consulado.is_official ? 'mr-12' : ''}`}>
-                                <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleEdit(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white text-white hover:text-[#003B94] rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110"><Edit2 size={14} /></button>
-                                <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); requestDelete(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-red-500 text-white hover:text-white rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110"><Trash2 size={14} /></button>
+                                {consulado.id !== 'sede-central-virtual' ? (
+                                    <>
+                                        <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleEdit(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white text-white hover:text-[#003B94] rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110"><Edit2 size={14} /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); requestDelete(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-red-500 text-white hover:text-white rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110"><Trash2 size={14} /></button>
+                                    </>
+                                ) : (
+                                    <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleEdit(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white text-white hover:text-[#003B94] rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110" title="Ver información (SEDE CENTRAL no es editable)"><Edit2 size={14} /></button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -532,6 +549,32 @@ export const Consulados = () => {
                             <h3 className="text-[#FCB131] text-[9px] font-black uppercase tracking-widest mb-3 border-b border-white/10 pb-1 flex items-center gap-2"><Star size={10} fill="currentColor"/> Alta Dirección</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 {(() => {
+                                    const isSedeCentral = editingConsulado.id === 'sede-central-virtual' || 
+                                                         (editingConsulado.name && editingConsulado.name.toUpperCase() === 'SEDE CENTRAL');
+                                    
+                                    // SEDE CENTRAL n'a pas de président
+                                    if (isSedeCentral) {
+                                        const referenteSocio = allSocios.find(s => s.name === editingConsulado.referente || `${s.first_name} ${s.last_name}` === editingConsulado.referente);
+                                        return (
+                                            <div className="col-span-2 space-y-2">
+                                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                                                    <p className="text-[9px] font-bold text-yellow-800 uppercase">
+                                                        SEDE CENTRAL es un consulado administrativo y no tiene presidente
+                                                    </p>
+                                                </div>
+                                                <CustomSelect 
+                                                    label={getGenderRoleLabel('REFERENTE', referenteSocio?.gender || 'M')} 
+                                                    value={editingConsulado.referente || ''} 
+                                                    onChange={(val) => setEditingConsulado({...editingConsulado, referente: val})} 
+                                                    options={[{value: '', label: 'Vacante'}, ...boardCandidates]} 
+                                                    searchable 
+                                                    placeholder="Asignar..." 
+                                                    className="text-white" 
+                                                />
+                                            </div>
+                                        );
+                                    }
+                                    
                                     const presidentSocio = allSocios.find(s => s.name === editingConsulado.president || `${s.first_name} ${s.last_name}` === editingConsulado.president);
                                     const referenteSocio = allSocios.find(s => s.name === editingConsulado.referente || `${s.first_name} ${s.last_name}` === editingConsulado.referente);
                                     return (

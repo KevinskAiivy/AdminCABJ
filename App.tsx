@@ -109,6 +109,11 @@ export const App: React.FC = () => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [isInitializing, setIsInitializing] = useState(false);
+  // Vue simulée pour SUPERADMIN (pour voir l'application comme un président)
+  const [simulatedView, setSimulatedView] = useState<{ active: boolean; consulado_id?: string }>(() => {
+    const saved = localStorage.getItem('cabj_simulated_view');
+    return saved ? JSON.parse(saved) : { active: false };
+  });
 
   // Initial Load
   useEffect(() => {
@@ -164,6 +169,11 @@ export const App: React.FC = () => {
     }
   }, [user, loading]);
 
+  // Persist Simulated View
+  useEffect(() => {
+    localStorage.setItem('cabj_simulated_view', JSON.stringify(simulatedView));
+  }, [simulatedView]);
+
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem('cabj_session');
@@ -200,21 +210,37 @@ export const App: React.FC = () => {
     );
   }
 
-  const consuladoName = user.consulado_id ? dataService.getConsuladoById(user.consulado_id)?.name || 'Consulado' : '';
   const isSuperAdmin = user.role === 'SUPERADMIN';
-  const isAdmin = user.role === 'ADMIN' || isSuperAdmin;
+  
+  // Déterminer la vue à utiliser (simulée pour SUPERADMIN ou normale)
+  const effectiveView = isSuperAdmin && simulatedView.active 
+    ? { role: 'PRESIDENTE' as const, consulado_id: simulatedView.consulado_id || user.consulado_id }
+    : { role: user.role, consulado_id: user.consulado_id };
+  
+  const consuladoName = effectiveView.consulado_id 
+    ? dataService.getConsuladoById(effectiveView.consulado_id)?.name || 'Consulado' 
+    : '';
+  
+  // Utiliser la vue simulée pour le routage si active
+  // Le menu admin est réservé uniquement aux SUPERADMIN
+  const shouldShowAdminView = isSuperAdmin && !simulatedView.active;
 
   return (
     <HashRouter>
       <div className="min-h-screen bg-[#F0F4F8] text-[#001d4a]">
-        <Navbar onLogout={logout} user={user} />
+        <Navbar 
+          onLogout={logout} 
+          user={user} 
+          simulatedView={simulatedView}
+          onSimulatedViewChange={setSimulatedView}
+        />
         
         <main className="pt-28 pb-10">
           <Suspense fallback={<div className="h-[80vh] flex items-center justify-center"><Loader2 className="text-[#003B94] animate-spin" size={40} /></div>}>
             <Routes>
                 <Route path="/notificaciones" element={<PageTransition><NotificationsPage user={user} /></PageTransition>} />
                 
-                {isAdmin ? (
+                {shouldShowAdminView ? (
                   <>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
                     <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
@@ -225,20 +251,26 @@ export const App: React.FC = () => {
                     <Route path="/admin/futbol" element={<PageTransition><Futbol /></PageTransition>} />
                     <Route path="/admin/agenda" element={<PageTransition><Agenda /></PageTransition>} />
                     <Route path="/admin/mensajes" element={<PageTransition><Mensajes /></PageTransition>} />
-                    <Route path="/admin/usuarios" element={<PageTransition><Usuarios /></PageTransition>} />
-                    <Route path="/admin/accesos" element={<PageTransition><Accesos /></PageTransition>} />
-                    <Route path="/admin/configuracion" element={<PageTransition><Configuracion /></PageTransition>} />
-                    <Route path="/admin/database" element={<PageTransition><Database /></PageTransition>} />
+                    
+                    {/* Routes Sistema - Seulement pour SUPERADMIN */}
+                    {isSuperAdmin && (
+                      <>
+                        <Route path="/admin/usuarios" element={<PageTransition><Usuarios /></PageTransition>} />
+                        <Route path="/admin/accesos" element={<PageTransition><Accesos /></PageTransition>} />
+                        <Route path="/admin/configuracion" element={<PageTransition><Configuracion /></PageTransition>} />
+                        <Route path="/admin/database" element={<PageTransition><Database /></PageTransition>} />
+                      </>
+                    )}
                     
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </>
                 ) : (
                   <>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                    <Route path="/dashboard" element={<PageTransition><DashboardPresident consulado_id={user.consulado_id || ''} /></PageTransition>} />
-                    <Route path="/consulados" element={<PageTransition><MiConsulado consulado_id={user.consulado_id || ''} /></PageTransition>} />
-                    <Route path="/socios" element={<PageTransition><SociosPresident consulado_id={user.consulado_id || ''} /></PageTransition>} />
-                    <Route path="/habilitaciones" element={<PageTransition><HabilitacionesPresident consulado_id={user.consulado_id || ''} consuladoName={consuladoName} /></PageTransition>} />
+                    <Route path="/dashboard" element={<PageTransition><DashboardPresident consulado_id={effectiveView.consulado_id || ''} /></PageTransition>} />
+                    <Route path="/consulados" element={<PageTransition><MiConsulado consulado_id={effectiveView.consulado_id || ''} /></PageTransition>} />
+                    <Route path="/socios" element={<PageTransition><SociosPresident consulado_id={effectiveView.consulado_id || ''} /></PageTransition>} />
+                    <Route path="/habilitaciones" element={<PageTransition><HabilitacionesPresident consulado_id={effectiveView.consulado_id || ''} consuladoName={consuladoName} /></PageTransition>} />
                     
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </>

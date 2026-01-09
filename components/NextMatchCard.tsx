@@ -34,6 +34,22 @@ interface NextMatchCardProps {
     userCountryCode?: string; // e.g., "ES"
 }
 
+// Fonction pour formater la date au format jj-mm-aaaa
+const formatDateDisplay = (dateStr: string) => {
+    if (!dateStr) return '--/--/----';
+    if (dateStr.includes('-')) {
+        const [y, m, d] = dateStr.split('-');
+        // Format jj-mm-aaaa
+        return `${d.padStart(2, '0')}-${m.padStart(2, '0')}-${y}`;
+    }
+    if (dateStr.includes('/')) {
+        const [d, m, y] = dateStr.split('/');
+        // Format jj-mm-aaaa
+        return `${d.padStart(2, '0')}-${m.padStart(2, '0')}-${y}`;
+    }
+    return dateStr;
+};
+
 export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatchCardProps) => {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
   const [rivalLogo, setRivalLogo] = useState<string | null>(null);
@@ -92,10 +108,10 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
         if (newH >= 24) newH -= 24;
         if (newH < 0) newH += 24;
 
-        setDisplayTime(`${newH.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
+        setDisplayTime(`${newH.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')} hs`);
         setDisplayFlag(getFlag(userCountryCode || ''));
     } else {
-        setDisplayTime(`${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
+        setDisplayTime(`${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')} hs`);
         setDisplayFlag('🇦🇷');
     }
 
@@ -181,13 +197,9 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
                   
                   {/* Clock (Strictly HH:mm, no seconds) - REDUCED SIZE */}
                   <div className="flex items-baseline gap-2 animate-in zoom-in duration-700">
-                      <span className="text-xl drop-shadow-md grayscale-[0.2] hover:grayscale-0 transition-all cursor-help" title={`Hora local: ${userCountryCode || 'AR'}`}>
-                          {displayFlag}
-                      </span>
                       <span className="oswald text-xl md:text-3xl font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(252,177,49,0.4)] leading-none">
                           {displayTime}
                       </span>
-                      <span className="text-[#FCB131] text-[8px] font-black uppercase tracking-widest">HS</span>
                   </div>
 
                   {/* Countdown (Larger, Yellow BG, Blue Text, WITH SECONDS) */}
@@ -222,7 +234,7 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
               <div className="flex items-center gap-6 px-6 py-2 rounded-full border border-white/5 bg-white/5 backdrop-blur-sm">
                   <div className="flex items-center gap-2 text-white/60">
                     <Calendar size={12} className="text-[#FCB131]" />
-                    <span className="text-[9px] font-black uppercase tracking-[0.15em]">{match.date}</span>
+                    <span className="text-[9px] font-black uppercase tracking-[0.15em]">{formatDateDisplay(match.date)}</span>
                   </div>
                   <div className="w-px h-3 bg-white/10"></div>
                   <div className="flex items-center gap-2 text-white/60">

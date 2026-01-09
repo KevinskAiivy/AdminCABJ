@@ -5,7 +5,7 @@ import {
   Database as DatabaseIcon, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Activity, Server, HardDrive, 
   Users, MapPin, Calendar, MessageSquare, ShieldCheck, Trophy, Clock, Loader2, 
   Trash2, Download, Settings, Eye, EyeOff, FileText, TrendingUp, 
-  AlertCircle, RotateCcw, RotateCw, X, Check, Code, ArrowRight, Copy
+  AlertCircle, RotateCcw, RotateCw, X, Check, Code, ArrowRight, Copy, CheckCircle
 } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import { IntegrityResult, TableSchema, FieldMapping } from '../services/dataService';
@@ -57,6 +57,8 @@ export const Database = () => {
   const [tableSchemas, setTableSchemas] = useState<Record<string, TableSchema>>({});
   const [selectedSchemaTable, setSelectedSchemaTable] = useState<string | null>(null);
   const [isLoadingSchemas, setIsLoadingSchemas] = useState(false);
+  const [sqlCopied, setSqlCopied] = useState(false);
+  const [isCreatingTable, setIsCreatingTable] = useState<string | null>(null);
   
   const [stats, setStats] = useState({
     socios: 0,
@@ -433,18 +435,72 @@ export const Database = () => {
     addLog('success', `Mapping copiado: ${text}`);
   };
 
-  // Generar código SQL CREATE TABLE
+  // Generar código SQL CREATE TABLE completo
   const generateSQLCode = (tableName: string, schema: TableSchema | undefined): string => {
-    if (!schema || !schema.columns || schema.columns.length === 0) {
-      return `-- No hay esquema disponible para la tabla '${tableName}'`;
+    const mappings = dataService.getFieldMappings(tableName);
+    
+    if (mappings.length === 0) {
+      return `-- No hay mappings disponibles para la tabla '${tableName}'`;
     }
 
     const tableNameUpper = tableName.toUpperCase();
-    let sql = `-- Tabla: ${tableName}\n`;
+    let sql = `-- ============================================\n`;
+    sql += `-- Tabla: ${tableName}\n`;
+    sql += `-- Generado automáticamente desde los mappings de la aplicación\n`;
+    sql += `-- Todos los campos de la aplicación están incluidos\n`;
+    sql += `-- ============================================\n\n`;
+    
+    // CREATE TABLE
     sql += `CREATE TABLE IF NOT EXISTS ${tableName} (\n`;
     
-    const columns = schema.columns.map((col, index) => {
-      let colDef = `    ${col.name} ${col.type.toUpperCase()}`;
+    // Combiner les colonnes du schéma avec les mappings pour s'assurer que tous les champs sont inclus
+    const allColumns: Array<{name: string, type: string, nullable: boolean, default?: any}> = [];
+    
+    // Créer un map des colonnes du schéma pour référence rapide
+    const schemaColumnsMap = new Map();
+    if (schema && schema.columns) {
+      schema.columns.forEach(col => {
+        schemaColumnsMap.set(col.name, col);
+      });
+    }
+    
+    // Utiliser les mappings comme source principale, enrichis avec les infos du schéma si disponibles
+    mappings.forEach(mapping => {
+      const schemaCol = schemaColumnsMap.get(mapping.dbField);
+      
+      // Déterminer le type SQL basé sur le mapping
+      let sqlType = 'TEXT';
+      if (mapping.type === 'number' || mapping.type === 'integer') {
+        sqlType = 'INTEGER';
+      } else if (mapping.type === 'boolean') {
+        sqlType = 'BOOLEAN';
+      } else if (mapping.type === 'date') {
+        sqlType = 'DATE';
+      } else if (mapping.type === 'json' || mapping.type === 'array') {
+        sqlType = 'JSONB';
+      } else if (mapping.type === 'text' || mapping.type === 'string') {
+        sqlType = 'TEXT';
+      } else {
+        // Utiliser le type du schéma si disponible, sinon TEXT
+        sqlType = schemaCol?.type?.toUpperCase() || 'TEXT';
+      }
+      
+      // Déterminer nullable (priorité au mapping)
+      const nullable = schemaCol ? schemaCol.nullable : mapping.nullable;
+      
+      // Déterminer default
+      const defaultValue = schemaCol?.default;
+      
+      allColumns.push({
+        name: mapping.dbField,
+        type: sqlType,
+        nullable: nullable,
+        default: defaultValue
+      });
+    });
+    
+    const columns = allColumns.map((col) => {
+      let colDef = `    ${col.name} ${col.type}`;
       
       // Agregar NOT NULL si no es nullable
       if (!col.nullable) {
@@ -455,28 +511,298 @@ export const Database = () => {
       if (col.default !== undefined && col.default !== null) {
         if (typeof col.default === 'string') {
           colDef += ` DEFAULT '${col.default}'`;
+        } else if (typeof col.default === 'boolean') {
+          colDef += ` DEFAULT ${col.default}`;
         } else {
           colDef += ` DEFAULT ${col.default}`;
         }
+      } else if (!col.nullable && col.type === 'BOOLEAN') {
+        // Default pour boolean NOT NULL
+        colDef += ' DEFAULT false';
+      } else if (!col.nullable && col.type === 'TEXT' && col.name === 'role' && tableName === 'users') {
+        colDef += ` DEFAULT 'PRESIDENTE'`;
+      } else if (!col.nullable && col.type === 'BOOLEAN' && col.name === 'active' && tableName === 'users') {
+        colDef += ' DEFAULT true';
       }
       
       return colDef;
     });
     
     sql += columns.join(',\n');
-    sql += '\n);\n';
+    sql += '\n);\n\n';
     
-    // Agregar comentarios
-    sql += `\n-- Comentarios:\n`;
-    sql += `COMMENT ON TABLE ${tableName} IS 'Tabla ${tableNameUpper}';\n`;
+    // PRIMARY KEY (si id existe dans les mappings)
+    const idMapping = mappings.find(m => m.dbField === 'id');
+    if (idMapping) {
+      sql += `-- Primary Key\n`;
+      sql += `ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_pkey PRIMARY KEY (id);\n\n`;
+    }
+    
+    // UNIQUE constraints basados sur le mapping
+    const uniqueFields: string[] = [];
+    if (tableName === 'users') {
+      uniqueFields.push('username', 'email');
+    } else if (tableName === 'socios') {
+      uniqueFields.push('dni');
+    }
+    
+    uniqueFields.forEach(field => {
+      const mapping = mappings.find(m => m.dbField === field);
+      if (mapping) {
+        sql += `-- Unique constraint: ${field}\n`;
+        sql += `ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_${field}_key UNIQUE (${field});\n\n`;
+      }
+    });
+    
+    // CHECK constraints basados sur le mapping
+    sql += `-- Check constraints\n`;
+    if (tableName === 'users') {
+      sql += `ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_role_check CHECK (role IN ('SUPERADMIN', 'ADMIN', 'PRESIDENTE', 'REFERENTE', 'SOCIO'));\n`;
+      sql += `ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_gender_check CHECK (gender IS NULL OR gender IN ('M', 'F', 'X'));\n`;
+    } else if (tableName === 'socios') {
+      sql += `ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_category_check CHECK (category IN ('ACTIVO', 'ADHERENTE', 'INTERNACIONAL', 'CADETE', 'MENOR', 'VITALICIO', 'BEBÉ', 'ACTIVO EXTERIOR'));\n`;
+      sql += `ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_status_check CHECK (status IN ('AL DÍA', 'EN DEUDA', 'DE BAJA'));\n`;
+      sql += `ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_gender_check CHECK (gender IN ('M', 'F', 'X'));\n`;
+    } else if (tableName === 'teams') {
+      sql += `ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_confederation_check CHECK (confederation IN ('CONMEBOL', 'UEFA', 'OTHER'));\n`;
+    } else if (tableName === 'solicitudes') {
+      sql += `ALTER TABLE ${tableName} ADD CONSTRAINT ${tableName}_status_check CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLATION_REQUESTED'));\n`;
+    }
+    sql += '\n';
+    
+    // Index pour améliorer les performances (basés sur les champs fréquemment utilisés dans les mappings)
+    sql += `-- Index pour améliorer les performances\n`;
+    if (tableName === 'users') {
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_consulado_id_idx ON ${tableName}(consulado_id);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_role_idx ON ${tableName}(role);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_active_idx ON ${tableName}(active);\n`;
+    } else if (tableName === 'socios') {
+      if (tableName === 'socios') {
+          sql += `CREATE INDEX IF NOT EXISTS ${tableName}_consulado_idx ON ${tableName}(consulado);\n`;
+      }
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_category_idx ON ${tableName}(category);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_status_idx ON ${tableName}(status);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_dni_idx ON ${tableName}(dni);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_role_idx ON ${tableName}(role);\n`;
+    } else if (tableName === 'matches') {
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_rival_id_idx ON ${tableName}(rival_id);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_competition_id_idx ON ${tableName}(competition_id);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_date_idx ON ${tableName}(date);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_is_home_idx ON ${tableName}(is_home);\n`;
+    } else if (tableName === 'consulados') {
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_country_code_idx ON ${tableName}(country_code);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_is_official_idx ON ${tableName}(is_official);\n`;
+    } else if (tableName === 'teams') {
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_country_id_idx ON ${tableName}(country_id);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_confederation_idx ON ${tableName}(confederation);\n`;
+    } else if (tableName === 'competitions') {
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_type_idx ON ${tableName}(type);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_category_idx ON ${tableName}(category);\n`;
+    } else if (tableName === 'agenda') {
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_date_idx ON ${tableName}(date);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_type_idx ON ${tableName}(type);\n`;
+    } else if (tableName === 'mensajes') {
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_target_consulado_id_idx ON ${tableName}(target_consulado_id);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_type_idx ON ${tableName}(type);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_archived_idx ON ${tableName}(archived);\n`;
+    } else if (tableName === 'solicitudes') {
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_match_id_idx ON ${tableName}(match_id);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_socio_id_idx ON ${tableName}(socio_id);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_status_idx ON ${tableName}(status);\n`;
+    } else if (tableName === 'notifications') {
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_type_idx ON ${tableName}(type);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_read_idx ON ${tableName}(read);\n`;
+      sql += `CREATE INDEX IF NOT EXISTS ${tableName}_date_idx ON ${tableName}(date);\n`;
+    }
+    sql += '\n';
+    
+    // Comentarios
+    sql += `-- Comentarios\n`;
+    sql += `COMMENT ON TABLE ${tableName} IS 'Tabla ${tableNameUpper}';\n\n`;
+    
+    // Comentarios por columna basados en el mapping (tous les champs des mappings)
+    mappings.forEach(mapping => {
+      let comment = mapping.appField;
+      
+      // Ajouter des informations supplémentaires selon le type et le champ
+      if (mapping.type.includes('enum') || mapping.type === 'text') {
+        if (tableName === 'users' && mapping.dbField === 'role') {
+          comment += ' (SUPERADMIN, ADMIN, PRESIDENTE, REFERENTE, SOCIO)';
+        } else if (tableName === 'users' && mapping.dbField === 'consulado_id') {
+          comment += ' (Requis si role = PRESIDENTE ou REFERENTE)';
+        } else if (tableName === 'socios' && mapping.dbField === 'category') {
+          comment += ' (Catégorie de socio: ACTIVO, ADHERENTE, INTERNACIONAL, CADETE, MENOR, VITALICIO, BEBÉ, ACTIVO EXTERIOR)';
+        } else if (tableName === 'socios' && mapping.dbField === 'status') {
+          comment += ' (Estado de cuota: AL DÍA, EN DEUDA, DE BAJA)';
+        } else if (tableName === 'socios' && mapping.dbField === 'phone') {
+          comment += ' (Format international avec indicatif)';
+        } else if (tableName === 'socios' && mapping.dbField === 'gender') {
+          comment += ' (M, F, X)';
+        } else if (tableName === 'users' && mapping.dbField === 'gender') {
+          comment += ' (M, F, X)';
+        } else if (tableName === 'teams' && mapping.dbField === 'confederation') {
+          comment += ' (CONMEBOL, UEFA, OTHER)';
+        } else if (tableName === 'agenda' && mapping.dbField === 'type') {
+          comment += ' (Type d\'événement)';
+        } else if (tableName === 'mensajes' && mapping.dbField === 'type') {
+          comment += ' (Type de message)';
+        } else if (tableName === 'competitions' && mapping.dbField === 'category') {
+          comment += ' (Catégorie de compétition)';
+        } else if (tableName === 'solicitudes' && mapping.dbField === 'status') {
+          comment += ' (PENDING, APPROVED, REJECTED, CANCELLATION_REQUESTED)';
+        } else if (tableName === 'notifications' && mapping.dbField === 'type') {
+          comment += ' (Type de notification)';
+        }
+      }
+      
+      // Ajouter info nullable
+      if (mapping.nullable) {
+        comment += ' [Opcional]';
+      } else {
+        comment += ' [Requerido]';
+      }
+      
+      sql += `COMMENT ON COLUMN ${tableName}.${mapping.dbField} IS '${comment}';\n`;
+    });
+    
+    sql += '\n';
+    sql += `-- ============================================\n`;
+    sql += `-- Fin del script SQL para ${tableName}\n`;
+    sql += `-- ============================================\n`;
     
     return sql;
   };
 
+  // Generar código SQL completo para todas las tablas
+  const generateAllTablesSQL = (): string => {
+    let completeSQL = `-- ============================================\n`;
+    completeSQL += `-- Script SQL Completo para todas las tablas\n`;
+    completeSQL += `-- Generado automáticamente desde los mappings de la aplicación\n`;
+    completeSQL += `-- Fecha: ${new Date().toLocaleString('es-ES')}\n`;
+    completeSQL += `-- ============================================\n\n`;
+    
+    const tableNames = TABLE_CONFIG.map(config => config.name);
+    
+    tableNames.forEach((tableName, index) => {
+      const mappings = dataService.getFieldMappings(tableName);
+      const schema = tableSchemas[tableName];
+      
+      if (mappings.length > 0) {
+        completeSQL += `-- ============================================\n`;
+        completeSQL += `-- Tabla ${index + 1}/${tableNames.length}: ${tableName}\n`;
+        completeSQL += `-- ============================================\n\n`;
+        completeSQL += generateSQLCode(tableName, schema);
+        completeSQL += `\n\n`;
+      }
+    });
+    
+    completeSQL += `-- ============================================\n`;
+    completeSQL += `-- Fin del script SQL completo\n`;
+    completeSQL += `-- Total de tablas: ${tableNames.length}\n`;
+    completeSQL += `-- ============================================\n`;
+    
+    return completeSQL;
+  };
+
   // Copiar código SQL al portapapeles
-  const copySQLToClipboard = (sql: string) => {
-    navigator.clipboard.writeText(sql);
-    addLog('success', 'Código SQL copiado al portapapeles');
+  const copySQLToClipboard = async (sql: string, isComplete: boolean = false) => {
+    try {
+      await navigator.clipboard.writeText(sql);
+      addLog('success', 'Código SQL copiado al portapapeles');
+      if (isComplete) {
+        setSqlCopied(true);
+        setTimeout(() => setSqlCopied(false), 3000); // Masquer après 3 secondes
+      }
+    } catch (error) {
+      addLog('error', 'Error al copiar el código SQL');
+    }
+  };
+
+  // Ejecutar SQL para crear una tabla
+  const executeCreateTableSQL = async (tableName: string, sql: string) => {
+    if (!confirm(`¿Está seguro de que desea crear/recréer la tabla '${tableName}'?\n\n⚠️ ADVERTENCIA: Esta operación puede eliminar datos existentes si la tabla existe déjà.`)) {
+      return;
+    }
+
+    setIsCreatingTable(tableName);
+    addLog('info', `Iniciando creación de la tabla '${tableName}'...`);
+
+    try {
+      // Dividir el SQL en statements individuels
+      const statements = sql
+        .split(';')
+        .map(s => s.trim())
+        .filter(s => s.length > 0 && !s.startsWith('--'));
+
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      // Ejecutar cada statement
+      for (const statement of statements) {
+        if (statement.trim().length === 0) continue;
+
+        try {
+          // Intentar ejecutar via RPC (si existe una función execute_sql)
+          // Si no existe, intentar ejecutar directamente
+          const { data, error } = await supabase.rpc('exec_sql', { 
+            sql_query: statement 
+          }).catch(async () => {
+            // Si RPC no existe, intentar con una función alternative
+            // Nota: Esto requiere que se cree una función RPC en Supabase
+            return { data: null, error: { message: 'Función RPC no disponible' } };
+          });
+
+          if (error) {
+            // Si RPC falla, mostrar instrucciones
+            if (error.message.includes('no disponible') || error.message.includes('not found')) {
+              addLog('warning', `Función RPC no disponible. Por favor, ejecute el SQL manualmente en Supabase SQL Editor.`);
+              addLog('info', `SQL copiado al portapapeles para ejecución manual.`);
+              await copySQLToClipboard(sql, false);
+              
+              // Mostrar modal con instrucciones
+              alert(
+                `⚠️ No se puede ejecutar SQL directamente desde la aplicación.\n\n` +
+                `Para crear la tabla '${tableName}', siga estos pasos:\n\n` +
+                `1. Abra Supabase Dashboard\n` +
+                `2. Vaya a SQL Editor\n` +
+                `3. Pegue el SQL que se ha copiado en su portapapeles\n` +
+                `4. Ejecute el script\n\n` +
+                `El SQL ya ha sido copiado en su portapapeles.`
+              );
+              setIsCreatingTable(null);
+              return;
+            } else {
+              errorCount++;
+              errors.push(`${statement.substring(0, 50)}...: ${error.message}`);
+            }
+          } else {
+            successCount++;
+          }
+        } catch (err: any) {
+          errorCount++;
+          errors.push(`${statement.substring(0, 50)}...: ${err.message || 'Error desconocido'}`);
+        }
+      }
+
+      if (errorCount === 0) {
+        addLog('success', `Tabla '${tableName}' creada exitosamente`);
+        alert(`✅ Tabla '${tableName}' creada exitosamente`);
+        // Recargar esquemas
+        await loadTableSchemas();
+        updateStatus();
+      } else {
+        addLog('error', `Error al crear tabla '${tableName}': ${errors.join('; ')}`);
+        alert(`❌ Error al crear la tabla '${tableName}':\n\n${errors.join('\n')}\n\nPor favor, ejecute el SQL manualmente en Supabase SQL Editor.`);
+        await copySQLToClipboard(sql, false);
+      }
+    } catch (error: any) {
+      addLog('error', `Error al ejecutar SQL: ${error.message}`);
+      alert(`❌ Error al ejecutar SQL:\n\n${error.message}\n\nPor favor, ejecute el SQL manualmente en Supabase SQL Editor.`);
+      await copySQLToClipboard(sql, false);
+    } finally {
+      setIsCreatingTable(null);
+    }
   };
 
   // Analizar problemas de mapping
@@ -582,18 +908,18 @@ export const Database = () => {
       <div className="liquid-glass-dark p-8 rounded-[2rem] shadow-2xl relative overflow-hidden mx-4">
         <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none">
           <DatabaseIcon size={300} className="text-white" />
-        </div>
-        
+            </div>
+            
         <div className="relative z-10">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-6">
             <div className="flex items-center gap-5">
               <div className={`p-4 rounded-2xl border-2 transition-all ${isConnected ? 'bg-green-500/20 border-green-500/50' : 'bg-red-500/20 border-red-500/50'}`}>
                 <DatabaseIcon size={32} className={isConnected ? 'text-green-400' : 'text-red-400'} />
-              </div>
-              <div>
+                </div>
+                <div>
                 <h1 className="oswald text-3xl font-black text-white uppercase tracking-tighter mb-1">
                   Gestión de Base de Datos
-                </h1>
+                    </h1>
                 <div className="flex items-center gap-3 flex-wrap">
                   <span className={`text-xs font-black uppercase tracking-widest px-3 py-1 rounded-lg transition-all ${isConnected ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'}`}>
                     {isConnected ? 'Conectado' : 'Desconectado'}
@@ -759,29 +1085,68 @@ export const Database = () => {
       {/* Tables Tab */}
       {activeTab === 'tables' && (
         <div className="mx-4 space-y-4">
-          {tableDetails.map((table) => (
-            <GlassCard key={table.name} className="p-6 bg-white border border-[#003B94]/10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-xl ${getColorClasses(table.color)}`}>
-                    {table.icon}
-                  </div>
-                <div>
-                    <h3 className="oswald text-lg font-black text-[#001d4a] uppercase">{table.name}</h3>
-                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">
-                      {table.count.toLocaleString()} registros
+          {tableDetails.map((table) => {
+            const tableSchema = tableSchemas[table.name];
+            const sqlCode = tableSchema ? generateSQLCode(table.name, tableSchema) : null;
+            return (
+              <GlassCard key={table.name} className="p-6 bg-white border border-[#003B94]/10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-xl ${getColorClasses(table.color)}`}>
+                      {table.icon}
+                    </div>
+                  <div>
+                      <h3 className="oswald text-lg font-black text-[#001d4a] uppercase">{table.name}</h3>
+                      <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">
+                        {table.count.toLocaleString()} registros
                     </p>
+                </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs font-bold px-3 py-1 rounded-lg ${getStatusColor(table.status)}`}>
+                      {table.status}
+                    </span>
+                    <span className="text-[9px] text-gray-400">{table.lastUpdate}</span>
+                    {sqlCode && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={async () => {
+                            await copySQLToClipboard(sqlCode, false);
+                            addLog('success', `SQL de la tabla '${table.name}' copiado al portapapeles`);
+                          }}
+                          className="bg-[#FCB131] text-[#001d4a] px-4 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest flex items-center gap-2 hover:bg-[#FFD23F] transition-all"
+                          title={`Copiar SQL para recréer la tabla ${table.name}`}
+                        >
+                          <Copy size={14} />
+                          Copiar SQL
+                        </button>
+                        <button
+                          onClick={async () => {
+                            await executeCreateTableSQL(table.name, sqlCode);
+                          }}
+                          disabled={isCreatingTable === table.name}
+                          className="bg-[#003B94] text-white px-4 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest flex items-center gap-2 hover:bg-[#001d4a] transition-all disabled:opacity-50"
+                          title={`Crear/recréer la tabla ${table.name} en Supabase`}
+                        >
+                          {isCreatingTable === table.name ? (
+                            <>
+                              <Loader2 size={14} className="animate-spin" />
+                              Creando...
+                            </>
+                          ) : (
+                            <>
+                              <DatabaseIcon size={14} />
+                              Crear Tabla
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-xs font-bold px-3 py-1 rounded-lg ${getStatusColor(table.status)}`}>
-                    {table.status}
-                  </span>
-                  <span className="text-[9px] text-gray-400">{table.lastUpdate}</span>
-                </div>
-              </div>
-            </GlassCard>
-          ))}
+              </GlassCard>
+            );
+          })}
         </div>
       )}
 
@@ -901,13 +1266,13 @@ export const Database = () => {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-[#003B94]/10 rounded-lg"><Code size={20} className="text-[#003B94]" /></div>
-                <div>
+                        <div>
                   <h3 className="oswald text-xl font-black text-[#001d4a] uppercase">Esquema SQL y Mapeo de Campos</h3>
                   <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wide mt-1">
                     Visualice y configure el mapeo entre campos de base de datos (snake_case) y aplicación (camelCase)
-                  </p>
-                </div>
-              </div>
+                            </p>
+                        </div>
+                    </div>
               <button
                 onClick={loadTableSchemas}
                 disabled={isLoadingSchemas}
@@ -930,63 +1295,141 @@ export const Database = () => {
                   const hasSchema = tableSchemas[config.name] !== undefined;
                   
                   return (
-                    <button
+                    <div
                       key={config.name}
-                      onClick={() => setSelectedSchemaTable(config.name)}
-                      disabled={!hasSchema}
-                      className={`p-4 rounded-xl border-2 transition-all text-left ${
+                      className={`p-4 rounded-xl border-2 transition-all ${
                         isSelected
                           ? 'bg-[#003B94] border-[#003B94] text-white shadow-lg'
                           : 'bg-gray-50 border-gray-200 hover:border-[#003B94]/50 text-[#001d4a]'
-                      } disabled:opacity-30 disabled:cursor-not-allowed`}
+                      } ${!hasSchema ? 'opacity-30' : ''}`}
                     >
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className={`p-2 rounded-lg ${
-                          isSelected ? 'bg-white/20' : getColorClasses(config.color)
-                        }`}>
-                          <Icon size={16} />
+                      <button
+                        onClick={() => setSelectedSchemaTable(config.name)}
+                        disabled={!hasSchema}
+                        className="w-full text-left disabled:cursor-not-allowed"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className={`p-2 rounded-lg ${
+                            isSelected ? 'bg-white/20' : getColorClasses(config.color)
+                          }`}>
+                            <Icon size={16} />
+                          </div>
+                          {hasSchema && (
+                            <CheckCircle2 size={14} className={isSelected ? 'text-white' : 'text-green-600'} />
+                          )}
                         </div>
-                        {hasSchema && (
-                          <CheckCircle2 size={14} className={isSelected ? 'text-white' : 'text-green-600'} />
-                        )}
-                      </div>
-                      <p className={`oswald text-sm font-black uppercase ${isSelected ? 'text-white' : 'text-[#001d4a]'}`}>
-                        {config.label}
-                      </p>
-                      <p className={`text-[8px] font-bold uppercase tracking-wide mt-1 ${
-                        isSelected ? 'text-white/70' : 'text-gray-500'
-                      }`}>
-                        {config.name}
-                      </p>
-                    </button>
+                        <p className={`oswald text-sm font-black uppercase ${isSelected ? 'text-white' : 'text-[#001d4a]'}`}>
+                          {config.label}
+                        </p>
+                        <p className={`text-[8px] font-bold uppercase tracking-wide mt-1 ${
+                          isSelected ? 'text-white/70' : 'text-gray-500'
+                        }`}>
+                          {config.name}
+                        </p>
+                      </button>
+                      {hasSchema && (
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const schema = tableSchemas[config.name];
+                              if (schema) {
+                                const sqlCode = generateSQLCode(config.name, schema);
+                                await copySQLToClipboard(sqlCode, false);
+                                addLog('success', `SQL de la tabla '${config.name}' copiado al portapapeles`);
+                              }
+                            }}
+                            className={`flex-1 py-2 rounded-lg font-black uppercase text-[8px] tracking-widest flex items-center justify-center gap-1.5 transition-all ${
+                              isSelected
+                                ? 'bg-white/20 text-white hover:bg-white/30'
+                                : 'bg-[#FCB131] text-[#001d4a] hover:bg-[#FFD23F]'
+                            }`}
+                            title={`Copiar SQL para recréer la tabla ${config.name}`}
+                          >
+                            <Copy size={12} />
+                            Copiar
+                          </button>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const schema = tableSchemas[config.name];
+                              if (schema) {
+                                const sqlCode = generateSQLCode(config.name, schema);
+                                await executeCreateTableSQL(config.name, sqlCode);
+                              }
+                            }}
+                            disabled={isCreatingTable === config.name}
+                            className={`flex-1 py-2 rounded-lg font-black uppercase text-[8px] tracking-widest flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 ${
+                              isSelected
+                                ? 'bg-white/30 text-white hover:bg-white/40'
+                                : 'bg-[#003B94] text-white hover:bg-[#001d4a]'
+                            }`}
+                            title={`Crear/recréer la tabla ${config.name} en Supabase`}
+                          >
+                            {isCreatingTable === config.name ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <>
+                                <DatabaseIcon size={12} />
+                                Crear
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* Código SQL Copiable */}
+            {/* Código SQL Copiable - Tabla Individual */}
             {selectedSchemaTable && tableSchemas[selectedSchemaTable] && (
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Code size={18} className="text-[#003B94]" />
-                    <h4 className="oswald text-lg font-black text-[#001d4a] uppercase">Código SQL CREATE TABLE</h4>
+                    <h4 className="oswald text-lg font-black text-[#001d4a] uppercase">
+                      Código SQL CREATE TABLE - {selectedSchemaTable.toUpperCase()}
+                    </h4>
                   </div>
-                  <button
-                    onClick={() => copySQLToClipboard(generateSQLCode(selectedSchemaTable, tableSchemas[selectedSchemaTable]))}
-                    className="bg-[#FCB131] text-[#001d4a] px-4 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest flex items-center gap-2 hover:bg-[#FFD23F] transition-all"
-                  >
-                    <Copy size={14} />
-                    Copiar SQL
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => copySQLToClipboard(generateSQLCode(selectedSchemaTable, tableSchemas[selectedSchemaTable]), false)}
+                      className="bg-[#FCB131] text-[#001d4a] px-4 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest flex items-center gap-2 hover:bg-[#FFD23F] transition-all"
+                    >
+                      <Copy size={14} />
+                      Copiar SQL
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const sqlCode = generateSQLCode(selectedSchemaTable, tableSchemas[selectedSchemaTable]);
+                        await executeCreateTableSQL(selectedSchemaTable, sqlCode);
+                      }}
+                      disabled={isCreatingTable === selectedSchemaTable}
+                      className="bg-[#003B94] text-white px-4 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest flex items-center gap-2 hover:bg-[#001d4a] transition-all disabled:opacity-50"
+                    >
+                      {isCreatingTable === selectedSchemaTable ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin" />
+                          Creando...
+                        </>
+                      ) : (
+                        <>
+                          <DatabaseIcon size={14} />
+                          Crear Tabla
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <div className="bg-[#1e293b] rounded-xl border border-gray-700 p-4 relative group">
-                  <pre className="text-[10px] font-mono text-gray-300 overflow-x-auto whitespace-pre-wrap">
+                  <pre className="text-[10px] font-mono text-gray-300 overflow-x-auto whitespace-pre-wrap max-h-96 overflow-y-auto">
                     <code>{generateSQLCode(selectedSchemaTable, tableSchemas[selectedSchemaTable])}</code>
                   </pre>
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={() => copySQLToClipboard(generateSQLCode(selectedSchemaTable, tableSchemas[selectedSchemaTable]))}
+                      onClick={() => copySQLToClipboard(generateSQLCode(selectedSchemaTable, tableSchemas[selectedSchemaTable]), false)}
                       className="bg-[#FCB131]/20 hover:bg-[#FCB131]/30 p-2 rounded-lg transition-all"
                       title="Copiar código SQL"
                     >
@@ -996,6 +1439,64 @@ export const Database = () => {
                 </div>
               </div>
             )}
+
+            {/* Código SQL Completo - Todas las Tablas */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <DatabaseIcon size={18} className="text-[#003B94]" />
+                  <h4 className="oswald text-lg font-black text-[#001d4a] uppercase">
+                    Código SQL Completo - Todas las Tablas
+                  </h4>
+                </div>
+                <button
+                  onClick={async () => {
+                    const allTablesSQL = generateAllTablesSQL();
+                    await copySQLToClipboard(allTablesSQL, true);
+                  }}
+                  className="bg-[#003B94] text-white px-4 py-2 rounded-xl font-black uppercase text-[9px] tracking-widest flex items-center gap-2 hover:bg-[#001d4a] transition-all relative"
+                >
+                  {sqlCopied ? (
+                    <>
+                      <CheckCircle size={14} className="text-green-300" />
+                      <span className="text-green-300">¡Copiado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} />
+                      Generar y Copiar SQL Completo
+                    </>
+                  )}
+                </button>
+              </div>
+              <div className="bg-[#1e293b] rounded-xl border border-gray-700 p-4 relative group">
+                <div className="mb-3 text-[10px] text-gray-400 font-bold">
+                  <p className="mb-1">Este código SQL incluye todas las tablas: {TABLE_CONFIG.map(c => c.name).join(', ')}</p>
+                  <p>Haga clic en "Generar y Copiar SQL Completo" para copiar el código completo al portapapeles.</p>
+                </div>
+                <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
+                  <pre className="text-[9px] font-mono text-gray-400 overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto">
+                    <code>{generateAllTablesSQL().substring(0, 800)}...</code>
+                  </pre>
+                </div>
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={async () => {
+                      const allTablesSQL = generateAllTablesSQL();
+                      await copySQLToClipboard(allTablesSQL, true);
+                    }}
+                    className="bg-[#003B94]/20 hover:bg-[#003B94]/30 p-2 rounded-lg transition-all"
+                    title="Generar y copiar código SQL completo"
+                  >
+                    {sqlCopied ? (
+                      <CheckCircle size={14} className="text-green-400" />
+                    ) : (
+                      <Copy size={14} className="text-[#003B94]" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
 
             {/* Visualización de Problemas de Mapping */}
             {selectedSchemaTable && (
@@ -1229,7 +1730,7 @@ export const Database = () => {
                             id, first_name, last_name, numero_socio<br/>
                             phone, birth_date, join_date<br/>
                             last_month_paid, category, status<br/>
-                            consulado_name, avatar_color, expiration_date<br/>
+                            consulado, avatar_color, expiration_date<br/>
                             is_official, social_instagram, social_facebook<br/>
                             social_x, social_tiktok, social_youtube<br/>
                             target_consulado_id, target_consulado_name<br/>
@@ -1243,7 +1744,9 @@ export const Database = () => {
                             start_date, end_date, full_name<br/>
                             consulado_id, last_login, match_id<br/>
                             socio_id, socio_name, socio_dni<br/>
-                            socio_category
+                            socio_category<br/>
+                            username, password, email, role<br/>
+                            active, avatar, gender
                           </code>
                         </div>
                         <div className="bg-white rounded-lg p-3 border border-green-100">
@@ -1266,8 +1769,8 @@ export const Database = () => {
                 </div>
               </div>
             )}
-          </GlassCard>
-        </div>
+                </GlassCard>
+            </div>
       )}
 
       {/* Logs Tab */}
@@ -1278,7 +1781,7 @@ export const Database = () => {
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-[#003B94]/10 rounded-lg"><FileText size={20} className="text-[#003B94]" /></div>
                 <h3 className="oswald text-lg font-black text-[#001d4a] uppercase">Logs del Sistema</h3>
-              </div>
+        </div>
               <span className="text-[9px] text-gray-400 font-bold">{logs.length} entradas</span>
                 </div>
 

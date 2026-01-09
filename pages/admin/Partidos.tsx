@@ -1,13 +1,36 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { GlassCard } from '../../components/GlassCard';
-import { Sword, Calendar, MapPin, Edit2, Trash2, Plus, Search, X, Save, Ticket, AlertTriangle, Loader2 } from 'lucide-react';
+import { Sword, Calendar, MapPin, Edit2, Trash2, Plus, Search, X, Save, Ticket, AlertTriangle, Loader2, CheckCircle2 } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { Match, Team, Competition } from '../../types';
 import { COUNTRY_OPTIONS } from '../../constants';
+import { formatDateDisplay, formatDateToDB } from '../../utils/dateFormat';
 
 // Constants for dropdowns
 const FECHAS = Array.from({ length: 27 }, (_, i) => `Fecha ${i + 1}`);
+
+// Fonction pour formater l'heure au format hh:mm hs (sans secondes)
+const formatHourDisplay = (hourStr: string) => {
+    if (!hourStr) return '--:-- hs';
+    // Si l'heure contient déjà "hs", on la nettoie
+    const cleaned = hourStr.replace(/\s*hs\s*/i, '').trim();
+    
+    // Si l'heure est au format HH:mm:ss, on supprime les secondes
+    if (cleaned.match(/^\d{1,2}:\d{2}:\d{2}$/)) {
+        const [h, m] = cleaned.split(':');
+        return `${h.padStart(2, '0')}:${m.padStart(2, '0')} hs`;
+    }
+    
+    // Si l'heure est au format HH:mm, on l'utilise directement
+    if (cleaned.match(/^\d{1,2}:\d{2}$/)) {
+        const [h, m] = cleaned.split(':');
+        return `${h.padStart(2, '0')}:${m.padStart(2, '0')} hs`;
+    }
+    
+    // Sinon, on retourne tel quel avec "hs"
+    return `${cleaned} hs`;
+};
 
 export const Partidos = () => {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -19,6 +42,7 @@ export const Partidos = () => {
   const [deletingMatch, setDeletingMatch] = useState<Match | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [closingDateError, setClosingDateError] = useState<string | null>(null);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
   // Filters for Edit Form
   const [rivalCountryFilter, setRivalCountryFilter] = useState('AR');
@@ -72,7 +96,34 @@ export const Partidos = () => {
   };
 
   const handleEdit = (m: Match) => {
-      setEditingMatch({ ...m });
+      // Convertir les dates depuis le format DB (YYYY-MM-DD) vers le format du formulaire (DD/MM/YYYY)
+      const convertDateFromDB = (dateStr: string | undefined): string => {
+          if (!dateStr) return '';
+          // Si déjà au format DD/MM/YYYY, on le garde
+          if (dateStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) return dateStr;
+          // Si au format YYYY-MM-DD, on le convertit en DD/MM/YYYY
+          if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              const [y, m, d] = dateStr.split('-');
+              return `${d}/${m}/${y}`;
+          }
+          // Si au format jj-mm-aaaa, on le convertit en DD/MM/YYYY
+          if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) {
+              const [d, m, y] = dateStr.split('-');
+              return `${d}/${m}/${y}`;
+          }
+          return dateStr;
+      };
+      
+      // Préserver l'ID original (UUID) pour les mises à jour
+      const originalId = (m as any)._originalId;
+      
+      setEditingMatch({ 
+          ...m,
+          _originalId: originalId, // Préserver l'ID original
+          date: convertDateFromDB(m.date),
+          apertura_date: convertDateFromDB(m.apertura_date),
+          cierre_date: convertDateFromDB(m.cierre_date)
+      } as any);
       const team = teams.find(t => t.name === m.rival);
       if(team) setRivalCountryFilter(team.country_id);
   };
@@ -95,13 +146,25 @@ export const Partidos = () => {
       if (!editingMatch?.rival || !editingMatch.date) return;
       setIsSaving(true);
       
-      const payload: Match = {
+      // Convertir les dates au format YYYY-MM-DD pour la base de données
+      const convertDateToDB = (dateStr: string | undefined): string => {
+          if (!dateStr) return '';
+          // Utiliser formatDateToDB qui gère tous les formats
+          const converted = formatDateToDB(dateStr);
+          return converted || '';
+      };
+      
+      // Préserver l'ID original si disponible (pour les matchs existants)
+      const originalId = (editingMatch as any)._originalId;
+      
+      const payload: Match & { _originalId?: string | number } = {
           id: editingMatch.id || Date.now(),
+          _originalId: originalId, // Préserver l'ID original pour les mises à jour
           rival: editingMatch.rival || '',
           rival_short: editingMatch.rival_short || '',
           rival_country: editingMatch.rival_country || 'AR',
           competition: editingMatch.competition || '',
-          date: editingMatch.date || '',
+          date: convertDateToDB(editingMatch.date) || '',
           hour: editingMatch.hour || '',
           venue: editingMatch.venue || 'La Bombonera',
           city: editingMatch.city || 'Buenos Aires',
@@ -109,21 +172,54 @@ export const Partidos = () => {
           is_neutral: editingMatch.is_neutral !== undefined ? editingMatch.is_neutral : false,
           fecha_jornada: editingMatch.fecha_jornada || '',
           is_suspended: editingMatch.is_suspended !== undefined ? editingMatch.is_suspended : false,
-          apertura_date: editingMatch.apertura_date || '',
+          apertura_date: convertDateToDB(editingMatch.apertura_date) || '',
           apertura_hour: editingMatch.apertura_hour || '10:00',
-          cierre_date: editingMatch.cierre_date || '',
+          cierre_date: convertDateToDB(editingMatch.cierre_date) || '',
           cierre_hour: editingMatch.cierre_hour || '20:00',
           competition_id: editingMatch.competition_id || undefined,
           rival_id: editingMatch.rival_id || undefined
       };
+      
       try {
-        if (matches.some(m => m.id === payload.id)) {
+        // Vérifier si c'est un nouveau match ou une mise à jour
+        // Un match existe si :
+        // 1. Il a un _originalId (UUID) - c'est un match existant
+        // 2. Son ID correspond à un match existant dans la liste
+        const isExistingMatch = originalId !== undefined || matches.some(m => {
+            const mOriginalId = (m as any)._originalId;
+            
+            // Si le match en mémoire a un _originalId, comparer avec ça
+            if (mOriginalId !== undefined && originalId !== undefined) {
+                return mOriginalId === originalId;
+            }
+            
+            // Si le match en mémoire a un _originalId mais pas le payload, comparer l'ID converti
+            if (mOriginalId !== undefined) {
+                return false; // Le payload n'a pas d'originalId, donc c'est un nouveau match
+            }
+            
+            // Comparer avec l'ID converti, mais seulement si ce n'est pas un ID temporaire (Date.now())
+            // Les IDs Date.now() sont > 1000000000000 (13 chiffres)
+            if (payload.id && payload.id < 1000000000000) {
+                return m.id === payload.id;
+            }
+            
+            return false;
+        });
+        
+        if (isExistingMatch) {
+            // Match existant : mise à jour
             await dataService.updateMatch(payload);
         } else {
-            await dataService.addMatch(payload);
+            // Nouveau match : création (sans ID, Supabase le générera)
+            const newMatch = { ...payload };
+            delete (newMatch as any).id;
+            delete (newMatch as any)._originalId;
+            await dataService.addMatch(newMatch);
         }
-      } catch(e) {
-          alert("Error al guardar el partido.");
+      } catch(e: any) {
+          console.error("Error al guardar el partido:", e);
+          alert(`Error al guardar el partido: ${e.message || 'Error desconocido'}`);
       } finally {
         setIsSaving(false);
         setEditingMatch(null);
@@ -185,119 +281,172 @@ export const Partidos = () => {
        </div>
 
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-           {sortedMatches.map(m => (
-               <GlassCard key={m.id} className="p-5 border-l-4 border-l-[#003B94] group">
+           {sortedMatches.map(m => {
+               const isHome = m.is_home && !m.is_neutral;
+               const rivalTeam = teams.find(t => t.id === m.rival_id || t.name === m.rival);
+               const rivalLogo = rivalTeam?.logo;
+               return (
+               <GlassCard key={m.id} className={`p-5 border-l-4 group ${isHome ? 'liquid-glass-dark text-white border-l-[#FCB131]' : 'border-l-[#003B94]'}`}>
                    <div className="flex justify-between items-start mb-3">
-                       <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{m.competition}</span>
+                       <div className="flex items-center gap-2">
+                           <span className={`text-[9px] font-bold uppercase tracking-widest ${isHome ? 'text-white/70' : 'text-gray-400'}`}>{m.competition}</span>
+                           {m.fecha_jornada && (
+                               <>
+                                   <span className={`text-[#FCB131] ${isHome ? 'text-white/50' : 'text-gray-300'}`}>•</span>
+                                   <span className={`text-[9px] font-bold uppercase tracking-widest ${isHome ? 'text-white/70' : 'text-gray-400'}`}>{m.fecha_jornada}</span>
+                               </>
+                           )}
+                       </div>
                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                           <button onClick={() => handleEdit(m)} className="text-[#003B94] hover:bg-blue-50 p-1.5 rounded"><Edit2 size={14}/></button>
-                           <button onClick={() => setDeletingMatch(m)} className="text-red-500 hover:bg-red-50 p-1.5 rounded"><Trash2 size={14}/></button>
+                           <button onClick={() => handleEdit(m)} className={`${isHome ? 'text-white hover:bg-white/10' : 'text-[#003B94] hover:bg-blue-50'} p-1.5 rounded`}><Edit2 size={14}/></button>
+                           <button onClick={() => setDeletingMatch(m)} className={`${isHome ? 'text-red-300 hover:bg-red-500/20' : 'text-red-500 hover:bg-red-50'} p-1.5 rounded`}><Trash2 size={14}/></button>
                        </div>
                    </div>
-                   <h3 className="oswald text-xl font-black text-[#001d4a] uppercase mb-1">vs {m.rival}</h3>
-                   <div className="text-xs font-bold text-gray-500 flex items-center gap-2">
-                       <Calendar size={12} /> {m.date} <span className="text-[#FCB131]">•</span> {m.hour} hs
+                   <div className="flex items-center gap-4">
+                       {/* Logo à gauche */}
+                       {rivalLogo && (
+                           <div className="flex-shrink-0">
+                               <img 
+                                   src={rivalLogo} 
+                                   alt={m.rival} 
+                                   className="w-12 h-12 object-contain"
+                                   onError={(e) => {
+                                       (e.target as HTMLImageElement).style.display = 'none';
+                                   }}
+                               />
+                           </div>
+                       )}
+                       {/* Nom, date et heure à droite du logo */}
+                       <div className="flex-1 min-w-0">
+                           <h3 className={`oswald text-xl font-black uppercase mb-2 flex items-center gap-2 ${isHome ? 'text-white' : 'text-[#001d4a]'}`}>
+                               <span>vs</span>
+                               <span className="truncate">{m.rival}</span>
+                           </h3>
+                           <div className={`text-xs font-bold flex items-center gap-2 ${isHome ? 'text-white/80' : 'text-gray-500'}`}>
+                               <Calendar size={12} /> {formatDateDisplay(m.date)} <span className="text-[#FCB131]">•</span> {formatHourDisplay(m.hour)}
+                           </div>
+                       </div>
                    </div>
-                   <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-[#003B94]">
+                   <div className={`mt-3 pt-3 border-t flex items-center gap-2 text-[9px] font-black uppercase tracking-widest ${isHome ? 'border-white/10 text-white/90' : 'border-gray-100 text-[#003B94]'}`}>
                        <MapPin size={12} /> {m.venue}
+                       {m.city && (
+                           <>
+                               <span className={`text-[#FCB131] ${isHome ? 'text-white/50' : 'text-gray-300'}`}>•</span>
+                               <span>{m.city}</span>
+                           </>
+                       )}
                    </div>
                </GlassCard>
-           ))}
+           )})}
        </div>
 
       {editingMatch && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
-          <div className="relative w-full max-w-4xl bg-white rounded-[1.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-7rem-2rem)] animate-in zoom-in-95 duration-300">
-            <div className="liquid-glass-dark p-4 flex items-center justify-between text-white">
-               <div className="flex items-center gap-3">
-                  <Edit2 size={18} className="text-[#FCB131]" />
-                  <h2 className="oswald text-lg font-black uppercase tracking-tighter">
+          <div className="relative w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-7rem-2rem)] animate-in zoom-in-95 duration-300">
+            <div className="liquid-glass-dark p-3 flex items-center justify-between text-white">
+               <div className="flex items-center gap-2">
+                  <Edit2 size={16} className="text-[#FCB131]" />
+                  <h2 className="oswald text-base font-black uppercase tracking-tighter">
                       {matches.some(m => m.id === editingMatch.id) ? 'Editar Partido' : 'Nuevo Partido'}
                   </h2>
                </div>
-               <button onClick={() => !isSaving && setEditingMatch(null)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors">
-                  <X size={18} />
+               <button onClick={() => !isSaving && setEditingMatch(null)} className="p-1.5 bg-white/10 rounded-full hover:bg-white/20 transition-colors">
+                  <X size={16} />
                </button>
             </div>
 
-            <div className="p-6 space-y-5 overflow-y-auto custom-scrollbar flex-1">
+            <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
                 {/* 1. Condition (Location Switcher) */}
                 <div>
-                    <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1 mb-1 block">Condición</label>
-                    <div className="bg-gray-100 p-1 rounded-xl flex">
+                    <label className="text-[8px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1 mb-0.5 block">Condición</label>
+                    <div className="bg-gradient-to-br from-[#001d4a] to-[#003B94] p-0.5 rounded-lg flex shadow-lg">
                         {['LOCAL', 'NEUTRAL', 'VISITANTE'].map((tab) => {
                             const isActive = (tab === 'LOCAL' && editingMatch.is_home && !editingMatch.is_neutral) || (tab === 'NEUTRAL' && editingMatch.is_neutral) || (tab === 'VISITANTE' && !editingMatch.is_home && !editingMatch.is_neutral);
-                            return (<button key={tab} onClick={() => handleLocationChange(tab as any)} className={`flex-1 py-2 text-[9px] font-black tracking-widest uppercase transition-all rounded-lg ${isActive ? 'bg-white text-[#003B94] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>{tab}</button>);
+                            return (<button key={tab} onClick={() => handleLocationChange(tab as any)} className={`flex-1 py-1.5 text-[8px] font-black tracking-widest uppercase transition-all rounded-md ${isActive ? 'bg-white text-[#003B94] shadow-sm' : 'text-white/70 hover:text-white'}`}>{tab}</button>);
                         })}
                     </div>
                 </div>
 
                 {/* 2. Competition & Jornada */}
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Competición</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.competition_id || ''} onChange={e => handleCompetitionChange(e.target.value)}><option value="">Seleccionar...</option>{competitions.map(comp => <option key={comp.id} value={comp.id}>{comp.name}</option>)}</select></div>
-                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Fecha/Jornada</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.fecha_jornada || ''} onChange={e => setEditingMatch({...editingMatch, fecha_jornada: e.target.value})}>{FECHAS.map(f => <option key={f} value={f}>{f}</option>)}</select></div>
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-0.5"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Competición</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-[9px] text-[#001d4a] outline-none" value={editingMatch.competition_id || ''} onChange={e => handleCompetitionChange(e.target.value)}><option value="">Seleccionar...</option>{competitions.map(comp => <option key={comp.id} value={comp.id}>{comp.name}</option>)}</select></div>
+                    <div className="space-y-0.5"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Fecha/Jornada</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-[9px] text-[#001d4a] outline-none" value={editingMatch.fecha_jornada || ''} onChange={e => setEditingMatch({...editingMatch, fecha_jornada: e.target.value})}>{FECHAS.map(f => <option key={f} value={f}>{f}</option>)}</select></div>
                 </div>
 
                 {/* 3. Rival Selector */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">País</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={rivalCountryFilter} onChange={e => handleRivalCountryChange(e.target.value)}>{COUNTRY_OPTIONS.map(c => (<option key={c.code} value={c.code}>{c.name}</option>))}</select></div>
-                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Equipo Rival</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.rival_id || ''} onChange={e => handleRivalIdChange(e.target.value)}><option value="">Seleccionar Equipo...</option>{teams.filter(t => t.country_id === rivalCountryFilter).sort((a,b) => a.name.localeCompare(b.name)).map(r => (<option key={r.id} value={r.id}>{r.name} ({r.short_name})</option>))}</select></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-0.5"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">País</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-[9px] text-[#001d4a] outline-none" value={rivalCountryFilter} onChange={e => handleRivalCountryChange(e.target.value)}>{COUNTRY_OPTIONS.map(c => (<option key={c.code} value={c.code}>{c.name}</option>))}</select></div>
+                    <div className="space-y-0.5"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Equipo Rival</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-[9px] text-[#001d4a] outline-none" value={editingMatch.rival_id || ''} onChange={e => handleRivalIdChange(e.target.value)}><option value="">Seleccionar Equipo...</option>{teams.filter(t => t.country_id === rivalCountryFilter).sort((a,b) => a.name.localeCompare(b.name)).map(r => (<option key={r.id} value={r.id}>{r.name} ({r.short_name})</option>))}</select></div>
                 </div>
 
                 {/* 5. Date & Hour */}
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Fecha</label><input type="date" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.date?.split('/').reverse().join('-')} onChange={e => { const val = e.target.value; if(val) { const [y, m, d] = val.split('-'); handleMatchDateTimeChange('date', `${d}/${m}/${y}`); } }} /></div>
-                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Hora</label><input type="time" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.hour || ''} onChange={e => handleMatchDateTimeChange('hour', e.target.value)} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-0.5"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Fecha</label><input type="date" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-[9px] text-[#001d4a] outline-none" value={editingMatch.date?.split('/').reverse().join('-')} onChange={e => { const val = e.target.value; if(val) { const [y, m, d] = val.split('-'); handleMatchDateTimeChange('date', `${d}/${m}/${y}`); } }} /></div>
+                    <div className="space-y-0.5"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Hora</label><input type="time" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-[9px] text-[#001d4a] outline-none" value={editingMatch.hour || ''} onChange={e => handleMatchDateTimeChange('hour', e.target.value)} /></div>
                 </div>
 
                 {/* 6. Stadium & City */}
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Estadio</label>{editingMatch.is_neutral ? (<select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.venue || ''} onChange={e => handleNeutralStadiumChange(e.target.value)}><option value="">Seleccionar Estadio Neutral...</option>{distinctStadiums.map(s => <option key={s.stadium} value={s.stadium}>{s.stadium}</option>)}</select>) : (<input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.venue || ''} onChange={e => setEditingMatch({...editingMatch, venue: e.target.value})} />)}</div>
-                    <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Ciudad</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-[10px] text-[#001d4a] outline-none" value={editingMatch.city || ''} onChange={e => setEditingMatch({...editingMatch, city: e.target.value})} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-0.5"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Estadio</label>{editingMatch.is_neutral ? (<select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-[9px] text-[#001d4a] outline-none" value={editingMatch.venue || ''} onChange={e => handleNeutralStadiumChange(e.target.value)}><option value="">Seleccionar Estadio Neutral...</option>{distinctStadiums.map(s => <option key={s.stadium} value={s.stadium}>{s.stadium}</option>)}</select>) : (<input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-[9px] text-[#001d4a] outline-none" value={editingMatch.venue || ''} onChange={e => setEditingMatch({...editingMatch, venue: e.target.value})} />)}</div>
+                    <div className="space-y-0.5"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Ciudad</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-[9px] text-[#001d4a] outline-none" value={editingMatch.city || ''} onChange={e => setEditingMatch({...editingMatch, city: e.target.value})} /></div>
                 </div>
 
                 {/* 7. Habilitation Window */}
                 {(editingMatch.is_home || editingMatch.is_neutral) && (
-                    <div className="bg-[#001d4a] border border-[#FCB131]/30 rounded-xl p-4 relative overflow-hidden mt-4 shadow-lg">
-                        <Ticket className="absolute top-2 right-2 text-white/5 w-24 h-24 rotate-12" />
-                        <div className="flex items-center gap-2 mb-3 relative z-10">
-                            <div className="bg-[#FCB131] p-1.5 rounded-lg text-[#001d4a] shadow-sm"><Ticket size={12} strokeWidth={3} /></div>
-                            <span className="text-[10px] font-black text-white uppercase tracking-widest">Ventana de Habilitación</span>
+                    <div className="bg-[#001d4a] border border-[#FCB131]/30 rounded-lg p-3 relative overflow-hidden mt-2 shadow-lg">
+                        <Ticket className="absolute top-1 right-1 text-white/5 w-16 h-16 rotate-12" />
+                        <div className="flex items-center gap-1.5 mb-2 relative z-10">
+                            <div className="bg-[#FCB131] p-1 rounded-md text-[#001d4a] shadow-sm"><Ticket size={10} strokeWidth={3} /></div>
+                            <span className="text-[9px] font-black text-white uppercase tracking-widest">Ventana de Habilitación</span>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-6 relative z-10">
-                            <div className="space-y-1">
-                                <span className="text-[8px] font-black text-white/70 uppercase tracking-widest block mb-1">Apertura</span>
-                                <div className="flex gap-2">
-                                    <input type="date" className="flex-1 bg-white/90 border border-transparent rounded-lg py-2 px-2 font-bold text-[10px] text-[#001d4a] outline-none focus:border-[#FCB131] transition-colors shadow-sm [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" value={editingMatch.apertura_date?.split('/').reverse().join('-')} onChange={e => { const val = e.target.value; if(val) { const [y, m, d] = val.split('-'); setEditingMatch({...editingMatch, apertura_date: `${d}/${m}/${y}`}) } }} />
-                                    <input type="time" className="w-20 bg-white/90 border border-transparent rounded-lg py-2 px-1 font-bold text-[10px] text-[#001d4a] outline-none text-center focus:border-[#FCB131] transition-colors shadow-sm [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" value={editingMatch.apertura_hour || ''} onChange={e => setEditingMatch({...editingMatch, apertura_hour: e.target.value})} />
+                        <div className="grid grid-cols-2 gap-3 relative z-10">
+                            <div className="space-y-0.5">
+                                <span className="text-[7px] font-black text-white/70 uppercase tracking-widest block mb-0.5">Apertura</span>
+                                <div className="flex gap-1.5">
+                                    <input type="date" className="flex-1 bg-white/90 border border-transparent rounded-lg py-1 px-1.5 font-bold text-[9px] text-[#001d4a] outline-none focus:border-[#FCB131] transition-colors shadow-sm [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" value={editingMatch.apertura_date?.split('/').reverse().join('-')} onChange={e => { const val = e.target.value; if(val) { const [y, m, d] = val.split('-'); setEditingMatch({...editingMatch, apertura_date: `${d}/${m}/${y}`}) } }} />
+                                    <input type="time" className="w-16 bg-white/90 border border-transparent rounded-lg py-1 px-1 font-bold text-[9px] text-[#001d4a] outline-none text-center focus:border-[#FCB131] transition-colors shadow-sm [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" value={editingMatch.apertura_hour || ''} onChange={e => setEditingMatch({...editingMatch, apertura_hour: e.target.value})} />
                                 </div>
                             </div>
-                            <div className="space-y-1">
-                                <span className="text-[8px] font-black text-white/70 uppercase tracking-widest block mb-1">Cierre</span>
-                                <div className="flex gap-2">
-                                    <input type="date" className={`flex-1 bg-white/90 border rounded-lg py-2 px-2 font-bold text-[10px] text-[#001d4a] outline-none transition-colors shadow-sm [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden ${closingDateError ? 'border-red-500' : 'border-transparent focus:border-[#FCB131]'}`} value={editingMatch.cierre_date?.split('/').reverse().join('-')} onChange={e => { const val = e.target.value; if(val) { const [y, m, d] = val.split('-'); setEditingMatch({...editingMatch, cierre_date: `${d}/${m}/${y}`}) } }} />
-                                    <input type="time" className="w-20 bg-white/90 border border-transparent rounded-lg py-2 px-1 font-bold text-[10px] text-[#001d4a] outline-none text-center focus:border-[#FCB131] transition-colors shadow-sm [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" value={editingMatch.cierre_hour || ''} onChange={e => setEditingMatch({...editingMatch, cierre_hour: e.target.value})} />
+                            <div className="space-y-0.5">
+                                <span className="text-[7px] font-black text-white/70 uppercase tracking-widest block mb-0.5">Cierre</span>
+                                <div className="flex gap-1.5">
+                                    <input type="date" className={`flex-1 bg-white/90 border rounded-lg py-1 px-1.5 font-bold text-[9px] text-[#001d4a] outline-none transition-colors shadow-sm [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden ${closingDateError ? 'border-red-500' : 'border-transparent focus:border-[#FCB131]'}`} value={editingMatch.cierre_date?.split('/').reverse().join('-')} onChange={e => { const val = e.target.value; if(val) { const [y, m, d] = val.split('-'); setEditingMatch({...editingMatch, cierre_date: `${d}/${m}/${y}`}) } }} />
+                                    <input type="time" className="w-16 bg-white/90 border border-transparent rounded-lg py-1 px-1 font-bold text-[9px] text-[#001d4a] outline-none text-center focus:border-[#FCB131] transition-colors shadow-sm [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" value={editingMatch.cierre_hour || ''} onChange={e => setEditingMatch({...editingMatch, cierre_hour: e.target.value})} />
                                 </div>
                             </div>
                         </div>
                         
                         {closingDateError && (
-                            <div className="mt-3 flex items-center gap-2 text-white bg-red-500/20 p-2 rounded-lg border border-red-500/30 animate-pulse">
-                                <AlertTriangle size={12} />
-                                <span className="text-[8px] font-bold uppercase tracking-wide">{closingDateError}</span>
+                            <div className="mt-2 flex items-center gap-1.5 text-white bg-red-500/20 p-1.5 rounded-lg border border-red-500/30 animate-pulse">
+                                <AlertTriangle size={10} />
+                                <span className="text-[7px] font-bold uppercase tracking-wide">{closingDateError}</span>
                             </div>
                         )}
                     </div>
                 )}
             </div>
 
-            <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-4 shrink-0">
-               <button onClick={() => !isSaving && setEditingMatch(null)} disabled={isSaving} className="px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest text-[#001d4a] bg-white border border-gray-200 hover:bg-gray-100 transition-all">Cancelar</button>
-               <button onClick={handleSave} disabled={!!closingDateError || isSaving} className={`px-8 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest text-white shadow-lg transition-all ${!!closingDateError ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#003B94] hover:bg-[#001d4a]'}`}>{isSaving ? <Loader2 size={16} className="animate-spin" /> : 'Guardar'}</button>
+            <div className="p-3 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-3 shrink-0">
+               <button onClick={() => !isSaving && setEditingMatch(null)} disabled={isSaving} className="px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest text-[#001d4a] bg-white border border-gray-200 hover:bg-gray-100 transition-all">Cancelar</button>
+               <button onClick={() => setShowSaveConfirm(true)} disabled={!!closingDateError || isSaving} className={`px-5 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest text-white shadow-lg transition-all ${!!closingDateError ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#003B94] hover:bg-[#001d4a]'}`}>Guardar</button>
             </div>
           </div>
         </div>
+      )}
+
+      {showSaveConfirm && (
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/60 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+              <div className="relative w-full max-w-md bg-white rounded-[2rem] p-10 shadow-[0_50px_150px_rgba(0,29,74,0.3)] text-center border border-white animate-in zoom-in-95">
+                  <div className="w-20 h-20 bg-[#FCB131]/10 text-[#FCB131] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner"><CheckCircle2 size={40} /></div>
+                  <h2 className="oswald text-3xl font-black text-[#001d4a] uppercase mb-4 tracking-tighter">¿Guardar Cambios?</h2>
+                  <p className="text-[#003B94]/70 font-bold mb-10 text-[10px] leading-relaxed uppercase tracking-widest">Se guardará la información del partido en el sistema.</p>
+                  <div className="flex gap-4">
+                      <button onClick={() => setShowSaveConfirm(false)} className="flex-1 py-4 rounded-xl bg-slate-100 text-slate-500 uppercase text-[9px] font-black tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
+                      <button onClick={() => { setShowSaveConfirm(false); handleSave(); }} className="flex-1 py-4 rounded-xl bg-[#003B94] text-white uppercase text-[9px] font-black tracking-widest shadow-2xl hover:opacity-90 transition-all">Confirmar</button>
+                  </div>
+              </div>
+          </div>
       )}
 
       {deletingMatch && (

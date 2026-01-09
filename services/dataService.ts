@@ -45,7 +45,7 @@ const normalizeSocio = (db: any): Socio => ({
     birth_date: db.birth_date || '',
     join_date: db.join_date || '',
     last_month_paid: db.last_month_paid || '',
-    consulado: db.consulado_name && db.consulado_name.trim() !== '' ? db.consulado_name : undefined,
+    consulado: db.consulado && db.consulado.trim() !== '' ? db.consulado : undefined,
     role: db.role || 'SOCIO',
     avatar_color: db.avatar_color || 'bg-blue-500',
     expiration_date: db.expiration_date || '',
@@ -57,13 +57,26 @@ const normalizeSocio = (db: any): Socio => ({
 const mapSocioFromDB = normalizeSocio;
 const mapSocioToDB = (s: Partial<Socio>) => {
     const payload: any = { ...s };
-    // Assurer que name est calculé si nécessaire
-    if (!payload.name && payload.first_name && payload.last_name) {
-        payload.name = `${payload.first_name} ${payload.last_name}`.trim();
-    }
-    // Nettoyer les valeurs undefined -> null pour la DB
+    // Supprimer 'name' car c'est un champ calculé (first_name + last_name), pas une colonne de la DB
+    delete payload.name;
+    
+    // Le consulado est directement dans la colonne 'consulado' de la DB
+    // La correspondance se fait par nom : consulado (table socios) === name (table consulados)
+    // Pas besoin de conversion, 'consulado' est déjà le nom de la colonne DB
+    
+    // Liste des champs de date dans la table socios
+    const dateFields = ['birth_date', 'join_date', 'last_month_paid', 'expiration_date'];
+    
+    // Nettoyer les valeurs : undefined -> null, chaînes vides pour les dates -> null
     Object.keys(payload).forEach(key => {
-        if (payload[key] === undefined) payload[key] = null;
+        if (payload[key] === undefined) {
+            payload[key] = null;
+        } else if (dateFields.includes(key)) {
+            // Pour les champs de date, convertir les chaînes vides en null
+            if (payload[key] === '' || (typeof payload[key] === 'string' && payload[key].trim() === '')) {
+                payload[key] = null;
+            }
+        }
     });
     return payload;
 };
@@ -236,30 +249,63 @@ const parseId = (id: any): number => {
     return 0;
 };
 
-const mapMatchFromDB = (db: any): Match => ({
-    id: parseId(db.id),
-    rival_id: db.rival_id || undefined,
-    competition_id: db.competition_id || undefined,
-    rival: db.rival || '',
-    rival_short: db.rival_short || '',
-    rival_country: db.rival_country || '',
-    competition: db.competition || '',
-    date: db.date || '',
-    hour: db.hour || '',
-    venue: db.venue || '',
-    city: db.city || '',
-    is_home: db.is_home !== undefined ? Boolean(db.is_home) : false,
-    is_neutral: db.is_neutral !== undefined ? Boolean(db.is_neutral) : false,
-    fecha_jornada: db.fecha_jornada || '',
-    is_suspended: db.is_suspended !== undefined ? Boolean(db.is_suspended) : false,
-    apertura_date: db.apertura_date || '',
-    apertura_hour: db.apertura_hour || '',
-    cierre_date: db.cierre_date || '',
-    cierre_hour: db.cierre_hour || ''
-});
+const mapMatchFromDB = (db: any): Match & { _originalId?: string | number } => {
+    // Préserver l'ID original (UUID string ou number) pour les matchs
+    // Convertir en number pour l'interface Match, mais garder l'original pour les requêtes DB
+    const originalId = db.id;
+    const matchId = typeof originalId === 'string' && originalId.includes('-') 
+        ? 0  // UUID string - on utilise 0 comme placeholder, mais on garde l'original
+        : parseId(originalId);
+    
+    return {
+        id: matchId,
+        // Stocker l'ID original (UUID string ou number) pour les mises à jour
+        _originalId: originalId,
+        rival_id: db.rival_id || undefined,
+        competition_id: db.competition_id || undefined,
+        rival: db.rival || '',
+        rival_short: db.rival_short || '',
+        rival_country: db.rival_country || '',
+        competition: db.competition || '',
+        date: db.date || '',
+        hour: db.hour || '',
+        venue: db.venue || '',
+        city: db.city || '',
+        is_home: db.is_home !== undefined ? Boolean(db.is_home) : false,
+        is_neutral: db.is_neutral !== undefined ? Boolean(db.is_neutral) : false,
+        fecha_jornada: db.fecha_jornada || '',
+        is_suspended: db.is_suspended !== undefined ? Boolean(db.is_suspended) : false,
+        apertura_date: db.apertura_date || '',
+        apertura_hour: db.apertura_hour || '',
+        cierre_date: db.cierre_date || '',
+        cierre_hour: db.cierre_hour || ''
+    };
+};
 
-const mapMatchToDB = (m: Partial<Match>) => {
+const mapMatchToDB = (m: Partial<Match> & { _originalId?: string | number }, isNew: boolean = false) => {
     const payload: any = { ...m };
+    
+    // Pour les nouveaux matchs, ne pas inclure l'ID (Supabase le générera automatiquement comme UUID)
+    if (isNew) {
+        delete payload.id;
+    } else {
+        // Utiliser l'ID original (UUID string ou number) si disponible pour les requêtes DB
+        if (m._originalId !== undefined) {
+            payload.id = m._originalId;
+        } else if (m.id !== undefined && m.id > 0) {
+            // Si pas d'ID original et que l'ID est valide, l'utiliser
+            // Mais si c'est un ID temporaire (Date.now() = très grand nombre), ne pas l'inclure
+            if (m.id < 1000000000000) {
+                payload.id = m.id;
+            } else {
+                // ID temporaire (Date.now()), ne pas l'inclure
+                delete payload.id;
+            }
+        }
+    }
+    
+    // Supprimer la propriété cachée _originalId
+    delete payload._originalId;
     Object.keys(payload).forEach(key => {
         if (payload[key] === undefined) payload[key] = null;
     });
@@ -750,7 +796,19 @@ class DataService {
   getSocios(consulado_id?: string) { 
       if (consulado_id) {
           const c = this.consulados.find(x => x.id === consulado_id);
-          return this.socios.filter(s => s.consulado === c?.name);
+          if (!c) return [];
+          
+          // ASSOCIATION SOCIO-CONSULADO :
+          // La correspondance se fait par NOM (pas par ID) :
+          // - Dans la table 'socios' : colonne 'consulado' (nom du consulado)
+          // - Dans la table 'consulados' : colonne 'name' (nom du consulado)
+          // On compare consulado (socios) === name (consulados)
+          // Correspondance insensible à la casse et aux espaces pour robustesse
+          const consuladoName = c.name?.trim().toUpperCase() || '';
+          return this.socios.filter(s => {
+              const socioConsuladoName = s.consulado?.trim().toUpperCase() || '';
+              return socioConsuladoName === consuladoName;
+          });
       }
       return this.socios; 
   }
@@ -820,123 +878,15 @@ class DataService {
       this.notify(); 
   }
 
-  // Créer automatiquement "SEDE CENTRAL" s'il n'existe pas dans la base de données
+  // SEDE CENTRAL est un consulado virtuel intégré à l'application, pas dans la base de données
+  // Cette fonction ne fait rien car SEDE CENTRAL est géré virtuellement dans getConsulados()
+  // Il n'a pas de président car c'est un consulado administratif
   private async ensureSedeCentralExists() {
-      const sedeCentralName = 'SEDE CENTRAL';
-      
-      // Vérifier d'abord dans la base de données avec un count pour éviter de charger toutes les données
-      // Utiliser select('id') avec count pour vérifier l'existence sans charger les données complètes
-      const { count, error: countError } = await supabase
-          .from('consulados')
-          .select('id', { count: 'exact', head: true })
-          .ilike('name', sedeCentralName);
-      
-      if (countError) {
-          console.error("❌ Erreur lors de la vérification de SEDE CENTRAL:", countError);
-          return;
-      }
-      
-      // Si "SEDE CENTRAL" existe déjà dans la DB (count > 0), ne pas insérer
-      if (count !== null && count > 0) {
-          // Vérifier s'il est déjà dans la liste locale
-          const existsLocally = this.consulados.some(
-              c => c.name && c.name.toUpperCase() === sedeCentralName.toUpperCase() && c.id !== 'sede-central-virtual'
-          );
-          
-          if (!existsLocally) {
-              // Charger les données complètes seulement si nécessaire pour l'ajouter localement
-              const { data: existingSedeCentral, error: fetchError } = await supabase
-                  .from('consulados')
-                  .select('*')
-                  .ilike('name', sedeCentralName)
-                  .limit(1);
-              
-              if (!fetchError && existingSedeCentral && existingSedeCentral.length > 0) {
-                  const dbSedeCentral = mapConsuladoFromDB(existingSedeCentral[0]);
-                  if (dbSedeCentral) {
-                      // Ajouter à la liste locale
-                      this.consulados.push(dbSedeCentral);
-                      this.notify();
-                  }
-              }
-          }
-          
-          const isDevelopment = import.meta.env.DEV;
-          if (isDevelopment) {
-              console.log(`✅ Consulado SEDE CENTRAL existe déjà dans la base de données (count: ${count})`);
-          }
-          return;
-      }
-      
-      // Vérifier dans la liste locale (pour éviter les doublons)
-      const existsLocally = this.consulados.some(
-          c => c.name && c.name.toUpperCase() === sedeCentralName.toUpperCase() && c.id !== 'sede-central-virtual'
-      );
-      
-      if (existsLocally) {
-          const isDevelopment = import.meta.env.DEV;
-          if (isDevelopment) {
-              console.log("✅ Consulado SEDE CENTRAL existe déjà localement");
-          }
-          return;
-      }
-
-      // Créer "SEDE CENTRAL" dans la base de données seulement s'il n'existe pas
+      // SEDE CENTRAL est toujours créé virtuellement dans getConsulados()
+      // Il n'est jamais créé dans la base de données
       const isDevelopment = import.meta.env.DEV;
       if (isDevelopment) {
-          console.log("🏛️ Création du consulado SEDE CENTRAL dans la base de données...");
-      }
-      
-      const sedeCentral: Consulado = {
-          id: crypto.randomUUID(),
-          name: sedeCentralName,
-          city: 'Buenos Aires',
-          country: 'Argentina',
-          country_code: 'AR',
-          president: '',
-          referente: '',
-          foundation_year: '',
-          address: 'La Bombonera, Brandsen 805, C1161 CABA, Argentina',
-          timezone: 'UTC-03:00 (Buenos Aires)',
-          banner: '',
-          logo: '',
-          is_official: true,
-          email: undefined,
-          phone: undefined,
-          social_instagram: undefined,
-          social_facebook: undefined,
-          social_x: undefined,
-          social_tiktok: undefined,
-          social_youtube: undefined,
-          website: undefined
-      };
-
-      try {
-          // Créer dans la base de données
-          const { data: insertedData, error } = await supabase
-              .from('consulados')
-              .insert([mapConsuladoToDB(sedeCentral)])
-              .select()
-              .single();
-          
-          if (error) {
-              console.error("❌ Erreur lors de la création de SEDE CENTRAL:", error);
-              return;
-          }
-          
-          // Si l'insertion a réussi, mapper et ajouter à la liste locale
-          if (insertedData) {
-              const mappedSedeCentral = mapConsuladoFromDB(insertedData);
-              if (mappedSedeCentral) {
-                  this.consulados.push(mappedSedeCentral);
-                  this.notify();
-                  if (isDevelopment) {
-                      console.log("✅ Consulado SEDE CENTRAL créé avec succès dans la base de données");
-                  }
-              }
-          }
-      } catch (error: any) {
-          console.error("❌ Erreur lors de la création de SEDE CENTRAL:", error);
+          console.log("ℹ️ SEDE CENTRAL est un consulado virtuel, géré dans getConsulados()");
       }
   }
 
@@ -976,7 +926,7 @@ class DataService {
       const updatePromises = sociosWithoutConsulado.slice(0, 100).map(socio => 
           supabase
               .from('socios')
-              .update({ consulado_name: sedeCentralName })
+              .update({ consulado: sedeCentralName })
               .eq('id', socio.id)
       );
 
@@ -993,7 +943,7 @@ class DataService {
                   setTimeout(() => {
                       supabase
                           .from('socios')
-                          .update({ consulado_name: sedeCentralName })
+                          .update({ consulado: sedeCentralName })
                           .eq('id', socio.id)
                           .catch(() => {}); // Ignorer les erreurs silencieusement
                   }, index * 50); // Espacer les requêtes de 50ms
@@ -1004,42 +954,42 @@ class DataService {
 
   getConsulados() { 
       // S'assurer que "SEDE CENTRAL" est toujours présent dans la liste
+      // SEDE CENTRAL est un consulado virtuel intégré à l'application, pas dans la base de données
+      // Il n'a pas de président car c'est un consulado administratif
       const sedeCentralName = 'SEDE CENTRAL';
-      const sedeCentralExists = this.consulados.some(
-          c => c.name && c.name.toUpperCase() === sedeCentralName.toUpperCase()
-      );
-
-      if (!sedeCentralExists) {
-          // Créer "SEDE CENTRAL" virtuellement (sans l'ajouter à la DB immédiatement)
-          const sedeCentral: Consulado = {
-              id: 'sede-central-virtual',
-              name: sedeCentralName,
-              city: 'Buenos Aires',
-              country: 'Argentina',
-              country_code: 'AR',
-              president: '',
-              referente: '',
-              foundation_year: '',
-              address: 'La Bombonera, Brandsen 805, C1161 CABA, Argentina',
-              timezone: 'UTC-03:00 (Buenos Aires)',
-              banner: '',
-              logo: '',
-              is_official: true,
-              email: undefined,
-              phone: undefined,
-              social_instagram: undefined,
-              social_facebook: undefined,
-              social_x: undefined,
-              social_tiktok: undefined,
-              social_youtube: undefined,
-              website: undefined
-          };
-          
-          // Ajouter en premier dans la liste
-          return [sedeCentral, ...this.consulados];
-      }
       
-      return this.consulados; 
+      // Filtrer SEDE CENTRAL de la liste des consulados de la DB (s'il existe)
+      const consuladosFromDB = this.consulados.filter(
+          c => !(c.name && c.name.toUpperCase() === sedeCentralName.toUpperCase())
+      );
+      
+      // Créer "SEDE CENTRAL" virtuellement (toujours présent, jamais dans la DB)
+      const sedeCentral: Consulado = {
+          id: 'sede-central-virtual',
+          name: sedeCentralName,
+          city: 'Buenos Aires',
+          country: 'Argentina',
+          country_code: 'AR',
+          president: '', // Pas de président - consulado administratif
+          referente: '',
+          foundation_year: '',
+          address: 'La Bombonera, Brandsen 805, C1161 CABA, Argentina',
+          timezone: 'UTC-03:00 (Buenos Aires)',
+          banner: '',
+          logo: '',
+          is_official: true,
+          email: undefined,
+          phone: undefined,
+          social_instagram: undefined,
+          social_facebook: undefined,
+          social_x: undefined,
+          social_tiktok: undefined,
+          social_youtube: undefined,
+          website: undefined
+      };
+      
+      // Toujours retourner SEDE CENTRAL en premier, suivi des consulados de la DB
+      return [sedeCentral, ...consuladosFromDB]; 
   }
   
   getConsuladoById(id: string) { 
@@ -1074,17 +1024,38 @@ class DataService {
       return this.consulados.find(c => c.id === id); 
   }
   async addConsulado(c: Consulado) { 
-      this.consulados.push(c); this.notify();
+      // SEDE CENTRAL est un consulado virtuel, ne peut pas être ajouté à la base de données
+      if (c.id === 'sede-central-virtual' || (c.name && c.name.toUpperCase() === 'SEDE CENTRAL')) {
+          console.warn("⚠️ SEDE CENTRAL est un consulado virtuel et ne peut pas être sauvegardé dans la base de données");
+          return;
+      }
+      
+      this.consulados.push(c); 
+      this.notify();
       const { error } = await supabase.from('consulados').insert([mapConsuladoToDB(c)]);
       if (error) throw new Error(error.message);
   }
   async updateConsulado(c: Consulado) { 
-      this.consulados = this.consulados.map(x => x.id === c.id ? c : x); this.notify();
+      // SEDE CENTRAL est un consulado virtuel, ne peut pas être modifié dans la base de données
+      if (c.id === 'sede-central-virtual' || (c.name && c.name.toUpperCase() === 'SEDE CENTRAL')) {
+          console.warn("⚠️ SEDE CENTRAL est un consulado virtuel et ne peut pas être modifié dans la base de données");
+          return;
+      }
+      
+      this.consulados = this.consulados.map(x => x.id === c.id ? c : x); 
+      this.notify();
       const { error } = await supabase.from('consulados').update(mapConsuladoToDB(c)).eq('id', c.id);
       if (error) throw new Error(error.message);
   }
   async deleteConsulado(id: string) { 
-      this.consulados = this.consulados.filter(x => x.id !== id); this.notify();
+      // SEDE CENTRAL est un consulado virtuel, ne peut pas être supprimé
+      if (id === 'sede-central-virtual') {
+          console.warn("⚠️ SEDE CENTRAL est un consulado virtuel et ne peut pas être supprimé");
+          return;
+      }
+      
+      this.consulados = this.consulados.filter(x => x.id !== id); 
+      this.notify();
       const { error } = await supabase.from('consulados').delete().eq('id', id);
       if (error) throw new Error(error.message);
   }
@@ -1093,11 +1064,8 @@ class DataService {
   getMatchById(id: number) { return this.matches.find(m => m.id === id); }
   async addMatch(m: Match) { 
       try {
-          const payload = mapMatchToDB(m);
-          // Ne pas inclure l'ID si c'est 0 (auto-généré par Supabase)
-          if (m.id !== undefined && m.id !== null && m.id !== 0) {
-              payload.id = m.id;
-          }
+          // Pour les nouveaux matchs, ne pas inclure l'ID (Supabase générera un UUID)
+          const payload = mapMatchToDB(m, true);
           const { data, error } = await supabase.from('matches').insert([payload]).select().single();
           if (error) {
               console.error("❌ Erreur lors de l'ajout du match:", error);
@@ -1105,8 +1073,15 @@ class DataService {
           }
           if (data) {
               const mappedMatch = mapMatchFromDB(data);
-              // Vérifier si le match existe déjà (éviter les doublons)
-              const existingIndex = this.matches.findIndex(x => x.id === mappedMatch.id);
+              // Vérifier si le match existe déjà (éviter les doublons) en utilisant l'ID original
+              const existingIndex = this.matches.findIndex(x => {
+                  const xOriginalId = (x as any)._originalId;
+                  const mappedOriginalId = (mappedMatch as any)._originalId;
+                  if (xOriginalId !== undefined && mappedOriginalId !== undefined) {
+                      return xOriginalId === mappedOriginalId;
+                  }
+                  return x.id === mappedMatch.id;
+              });
               if (existingIndex >= 0) {
                   this.matches[existingIndex] = mappedMatch;
               } else {
@@ -1120,17 +1095,29 @@ class DataService {
           throw error;
       }
   }
-  async updateMatch(m: Match) { 
+  async updateMatch(m: Match & { _originalId?: string | number }) { 
       try {
-          const payload = mapMatchToDB(m);
-          const { data, error } = await supabase.from('matches').update(payload).eq('id', m.id).select().single();
+          const payload = mapMatchToDB(m, false);
+          // Ne pas inclure l'ID dans le payload de mise à jour (seulement dans la clause WHERE)
+          delete payload.id;
+          // Utiliser l'ID original (UUID string ou number) pour la mise à jour
+          const matchId = m._originalId !== undefined ? m._originalId : m.id;
+          const { data, error } = await supabase.from('matches').update(payload).eq('id', matchId).select().single();
           if (error) {
               console.error("❌ Erreur lors de la mise à jour du match:", error);
               throw new Error(error.message);
           }
           if (data) {
               const mappedMatch = mapMatchFromDB(data);
-              this.matches = this.matches.map(x => x.id === m.id ? mappedMatch : x);
+              // Comparer avec l'ID original si disponible, sinon avec l'ID converti
+              this.matches = this.matches.map(x => {
+                  const xOriginalId = (x as any)._originalId;
+                  const mOriginalId = m._originalId;
+                  if (xOriginalId !== undefined && mOriginalId !== undefined) {
+                      return xOriginalId === mOriginalId ? mappedMatch : x;
+                  }
+                  return x.id === m.id ? mappedMatch : x;
+              });
               this.notify();
               return mappedMatch;
           }
@@ -1141,12 +1128,33 @@ class DataService {
   }
   async deleteMatch(id: number) { 
       try {
-      const { error } = await supabase.from('matches').delete().eq('id', id);
+          // Trouver le match avec l'ID original (UUID) si disponible
+          const matchToDelete = this.matches.find(m => {
+              const originalId = (m as any)._originalId;
+              if (originalId !== undefined) {
+                  return originalId === id || m.id === id;
+              }
+              return m.id === id;
+          });
+          
+          // Utiliser l'ID original (UUID) si disponible, sinon l'ID converti
+          const deleteId = matchToDelete && (matchToDelete as any)._originalId !== undefined 
+              ? (matchToDelete as any)._originalId 
+              : id;
+              
+          const { error } = await supabase.from('matches').delete().eq('id', deleteId);
           if (error) {
               console.error("❌ Erreur lors de la suppression du match:", error);
               throw new Error(error.message);
           }
-          this.matches = this.matches.filter(x => x.id !== id);
+          // Filtrer en utilisant l'ID original si disponible
+          this.matches = this.matches.filter(x => {
+              const originalId = (x as any)._originalId;
+              if (originalId !== undefined) {
+                  return originalId !== deleteId;
+              }
+              return x.id !== id;
+          });
           this.notify();
       } catch (error: any) {
           console.error("❌ Erreur lors de la suppression du match:", error);
@@ -1820,7 +1828,7 @@ class DataService {
           { dbField: 'birth_date', appField: 'birth_date', type: 'date', nullable: true },
           { dbField: 'join_date', appField: 'join_date', type: 'date', nullable: true },
           { dbField: 'last_month_paid', appField: 'last_month_paid', type: 'text', nullable: true },
-          { dbField: 'consulado_name', appField: 'consulado', type: 'text', nullable: true },
+          { dbField: 'consulado', appField: 'consulado', type: 'text', nullable: true },
           { dbField: 'role', appField: 'role', type: 'text', nullable: false },
           { dbField: 'avatar_color', appField: 'avatar_color', type: 'text', nullable: true },
           { dbField: 'expiration_date', appField: 'expiration_date', type: 'date', nullable: true },
@@ -1831,109 +1839,109 @@ class DataService {
         
       case 'consulados':
         mappings.push(
-          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
-          { dbField: 'name', appField: 'name', type: 'string', nullable: false },
-          { dbField: 'city', appField: 'city', type: 'string', nullable: false },
-          { dbField: 'country', appField: 'country', type: 'string', nullable: false },
-          { dbField: 'country_code', appField: 'country_code', type: 'string', nullable: true },
-          { dbField: 'president', appField: 'president', type: 'string', nullable: false },
-          { dbField: 'vice_president', appField: 'vice_president', type: 'string', nullable: true },
-          { dbField: 'secretary', appField: 'secretary', type: 'string', nullable: true },
-          { dbField: 'treasurer', appField: 'treasurer', type: 'string', nullable: true },
-          { dbField: 'vocal', appField: 'vocal', type: 'string', nullable: true },
+          { dbField: 'id', appField: 'id', type: 'text', nullable: false },
+          { dbField: 'name', appField: 'name', type: 'text', nullable: false },
+          { dbField: 'city', appField: 'city', type: 'text', nullable: false },
+          { dbField: 'country', appField: 'country', type: 'text', nullable: false },
+          { dbField: 'country_code', appField: 'country_code', type: 'text', nullable: true },
+          { dbField: 'president', appField: 'president', type: 'text', nullable: false },
+          { dbField: 'vice_president', appField: 'vice_president', type: 'text', nullable: true },
+          { dbField: 'secretary', appField: 'secretary', type: 'text', nullable: true },
+          { dbField: 'treasurer', appField: 'treasurer', type: 'text', nullable: true },
+          { dbField: 'vocal', appField: 'vocal', type: 'text', nullable: true },
           { dbField: 'vocales', appField: 'vocales', type: 'json', nullable: true },
-          { dbField: 'referente', appField: 'referente', type: 'string', nullable: false },
-          { dbField: 'foundation_year', appField: 'foundation_year', type: 'string', nullable: true },
-          { dbField: 'address', appField: 'address', type: 'string', nullable: true },
-          { dbField: 'timezone', appField: 'timezone', type: 'string', nullable: false },
-          { dbField: 'banner', appField: 'banner', type: 'string', nullable: true },
-          { dbField: 'logo', appField: 'logo', type: 'string', nullable: true },
+          { dbField: 'referente', appField: 'referente', type: 'text', nullable: false },
+          { dbField: 'foundation_year', appField: 'foundation_year', type: 'text', nullable: true },
+          { dbField: 'address', appField: 'address', type: 'text', nullable: true },
+          { dbField: 'timezone', appField: 'timezone', type: 'text', nullable: false },
+          { dbField: 'banner', appField: 'banner', type: 'text', nullable: true },
+          { dbField: 'logo', appField: 'logo', type: 'text', nullable: true },
           { dbField: 'is_official', appField: 'is_official', type: 'boolean', nullable: false },
-          { dbField: 'email', appField: 'email', type: 'string', nullable: true },
-          { dbField: 'phone', appField: 'phone', type: 'string', nullable: true },
-          { dbField: 'social_instagram', appField: 'social_instagram', type: 'string', nullable: true },
-          { dbField: 'social_facebook', appField: 'social_facebook', type: 'string', nullable: true },
-          { dbField: 'social_x', appField: 'social_x', type: 'string', nullable: true },
-          { dbField: 'social_tiktok', appField: 'social_tiktok', type: 'string', nullable: true },
-          { dbField: 'social_youtube', appField: 'social_youtube', type: 'string', nullable: true },
-          { dbField: 'website', appField: 'website', type: 'string', nullable: true }
+          { dbField: 'email', appField: 'email', type: 'text', nullable: true },
+          { dbField: 'phone', appField: 'phone', type: 'text', nullable: true },
+          { dbField: 'social_instagram', appField: 'social_instagram', type: 'text', nullable: true },
+          { dbField: 'social_facebook', appField: 'social_facebook', type: 'text', nullable: true },
+          { dbField: 'social_x', appField: 'social_x', type: 'text', nullable: true },
+          { dbField: 'social_tiktok', appField: 'social_tiktok', type: 'text', nullable: true },
+          { dbField: 'social_youtube', appField: 'social_youtube', type: 'text', nullable: true },
+          { dbField: 'website', appField: 'website', type: 'text', nullable: true }
         );
         break;
         
       case 'matches':
         mappings.push(
           { dbField: 'id', appField: 'id', type: 'number', nullable: false },
-          { dbField: 'rival_id', appField: 'rival_id', type: 'string', nullable: true },
-          { dbField: 'competition_id', appField: 'competition_id', type: 'string', nullable: true },
-          { dbField: 'rival', appField: 'rival', type: 'string', nullable: false },
-          { dbField: 'rival_short', appField: 'rival_short', type: 'string', nullable: true },
-          { dbField: 'rival_country', appField: 'rival_country', type: 'string', nullable: true },
-          { dbField: 'competition', appField: 'competition', type: 'string', nullable: false },
+          { dbField: 'rival_id', appField: 'rival_id', type: 'text', nullable: true },
+          { dbField: 'competition_id', appField: 'competition_id', type: 'text', nullable: true },
+          { dbField: 'rival', appField: 'rival', type: 'text', nullable: false },
+          { dbField: 'rival_short', appField: 'rival_short', type: 'text', nullable: true },
+          { dbField: 'rival_country', appField: 'rival_country', type: 'text', nullable: true },
+          { dbField: 'competition', appField: 'competition', type: 'text', nullable: false },
           { dbField: 'date', appField: 'date', type: 'date', nullable: false },
-          { dbField: 'hour', appField: 'hour', type: 'string', nullable: false },
-          { dbField: 'venue', appField: 'venue', type: 'string', nullable: true },
-          { dbField: 'city', appField: 'city', type: 'string', nullable: true },
+          { dbField: 'hour', appField: 'hour', type: 'text', nullable: false },
+          { dbField: 'venue', appField: 'venue', type: 'text', nullable: true },
+          { dbField: 'city', appField: 'city', type: 'text', nullable: true },
           { dbField: 'is_home', appField: 'is_home', type: 'boolean', nullable: false },
           { dbField: 'is_neutral', appField: 'is_neutral', type: 'boolean', nullable: true },
-          { dbField: 'fecha_jornada', appField: 'fecha_jornada', type: 'string', nullable: false },
+          { dbField: 'fecha_jornada', appField: 'fecha_jornada', type: 'text', nullable: false },
           { dbField: 'is_suspended', appField: 'is_suspended', type: 'boolean', nullable: false },
-          { dbField: 'apertura_date', appField: 'apertura_date', type: 'string', nullable: true },
-          { dbField: 'apertura_hour', appField: 'apertura_hour', type: 'string', nullable: true },
-          { dbField: 'cierre_date', appField: 'cierre_date', type: 'string', nullable: true },
-          { dbField: 'cierre_hour', appField: 'cierre_hour', type: 'string', nullable: true }
+          { dbField: 'apertura_date', appField: 'apertura_date', type: 'text', nullable: true },
+          { dbField: 'apertura_hour', appField: 'apertura_hour', type: 'text', nullable: true },
+          { dbField: 'cierre_date', appField: 'cierre_date', type: 'text', nullable: true },
+          { dbField: 'cierre_hour', appField: 'cierre_hour', type: 'text', nullable: true }
         );
         break;
         
       case 'teams':
         mappings.push(
-          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
-          { dbField: 'name', appField: 'name', type: 'string', nullable: false },
-          { dbField: 'short_name', appField: 'short_name', type: 'string', nullable: false },
-          { dbField: 'country_id', appField: 'country_id', type: 'string', nullable: false },
-          { dbField: 'confederation', appField: 'confederation', type: 'enum', nullable: false },
-          { dbField: 'city', appField: 'city', type: 'string', nullable: true },
-          { dbField: 'stadium', appField: 'stadium', type: 'string', nullable: true },
-          { dbField: 'logo', appField: 'logo', type: 'string', nullable: true }
+          { dbField: 'id', appField: 'id', type: 'text', nullable: false },
+          { dbField: 'name', appField: 'name', type: 'text', nullable: false },
+          { dbField: 'short_name', appField: 'short_name', type: 'text', nullable: false },
+          { dbField: 'country_id', appField: 'country_id', type: 'text', nullable: false },
+          { dbField: 'confederation', appField: 'confederation', type: 'text', nullable: false }, // CONMEBOL, UEFA, OTHER
+          { dbField: 'city', appField: 'city', type: 'text', nullable: true },
+          { dbField: 'stadium', appField: 'stadium', type: 'text', nullable: true },
+          { dbField: 'logo', appField: 'logo', type: 'text', nullable: true }
         );
         break;
         
       case 'competitions':
         mappings.push(
-          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
-          { dbField: 'name', appField: 'name', type: 'string', nullable: false },
-          { dbField: 'organization', appField: 'organization', type: 'string', nullable: false },
-          { dbField: 'type', appField: 'type', type: 'string', nullable: false },
-          { dbField: 'logo', appField: 'logo', type: 'string', nullable: true },
-          { dbField: 'category', appField: 'category', type: 'enum', nullable: false }
+          { dbField: 'id', appField: 'id', type: 'text', nullable: false },
+          { dbField: 'name', appField: 'name', type: 'text', nullable: false },
+          { dbField: 'organization', appField: 'organization', type: 'text', nullable: false },
+          { dbField: 'type', appField: 'type', type: 'text', nullable: false },
+          { dbField: 'logo', appField: 'logo', type: 'text', nullable: true },
+          { dbField: 'category', appField: 'category', type: 'text', nullable: false }
         );
         break;
         
       case 'agenda':
         mappings.push(
-          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
-          { dbField: 'title', appField: 'title', type: 'string', nullable: false },
+          { dbField: 'id', appField: 'id', type: 'text', nullable: false },
+          { dbField: 'title', appField: 'title', type: 'text', nullable: false },
           { dbField: 'date', appField: 'date', type: 'date', nullable: false },
           { dbField: 'start_date', appField: 'start_date', type: 'date', nullable: true },
           { dbField: 'end_date', appField: 'end_date', type: 'date', nullable: true },
-          { dbField: 'type', appField: 'type', type: 'enum', nullable: false },
-          { dbField: 'description', appField: 'description', type: 'string', nullable: true },
-          { dbField: 'location', appField: 'location', type: 'string', nullable: true },
+          { dbField: 'type', appField: 'type', type: 'text', nullable: false },
+          { dbField: 'description', appField: 'description', type: 'text', nullable: true },
+          { dbField: 'location', appField: 'location', type: 'text', nullable: true },
           { dbField: 'is_special_day', appField: 'is_special_day', type: 'boolean', nullable: true }
         );
         break;
         
       case 'mensajes':
         mappings.push(
-          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
-          { dbField: 'title', appField: 'title', type: 'string', nullable: false },
-          { dbField: 'body', appField: 'body', type: 'string', nullable: false },
-          { dbField: 'target_consulado_id', appField: 'target_consulado_id', type: 'string', nullable: false },
+          { dbField: 'id', appField: 'id', type: 'text', nullable: false },
+          { dbField: 'title', appField: 'title', type: 'text', nullable: false },
+          { dbField: 'body', appField: 'body', type: 'text', nullable: false },
+          { dbField: 'target_consulado_id', appField: 'target_consulado_id', type: 'text', nullable: false },
           { dbField: 'target_ids', appField: 'target_ids', type: 'json', nullable: true },
-          { dbField: 'target_consulado_name', appField: 'target_consulado_name', type: 'string', nullable: false },
-          { dbField: 'type', appField: 'type', type: 'enum', nullable: false },
-          { dbField: 'date', appField: 'date', type: 'string', nullable: false },
-          { dbField: 'start_date', appField: 'start_date', type: 'string', nullable: true },
-          { dbField: 'end_date', appField: 'end_date', type: 'string', nullable: true },
+          { dbField: 'target_consulado_name', appField: 'target_consulado_name', type: 'text', nullable: false },
+          { dbField: 'type', appField: 'type', type: 'text', nullable: false },
+          { dbField: 'date', appField: 'date', type: 'text', nullable: false },
+          { dbField: 'start_date', appField: 'start_date', type: 'text', nullable: true },
+          { dbField: 'end_date', appField: 'end_date', type: 'text', nullable: true },
           { dbField: 'created_at', appField: 'created_at', type: 'number', nullable: false },
           { dbField: 'archived', appField: 'archived', type: 'boolean', nullable: false },
           { dbField: 'is_automatic', appField: 'is_automatic', type: 'boolean', nullable: true }
@@ -1942,43 +1950,43 @@ class DataService {
         
       case 'users':
         mappings.push(
-          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
-          { dbField: 'username', appField: 'username', type: 'string', nullable: false },
-          { dbField: 'password', appField: 'password', type: 'string', nullable: true },
-          { dbField: 'email', appField: 'email', type: 'string', nullable: false },
-          { dbField: 'full_name', appField: 'full_name', type: 'string', nullable: false },
-          { dbField: 'role', appField: 'role', type: 'enum', nullable: false },
-          { dbField: 'consulado_id', appField: 'consulado_id', type: 'string', nullable: true },
+          { dbField: 'id', appField: 'id', type: 'text', nullable: false },
+          { dbField: 'username', appField: 'username', type: 'text', nullable: false },
+          { dbField: 'password', appField: 'password', type: 'text', nullable: true },
+          { dbField: 'email', appField: 'email', type: 'text', nullable: false },
+          { dbField: 'full_name', appField: 'full_name', type: 'text', nullable: false },
+          { dbField: 'role', appField: 'role', type: 'text', nullable: false }, // SUPERADMIN, ADMIN, PRESIDENTE, REFERENTE, SOCIO
+          { dbField: 'consulado_id', appField: 'consulado_id', type: 'text', nullable: true }, // Requis si role = PRESIDENTE ou REFERENTE
           { dbField: 'active', appField: 'active', type: 'boolean', nullable: false },
-          { dbField: 'last_login', appField: 'last_login', type: 'string', nullable: true },
-          { dbField: 'avatar', appField: 'avatar', type: 'string', nullable: true },
-          { dbField: 'gender', appField: 'gender', type: 'enum', nullable: true }
+          { dbField: 'last_login', appField: 'last_login', type: 'text', nullable: true },
+          { dbField: 'avatar', appField: 'avatar', type: 'text', nullable: true },
+          { dbField: 'gender', appField: 'gender', type: 'text', nullable: true } // M, F, X
         );
         break;
         
       case 'solicitudes':
         mappings.push(
-          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
+          { dbField: 'id', appField: 'id', type: 'text', nullable: false },
           { dbField: 'match_id', appField: 'match_id', type: 'number', nullable: false },
-          { dbField: 'socio_id', appField: 'socio_id', type: 'string', nullable: false },
-          { dbField: 'socio_name', appField: 'socio_name', type: 'string', nullable: false },
-          { dbField: 'socio_dni', appField: 'socio_dni', type: 'string', nullable: false },
-          { dbField: 'socio_category', appField: 'socio_category', type: 'string', nullable: false },
-          { dbField: 'consulado', appField: 'consulado', type: 'string', nullable: false },
-          { dbField: 'status', appField: 'status', type: 'enum', nullable: false },
-          { dbField: 'timestamp', appField: 'timestamp', type: 'string', nullable: false }
+          { dbField: 'socio_id', appField: 'socio_id', type: 'text', nullable: false },
+          { dbField: 'socio_name', appField: 'socio_name', type: 'text', nullable: false },
+          { dbField: 'socio_dni', appField: 'socio_dni', type: 'text', nullable: false },
+          { dbField: 'socio_category', appField: 'socio_category', type: 'text', nullable: false },
+          { dbField: 'consulado', appField: 'consulado', type: 'text', nullable: false },
+          { dbField: 'status', appField: 'status', type: 'text', nullable: false }, // PENDING, APPROVED, REJECTED, CANCELLATION_REQUESTED
+          { dbField: 'timestamp', appField: 'timestamp', type: 'text', nullable: false }
         );
         break;
         
       case 'notifications':
         mappings.push(
-          { dbField: 'id', appField: 'id', type: 'string', nullable: false },
-          { dbField: 'type', appField: 'type', type: 'enum', nullable: false },
-          { dbField: 'title', appField: 'title', type: 'string', nullable: false },
-          { dbField: 'message', appField: 'message', type: 'string', nullable: false },
-          { dbField: 'date', appField: 'date', type: 'string', nullable: false },
+          { dbField: 'id', appField: 'id', type: 'text', nullable: false },
+          { dbField: 'type', appField: 'type', type: 'text', nullable: false },
+          { dbField: 'title', appField: 'title', type: 'text', nullable: false },
+          { dbField: 'message', appField: 'message', type: 'text', nullable: false },
+          { dbField: 'date', appField: 'date', type: 'text', nullable: false },
           { dbField: 'read', appField: 'read', type: 'boolean', nullable: false },
-          { dbField: 'link', appField: 'link', type: 'string', nullable: true },
+          { dbField: 'link', appField: 'link', type: 'text', nullable: true },
           { dbField: 'data', appField: 'data', type: 'json', nullable: true }
         );
         break;

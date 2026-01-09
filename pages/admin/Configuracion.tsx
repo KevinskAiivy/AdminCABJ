@@ -37,12 +37,19 @@ export const Configuracion = () => {
     }
   };
 
-  const handleSave = () => {
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+
+  const executeSave = () => {
     dataService.saveAppSettings(settings);
     // Force CSS variable update immediately
     document.documentElement.style.setProperty('--boca-blue', settings.primaryColor);
     document.documentElement.style.setProperty('--boca-gold', settings.secondaryColor);
     alert("Configuración guardada y aplicada correctamente.");
+    setShowSaveConfirm(false);
+  };
+
+  const handleSave = () => {
+    setShowSaveConfirm(true);
   };
 
   const handleResetColors = () => {
@@ -341,6 +348,20 @@ export const Configuracion = () => {
               </GlassCard>
           </div>
       </div>
+
+      {showSaveConfirm && (
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/60 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: 'calc(7rem + 1rem)', paddingBottom: '1rem' }}>
+              <div className="relative w-full max-w-md bg-white rounded-[2rem] p-10 shadow-[0_50px_150px_rgba(0,29,74,0.3)] text-center border border-white animate-in zoom-in-95">
+                  <div className="w-20 h-20 bg-[#FCB131]/10 text-[#FCB131] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner"><CheckCircle2 size={40} /></div>
+                  <h2 className="oswald text-3xl font-black text-[#001d4a] uppercase mb-4 tracking-tighter">¿Guardar Cambios?</h2>
+                  <p className="text-[#003B94]/70 font-bold mb-10 text-[10px] leading-relaxed uppercase tracking-widest">Se guardará la configuración del sistema.</p>
+                  <div className="flex gap-4">
+                      <button onClick={() => setShowSaveConfirm(false)} className="flex-1 py-4 rounded-xl bg-slate-100 text-slate-500 uppercase text-[9px] font-black tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
+                      <button onClick={executeSave} className="flex-1 py-4 rounded-xl bg-[#003B94] text-white uppercase text-[9px] font-black tracking-widest shadow-2xl hover:opacity-90 transition-all">Confirmar</button>
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 };
