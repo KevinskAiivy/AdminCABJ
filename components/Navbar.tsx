@@ -44,6 +44,7 @@ export const Navbar = ({
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isViewSelectorOpen, setIsViewSelectorOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const viewSelectorRef = useRef<HTMLDivElement>(null);
@@ -442,14 +443,54 @@ export const Navbar = ({
             </span>
           </div>
           <button 
-            onClick={onLogout}
-            className="p-2.5 bg-white/5 rounded-xl text-white/60 hover:bg-red-500 hover:text-white hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all border border-white/10 group"
+            onClick={() => setIsLogoutConfirmOpen(true)}
+            className="p-2.5 bg-white/5 rounded-xl text-white/60 hover:bg-red-500 hover:text-white hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all duration-300 border border-white/10 group relative overflow-hidden"
             title="Cerrar Sesión"
           >
-            <LogOut size={18} className="group-hover:translate-x-0.5 transition-transform" />
+            <div className="absolute inset-0 bg-gradient-to-r from-red-600/0 via-red-500/0 to-red-600/0 group-hover:from-red-600/20 group-hover:via-red-500/30 group-hover:to-red-600/20 transition-all duration-300"></div>
+            <LogOut 
+              size={18} 
+              className="relative z-10 group-hover:rotate-[-20deg] group-hover:scale-110 transition-all duration-300 ease-in-out" 
+            />
           </button>
         </div>
       </nav>
+
+      {/* Modal de confirmation de déconnexion */}
+      {isLogoutConfirmOpen && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-[#001d4a] border-2 border-red-500/30 rounded-2xl p-8 shadow-[0_50px_100px_rgba(239,68,68,0.3)] text-center animate-in zoom-in-95 duration-200">
+            <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-red-500/50 animate-pulse">
+              <LogOut size={40} className="text-red-400 rotate-[-20deg]" />
+            </div>
+            <h2 className="oswald text-2xl font-black text-white uppercase mb-3 tracking-tighter">
+              ¿Cerrar Sesión?
+            </h2>
+            <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest mb-8 leading-relaxed">
+              ¿Está seguro que desea cerrar su sesión?<br/>
+              Será redirigido a la página de inicio de sesión.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsLogoutConfirmOpen(false)}
+                className="flex-1 py-3 rounded-xl bg-white/10 text-white/80 font-black uppercase text-[9px] tracking-widest hover:bg-white/20 hover:text-white transition-all border border-white/20"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  setIsLogoutConfirmOpen(false);
+                  onLogout();
+                }}
+                className="flex-1 py-3 rounded-xl bg-red-500 text-white font-black uppercase text-[9px] tracking-widest shadow-lg hover:bg-red-600 hover:shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-all duration-300 flex items-center justify-center gap-2 group"
+              >
+                <LogOut size={14} className="group-hover:rotate-[-20deg] transition-transform duration-300" />
+                Cerrar Sesión
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
