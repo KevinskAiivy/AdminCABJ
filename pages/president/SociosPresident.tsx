@@ -493,41 +493,57 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                             </div>
                         )}
                         <div className={`flex-1 min-w-0 ${isPresident ? 'pl-16' : 'pr-16'}`}>
-                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                {/* Badge d'état de cotisation à gauche */}
-                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
-                                    computedStatus.label === 'AL DÍA' ? 'bg-emerald-100 text-emerald-600 border-emerald-200 border' :
-                                    computedStatus.label === 'EN DEUDA' ? 'bg-amber-100 text-amber-600 border-amber-200 border' :
-                                    'bg-red-100 text-red-600 border-red-200 border'
-                                }`}>
-                                    {computedStatus.label}
-                                </span>
-                                {/* Nom */}
-                                <h4 className={`oswald text-lg tracking-tight leading-none truncate ${isPresident || isReferente ? 'text-white' : 'text-[#001d4a]'}`}>
-                                    <span className="font-black uppercase">{socio.last_name.toUpperCase()}</span> <span className="font-normal capitalize">{socio.first_name.toLowerCase()}</span>
-                                </h4>
-                            </div>
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className={`text-[9px] font-bold uppercase tracking-wider ${isPresident || isReferente ? 'text-white/70' : 'text-gray-500'}`}>N° Socio:</span>
-                                <span className={`text-[10px] font-black ${isPresident || isReferente ? 'text-white' : 'text-[#001d4a]'}`}>{socio.numero_socio || socio.dni || 'N/A'}</span>
-                            </div>
-                            <div className="flex flex-col gap-0.5 mb-2">
-                                <span className={`text-[9px] font-bold uppercase tracking-wider ${isPresident || isReferente ? 'text-white/70' : 'text-gray-500'}`}>CAT:</span>
-                                <span className={`text-[9px] font-bold ${isPresident || isReferente ? 'text-white' : 'text-gray-700'}`}>{socio.category}</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2 items-center mt-2">
-                                <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest backdrop-blur-sm border shadow-sm ${
+                            {/* Nom du socio en premier */}
+                            <h4 className={`oswald text-lg tracking-tight leading-none truncate mb-2 ${isPresident || isReferente ? 'text-white' : 'text-[#001d4a]'}`}>
+                                <span className="font-black uppercase">{socio.last_name.toUpperCase()}</span> <span className="font-normal capitalize">{socio.first_name.toLowerCase()}</span>
+                            </h4>
+                            {/* Pastilles : Numéro de socio, Catégorie, Rôle */}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                                {/* Numéro de socio */}
+                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-lg ${
                                     isPresident || isReferente 
-                                        ? 'bg-white/20 border-white/30 text-white' 
-                                        : 'bg-white/60 border-white/30 text-gray-700'
-                                }`}>{getGenderRoleLabel(socio.role || 'SOCIO', socio.gender)}</span>
+                                        ? 'bg-blue-100/20 text-white border border-white/30' 
+                                        : 'bg-blue-100 text-blue-700 border border-blue-300'
+                                }`}>
+                                    N° {socio.numero_socio || socio.dni || 'N/A'}
+                                </span>
+                                {/* Catégorie */}
+                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-lg ${
+                                    isPresident || isReferente 
+                                        ? 'bg-purple-100/20 text-white border border-white/30' 
+                                        : 'bg-purple-100 text-purple-700 border border-purple-300'
+                                }`}>
+                                    {socio.category || 'N/A'}
+                                </span>
+                                {/* Rôle */}
+                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-lg ${
+                                    isPresident || isReferente 
+                                        ? 'bg-indigo-100/20 text-white border border-white/30' 
+                                        : 'bg-indigo-100 text-indigo-700 border border-indigo-300'
+                                }`}>
+                                    {getGenderRoleLabel(socio.role || 'SOCIO', socio.gender)}
+                                </span>
                             </div>
                         </div>
                     </div>
                     <div className="px-5 py-3 space-y-3">
-                        <div className={`text-[9px] font-bold flex items-center justify-between ${isPresident || isReferente ? 'text-white bg-white/10' : 'text-[#001d4a] bg-white/20'} backdrop-blur-sm rounded-lg px-3 py-2`}>
-                            <span className={`uppercase opacity-70 ${isPresident || isReferente ? 'text-white/70' : ''}`}>Ultimo Pago:</span>
-                            <span className={`font-black ${isPresident || isReferente ? 'text-white' : 'text-[#003B94]'}`}>{formatLastPaymentDate(socio.last_month_paid)}</span>
+                        <div className={`text-[9px] font-bold ${isPresident || isReferente ? 'text-white bg-white/10' : 'text-[#001d4a] bg-white/20'} backdrop-blur-sm rounded-lg px-3 py-2`}>
+                            <div className="flex items-center justify-between mb-1">
+                                <span className={`uppercase opacity-70 ${isPresident || isReferente ? 'text-white/70' : ''}`}>Ultimo Pago:</span>
+                                <span className={`font-black ${isPresident || isReferente ? 'text-white' : 'text-[#003B94]'}`}>{formatLastPaymentDate(socio.last_month_paid)}</span>
+                            </div>
+                            {/* Estado de cuota - Pastille juste en dessous du texte "Ultimo Pago" */}
+                            <div className="flex justify-start">
+                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-lg ${
+                                    computedStatus.label === 'AL DÍA' 
+                                        ? (isPresident || isReferente ? 'bg-emerald-100/20 text-white border border-white/30' : 'bg-emerald-100 text-emerald-700 border border-emerald-300') :
+                                    computedStatus.label === 'EN DEUDA' 
+                                        ? (isPresident || isReferente ? 'bg-amber-100/20 text-white border border-white/30' : 'bg-amber-100 text-amber-700 border border-amber-300') :
+                                        (isPresident || isReferente ? 'bg-red-100/20 text-white border border-white/30' : 'bg-red-100 text-red-700 border border-red-300')
+                                }`}>
+                                    {computedStatus.label || 'N/A'}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </GlassCard>

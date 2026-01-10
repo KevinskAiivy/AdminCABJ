@@ -19,5 +19,44 @@
     background: rgba(252, 177, 49, 0.5);
 }
 
+/* Animation de flip 3D pour les cartes */
+@keyframes flipCard3D {
+  from {
+    transform: rotateY(0deg) scale(1);
+  }
+  to {
+    transform: rotateY(180deg) scale(1.5);
+  }
+}
+
+.card-flip-animate {
+  transform-style: preserve-3d;
+  transform-origin: center center;
+  animation: flipCard3D 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  will-change: transform;
+}
+
+.card-flip-container {
+  transform-style: preserve-3d;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.card-flip-container.flipped {
+  transform: rotateY(180deg) scale(1.5);
+}
+
+.card-face-front {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: rotateY(0deg);
+}
+
+.card-face-back {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: rotateY(180deg);
+}
+
 /* Additional utility classes if needed */
 /* Most styles are handled via Tailwind CSS and inline styles in index.html */

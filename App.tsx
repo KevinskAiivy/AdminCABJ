@@ -29,6 +29,7 @@ const Database = lazy(() => import('./pages/Database.tsx'));
 const DashboardPresident = lazy(() => import('./pages/president/DashboardPresident.tsx'));
 const MiConsulado = lazy(() => import('./pages/president/MiConsulado.tsx'));
 const HabilitacionesPresident = lazy(() => import('./pages/president/HabilitacionesPresident.tsx'));
+const SolicitudesDeHabilitaciones = lazy(() => import('./pages/president/SolicitudesDeHabilitaciones.tsx'));
 const SociosPresident = lazy(() => import('./pages/president/SociosPresident.tsx'));
 
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
@@ -271,6 +272,7 @@ export const App: React.FC = () => {
                     <Route path="/consulados" element={<PageTransition><MiConsulado consulado_id={effectiveView.consulado_id || ''} /></PageTransition>} />
                     <Route path="/socios" element={<PageTransition><SociosPresident consulado_id={effectiveView.consulado_id || ''} /></PageTransition>} />
                     <Route path="/habilitaciones" element={<PageTransition><HabilitacionesPresident consulado_id={effectiveView.consulado_id || ''} consuladoName={consuladoName} /></PageTransition>} />
+                    <Route path="/habilitaciones/solicitudes/:matchId" element={<PageTransition><SolicitudesDeHabilitaciones consulado_id={effectiveView.consulado_id || ''} consuladoName={consuladoName} /></PageTransition>} />
                     
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </>

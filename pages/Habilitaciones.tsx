@@ -85,6 +85,17 @@ export const Habilitaciones = () => {
   }, []);
 
   const processedMatches = useMemo<ProcessedMatch[]>(() => {
+    // Fonction helper pour créer un hash unique d'un UUID string en nombre (même fonction que dans SolicitudesDeHabilitaciones)
+    const hashUUID = (uuid: string): number => {
+      let hash = 0;
+      for (let i = 0; i < uuid.length; i++) {
+        const char = uuid.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convertir en 32-bit integer
+      }
+      return Math.abs(hash) % 2147483647; // Max safe integer
+    };
+    
     return matches
       .filter(m => !m.is_suspended && m.apertura_date && m.cierre_date)
       .filter(m => m.is_home || m.is_neutral)
@@ -98,7 +109,33 @@ export const Habilitaciones = () => {
           
           // Convertir l'ID en number si c'est une chaîne
           const matchId = typeof m.id === 'string' ? parseInt(m.id, 10) : m.id;
-          return { ...m, status, activeRequests: dataService.getSolicitudes(matchId).length };
+          
+          // Pour les matches avec UUID, utiliser le hash pour trouver les solicitudes
+          const matchAny = m as any;
+          const hasOriginalId = matchAny._originalId !== undefined && matchAny._originalId !== null;
+          const isMatchUUID = typeof matchId === 'number' && matchId === 0 && hasOriginalId;
+          
+          let solicitudesMatchId: number;
+          if (isMatchUUID && typeof matchAny._originalId === 'string') {
+            // Utiliser le même hash que lors de la création des solicitudes
+            solicitudesMatchId = hashUUID(matchAny._originalId);
+            // Pour compatibilité, aussi chercher avec 0 (anciennes solicitudes)
+            const reqsWithHash = dataService.getSolicitudes(solicitudesMatchId);
+            const reqsWithZero = dataService.getSolicitudes(0);
+            const allReqs = [...(Array.isArray(reqsWithHash) ? reqsWithHash : []), ...(Array.isArray(reqsWithZero) ? reqsWithZero : [])];
+            const uniqueReqs = Array.from(new Map(allReqs.map(r => [r.id, r])).values());
+            // Filtrer pour ce match spécifique (hash OU 0) et exclure CANCELLATION_REQUESTED
+            const activeReqs = uniqueReqs.filter(r => 
+              (r.match_id === solicitudesMatchId || (isMatchUUID && r.match_id === 0)) &&
+              r.status !== 'CANCELLATION_REQUESTED'
+            );
+            return { ...m, status, activeRequests: activeReqs.length };
+          } else {
+            // Pour les matches normaux, chercher normalement
+            const allReqs = dataService.getSolicitudes(matchId);
+            const activeReqs = Array.isArray(allReqs) ? allReqs.filter(r => r.status !== 'CANCELLATION_REQUESTED') : [];
+            return { ...m, status, activeRequests: activeReqs.length };
+          }
       })
       .sort((a, b) => {
           // Tri systématique par date (plus ancien en premier)
@@ -112,9 +149,71 @@ export const Habilitaciones = () => {
   }, [matches, now]);
 
   const handleOpenMatch = (match: ProcessedMatch) => {
+    // Fonction helper pour créer un hash unique d'un UUID string en nombre (même fonction que dans processedMatches)
+    const hashUUID = (uuid: string): number => {
+      let hash = 0;
+      for (let i = 0; i < uuid.length; i++) {
+        const char = uuid.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convertir en 32-bit integer
+      }
+      return Math.abs(hash) % 2147483647; // Max safe integer
+    };
+    
     // Convertir l'ID en number si c'est une chaîne
     const matchId = typeof match.id === 'string' ? parseInt(match.id, 10) : match.id;
-    setRequests(dataService.getSolicitudes(matchId));
+    
+    // Pour les matches avec UUID, utiliser le hash pour trouver les solicitudes
+    const matchAny = match as any;
+    const hasOriginalId = matchAny._originalId !== undefined && matchAny._originalId !== null;
+    const isMatchUUID = typeof matchId === 'number' && matchId === 0 && hasOriginalId;
+    
+    let allRequests: Solicitud[] = [];
+    if (isMatchUUID && typeof matchAny._originalId === 'string') {
+      // Utiliser le même hash que lors de la création des solicitudes
+      const solicitudesMatchId = hashUUID(matchAny._originalId);
+      console.log('🔑 Admin - Match avec UUID détecté, hash utilisé:', solicitudesMatchId, 'depuis UUID:', matchAny._originalId);
+      
+      // Chercher avec le hash (nouvelles solicitudes créées avec le hash)
+      const reqsWithHash = dataService.getSolicitudes(solicitudesMatchId);
+      console.log('📋 Solicitudes trouvées avec hash:', Array.isArray(reqsWithHash) ? reqsWithHash.length : 0);
+      
+      // Pour compatibilité, aussi chercher avec 0 (anciennes solicitudes créées avant le hash)
+      // ATTENTION: Cela inclura TOUTES les solicitudes avec match_id=0 de TOUS les matches avec UUID
+      // C'est un problème temporaire qui sera résolu quand toutes les solicitudes utiliseront le hash
+      const reqsWithZero = dataService.getSolicitudes(0);
+      console.log('📋 Solicitudes trouvées avec match_id=0 (anciennes):', Array.isArray(reqsWithZero) ? reqsWithZero.length : 0);
+      
+      // Combiner et dédupliquer
+      const allReqs = [...(Array.isArray(reqsWithHash) ? reqsWithHash : []), ...(Array.isArray(reqsWithZero) ? reqsWithZero : [])];
+      const uniqueReqs = Array.from(new Map(allReqs.map(r => [r.id, r])).values());
+      
+      // Filtrer pour ce match spécifique
+      // Pour les nouvelles solicitudes, utiliser le hash
+      // Pour les anciennes avec match_id=0, on ne peut pas les distinguer, donc on les inclut toutes
+      // (C'est un problème temporaire - les nouvelles solicitudes utiliseront le hash)
+      allRequests = uniqueReqs.filter(r => {
+        // Accepter les solicitudes avec le hash de CE match
+        if (r.match_id === solicitudesMatchId) return true;
+        // Accepter aussi les anciennes avec match_id=0 (limitation temporaire)
+        // TODO: Migrer les anciennes solicitudes pour utiliser le hash
+        if (isMatchUUID && r.match_id === 0) return true;
+        return false;
+      });
+      console.log('✅ Solicitudes filtrées pour ce match:', allRequests.length);
+    } else {
+      // Pour les matches normaux (sans UUID), chercher normalement
+      // INCLURE toutes les solicitudes de tous les consulados pour ce match
+      const reqs = dataService.getSolicitudes(matchId);
+      allRequests = Array.isArray(reqs) ? reqs : [];
+      console.log('📋 Match normal - Solicitudes trouvées:', allRequests.length, 'pour matchId:', matchId);
+    }
+    
+    // Pour les admins, afficher TOUTES les solicitudes du match (tous consulados confondus)
+    // Exclure seulement CANCELLATION_REQUESTED car les admins doivent voir les solicitudes actives
+    const activeRequests = allRequests.filter(r => r.status !== 'CANCELLATION_REQUESTED');
+    console.log('✅ Solicitudes actives (hors CANCELLATION_REQUESTED) pour les admins:', activeRequests.length);
+    setRequests(activeRequests);
     setSelectedMatch(match);
   };
 
@@ -122,8 +221,46 @@ export const Habilitaciones = () => {
     await dataService.updateSolicitudStatus(reqId, status);
     // Recharger les requests pour avoir les données à jour
     if (selectedMatch) {
+      // Fonction helper pour créer un hash unique d'un UUID string en nombre
+      const hashUUID = (uuid: string): number => {
+        let hash = 0;
+        for (let i = 0; i < uuid.length; i++) {
+          const char = uuid.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash; // Convertir en 32-bit integer
+        }
+        return Math.abs(hash) % 2147483647; // Max safe integer
+      };
+      
       const matchId = typeof selectedMatch.id === 'string' ? parseInt(selectedMatch.id, 10) : selectedMatch.id;
-      setRequests(dataService.getSolicitudes(matchId));
+      
+      // Pour les matches avec UUID, utiliser le hash pour trouver les solicitudes
+      const matchAny = selectedMatch as any;
+      const hasOriginalId = matchAny._originalId !== undefined && matchAny._originalId !== null;
+      const isMatchUUID = typeof matchId === 'number' && matchId === 0 && hasOriginalId;
+      
+      let allRequests: Solicitud[] = [];
+      if (isMatchUUID && typeof matchAny._originalId === 'string') {
+        // Utiliser le même hash que lors de la création des solicitudes
+        const solicitudesMatchId = hashUUID(matchAny._originalId);
+        // Pour compatibilité, aussi chercher avec 0 (anciennes solicitudes)
+        const reqsWithHash = dataService.getSolicitudes(solicitudesMatchId);
+        const reqsWithZero = dataService.getSolicitudes(0);
+        const allReqs = [...(Array.isArray(reqsWithHash) ? reqsWithHash : []), ...(Array.isArray(reqsWithZero) ? reqsWithZero : [])];
+        const uniqueReqs = Array.from(new Map(allReqs.map(r => [r.id, r])).values());
+        // Filtrer pour ce match spécifique (hash OU 0 pour compatibilité)
+        allRequests = uniqueReqs.filter(r => {
+          return r.match_id === solicitudesMatchId || (isMatchUUID && r.match_id === 0);
+        });
+      } else {
+        // Pour les matches normaux, chercher normalement
+        const reqs = dataService.getSolicitudes(matchId);
+        allRequests = Array.isArray(reqs) ? reqs : [];
+      }
+      
+      // Exclure CANCELLATION_REQUESTED pour que les admins voient seulement les solicitudes actives
+      const activeRequests = allRequests.filter(r => r.status !== 'CANCELLATION_REQUESTED');
+      setRequests(activeRequests);
     } else {
       setRequests(prev => prev.map(r => r.id === reqId ? { ...r, status } : r));
     }
@@ -165,67 +302,156 @@ export const Habilitaciones = () => {
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 20;
       let yPos = margin;
-      let hasLogo = false;
       
-      // Récupérer le logo depuis les settings
+      // === HEADER : LISTA DEFINITIVA DE HABILITACIONES + LOGO + COMPETITION + FECHA ===
+      // Fond bleu foncé pour l'en-tête
+      doc.setFillColor(0, 29, 74); // #001d4a
+      const headerHeight = 50;
+      doc.rect(0, 0, pageWidth, headerHeight, 'F');
+      
+      // Récupérer le logo officiel depuis les settings
       const settings = dataService.getAppSettings();
       const logoUrl = settings.logoUrl || settings.loginLogoUrl;
       
-      // Ajouter le logo si disponible (image base64)
+      // Logo officiel à gauche
+      let logoX = margin + 10;
+      let logoWidth = 0;
+      let logoY = 0;
       if (logoUrl && logoUrl.length > 50 && (logoUrl.startsWith('data:image') || logoUrl.startsWith('http'))) {
         try {
           const logo = await loadImage(logoUrl);
-          const logoWidth = 40;
+          logoWidth = 30;
           const logoHeight = (logo.height * logoWidth) / logo.width;
-          doc.addImage(logo, 'PNG', pageWidth / 2 - logoWidth / 2, yPos, logoWidth, logoHeight);
-          yPos += logoHeight + 10;
-          hasLogo = true;
+          logoY = (headerHeight - logoHeight) / 2;
+          doc.addImage(logo, 'PNG', logoX, logoY, logoWidth, logoHeight);
         } catch (error) {
-          console.warn('Error loading logo:', error);
-          // Continuer sans logo
+          console.warn('Error loading official logo:', error);
         }
       }
       
-      if (!hasLogo) {
-        yPos += 10;
+      // Titre "LISTA DEFINITIVA DE HABILITACIONES" au centre (première ligne)
+      doc.setTextColor(255, 255, 255); // Blanc
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.text('LISTA DEFINITIVA DE HABILITACIONES', pageWidth / 2, 18, { align: 'center' });
+      
+      // Competition et Fecha en dessous du titre (centré aussi)
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(252, 177, 49); // Jaune #FCB131
+      let compText = match.competition || 'N/A';
+      if (match.fecha_jornada) {
+        compText += ` - ${match.fecha_jornada}`;
+      }
+      doc.text(compText.toUpperCase(), pageWidth / 2, 30, { align: 'center', maxWidth: pageWidth - 2 * margin });
+      
+      // Logo à droite si présent
+      if (logoWidth > 0) {
+        // Logo déjà ajouté à gauche, peut aussi ajouter à droite pour symétrie si besoin
+        // Mais pour l'instant on le garde juste à gauche
       }
       
-      // Titre
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.text('LISTA DEFINITIVA DE HABILITACIONES', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 12;
+      // Ligne de séparation jaune en bas de l'en-tête
+      doc.setFillColor(252, 177, 49); // #FCB131
+      doc.rect(0, headerHeight - 2, pageWidth, 2, 'F');
       
-      // Informations du match
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Partido: vs ${match.rival || 'N/A'}`, margin, yPos);
-      yPos += 8;
+      yPos = headerHeight + 12; // Position après l'en-tête
       
+      // === DATE, HEURE ET STADE (en dessous du header) ===
+      doc.setTextColor(0, 29, 74); // Bleu foncé #001d4a
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Competencia: ${match.competition || 'N/A'}`, margin, yPos);
-      yPos += 6;
-      doc.text(`Fecha: ${formatDateDisplay(match.date || '')} - ${formatHourDisplay(match.hour || '')}`, margin, yPos);
-      yPos += 6;
-      if (match.venue) {
-        doc.text(`Sede: ${match.venue}`, margin, yPos);
-        yPos += 6;
-      }
-      if (match.stadium) {
-        doc.text(`Estadio: ${match.stadium}`, margin, yPos);
-        yPos += 6;
-      }
-      yPos += 5;
       
-      // Ligne de séparation
-      doc.setDrawColor(200, 200, 200);
-      doc.line(margin, yPos, pageWidth - margin, yPos);
+      let infoLine = `Fecha: ${formatDateDisplay(match.date || '')} - Hora: ${formatHourDisplay(match.hour || '')}`;
+      if (match.stadium) {
+        infoLine += ` - Estadio: ${match.stadium}`;
+      } else if (match.venue) {
+        infoLine += ` - Sede: ${match.venue}`;
+      }
+      doc.text(infoLine, margin, yPos);
       yPos += 10;
       
-      // Table des socios acceptés
-      const tableData = approvedRequests.map(req => {
-        // Trouver le socio pour obtenir le numéro de socio et les noms séparés
+      // Ligne de séparation
+      doc.setDrawColor(0, 59, 148); // #003B94
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 12;
+      
+      // === LOGOS DES ÉQUIPES (Boca vs Rival) ===
+      // Trouver les équipes pour les logos
+      const localTeam = teams.find(t => 
+        t.name?.toLowerCase().includes('boca') || 
+        t.name?.toLowerCase().includes('junior')
+      );
+      const rivalTeam = teams.find(t => 
+        (match.rival_id && t.id === match.rival_id) ||
+        t.name?.toLowerCase() === match.rival?.toLowerCase() ||
+        t.short_name?.toLowerCase() === match.rival?.toLowerCase() ||
+        (match.rival && t.name?.toLowerCase().includes(match.rival?.toLowerCase() || ''))
+      );
+      
+      const bocaLogo = settings.matchLogoUrl || null;
+      const rivalLogo = rivalTeam?.logo;
+      const logoSize = 35;
+      const logosY = yPos;
+      
+      // Logo Boca Juniors à gauche (centré dans une zone)
+      const leftLogoCenterX = pageWidth / 4; // 1/4 de la largeur
+      let leftLogoWidth = 0;
+      if (bocaLogo) {
+        try {
+          const logo = await loadImage(bocaLogo);
+          const logoRatio = logo.width / logo.height;
+          const finalLogoHeight = logoSize;
+          leftLogoWidth = finalLogoHeight * logoRatio;
+          const leftLogoX = leftLogoCenterX - (leftLogoWidth / 2);
+          doc.addImage(logo, 'PNG', leftLogoX, logosY, leftLogoWidth, finalLogoHeight);
+        } catch (error) {
+          console.warn('Error loading Boca logo:', error);
+        }
+      }
+      
+      // Texte "VS" au centre
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 29, 74); // #001d4a
+      doc.text('VS', pageWidth / 2, logosY + (logoSize / 2) + 4, { align: 'center' });
+      
+      // Logo équipe adverse à droite (centré dans une zone)
+      const rightLogoCenterX = (pageWidth * 3) / 4; // 3/4 de la largeur
+      let rightLogoWidth = 0;
+      if (rivalLogo) {
+        try {
+          const logo = await loadImage(rivalLogo);
+          const logoRatio = logo.width / logo.height;
+          const finalLogoHeight = logoSize;
+          rightLogoWidth = finalLogoHeight * logoRatio;
+          const rightLogoX = rightLogoCenterX - (rightLogoWidth / 2);
+          doc.addImage(logo, 'PNG', rightLogoX, logosY, rightLogoWidth, finalLogoHeight);
+        } catch (error) {
+          console.warn('Error loading rival logo:', error);
+        }
+      }
+      
+      // Noms des équipes sous les logos (centrés)
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 29, 74); // Bleu foncé
+      doc.text('Boca Juniors', leftLogoCenterX, logosY + logoSize + 8, { align: 'center' });
+      const rivalName = match.rival || rivalTeam?.name || rivalTeam?.short_name || 'Adversario';
+      doc.text(rivalName, rightLogoCenterX, logosY + logoSize + 8, { align: 'center' });
+      
+      yPos = logosY + logoSize + 20; // Position après les logos
+      
+      // Ligne de séparation avant la liste
+      doc.setDrawColor(0, 59, 148); // #003B94
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 12;
+      
+      // === CORPS DU DOCUMENT : LISTE DES SOCIOS TRIÉS PAR CONSULADO (SANS TABLEAU) ===
+      // Préparer les données des socios
+      const sociosData = approvedRequests.map(req => {
         const socio = allSocios.find(s => s.id === req.socio_id);
         const numeroSocio = socio?.numero_socio || socio?.dni || req.socio_dni || 'N/A';
         
@@ -236,16 +462,12 @@ export const Habilitaciones = () => {
           apellido = socio.last_name.toUpperCase();
           nombre = socio.first_name.charAt(0).toUpperCase() + socio.first_name.slice(1).toLowerCase();
         } else {
-          // Parser depuis socio_name (format peut être "LAST_NAME FIRST_NAME" ou "FIRST_NAME LAST_NAME")
-          // On essaie d'identifier le format en vérifiant si le premier mot est en majuscules
           const nameParts = req.socio_name.trim().split(/\s+/);
           if (nameParts.length >= 2) {
-            // Si le premier mot est tout en majuscules ou plus long, c'est probablement le nom de famille
             if (nameParts[0] === nameParts[0].toUpperCase() || nameParts[0].length > nameParts[1].length) {
               apellido = nameParts[0].toUpperCase();
               nombre = nameParts.slice(1).join(' ').charAt(0).toUpperCase() + nameParts.slice(1).join(' ').slice(1).toLowerCase();
             } else {
-              // Sinon, le dernier mot est probablement le nom de famille
               apellido = nameParts[nameParts.length - 1].toUpperCase();
               nombre = nameParts.slice(0, -1).join(' ').charAt(0).toUpperCase() + nameParts.slice(0, -1).join(' ').slice(1).toLowerCase();
             }
@@ -255,62 +477,137 @@ export const Habilitaciones = () => {
           }
         }
         
-        return [
+        return {
           apellido,
           nombre,
           numeroSocio,
-          req.consulado || 'N/A'
-        ];
+          consulado: req.consulado || 'N/A'
+        };
       });
       
-      // Trier par consulado puis par nom
-      tableData.sort((a, b) => {
-        const consuladoCompare = (a[3] as string).localeCompare(b[3] as string);
+      // Trier par consulado puis par apellido
+      sociosData.sort((a, b) => {
+        const consuladoCompare = a.consulado.localeCompare(b.consulado);
         if (consuladoCompare !== 0) return consuladoCompare;
-        return (a[0] as string).localeCompare(b[0] as string);
+        return a.apellido.localeCompare(b.apellido);
       });
       
-      autoTable(doc, {
-        startY: yPos,
-        head: [['Apellido', 'Nombre', 'N° Socio', 'Consulado']],
-        body: tableData,
-        styles: {
-          fontSize: 8,
-          cellPadding: 3,
-          font: 'helvetica',
-        },
-        headStyles: {
-          fillColor: [0, 59, 148], // #003B94
-          textColor: 255,
-          fontStyle: 'bold',
-          fontSize: 9,
-        },
-        alternateRowStyles: {
-          fillColor: [245, 247, 250],
-        },
-        margin: { left: margin, right: margin },
-      });
+      // Grouper par consulado
+      const sociosByConsulado = sociosData.reduce((acc, socio) => {
+        if (!acc[socio.consulado]) {
+          acc[socio.consulado] = [];
+        }
+        acc[socio.consulado].push(socio);
+        return acc;
+      }, {} as Record<string, typeof sociosData>);
       
-      // Footer avec date de génération
-      const finalY = (doc as any).lastAutoTable?.finalY || yPos + 50;
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'italic');
-      doc.setTextColor(128, 128, 128);
+      // Entête simple de la liste
+      doc.setTextColor(0, 29, 74); // Bleu foncé #001d4a
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('LISTA DE SOCIOS HABILITADOS', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 12;
+      
+      // Ligne de séparation sous l'entête
+      doc.setDrawColor(0, 59, 148); // #003B94
+      doc.setLineWidth(1);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 8;
+      
+      // Afficher les socios groupés par consulado
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 29, 74); // Bleu foncé
+      
+      const consulados = Object.keys(sociosByConsulado).sort();
+      
+      for (const consulado of consulados) {
+        // Titre du consulado
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 59, 148); // Bleu #003B94
+        doc.text(`CONSULADO: ${consulado}`, margin, yPos);
+        yPos += 8;
+        
+        // Ligne sous le titre du consulado
+        doc.setDrawColor(252, 177, 49); // Jaune #FCB131
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPos - 2, pageWidth - margin, yPos - 2);
+        yPos += 4;
+        
+        // Liste des socios du consulado
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 29, 74); // Bleu foncé
+        
+        for (const socio of sociosByConsulado[consulado]) {
+          // Vérifier si on dépasse la page
+          if (yPos > pageHeight - 30) {
+            doc.addPage();
+            yPos = margin;
+          }
+          
+          const socioLine = `${socio.apellido}, ${socio.nombre} - N° Socio: ${socio.numeroSocio}`;
+          doc.text(socioLine, margin + 5, yPos);
+          yPos += 6;
+        }
+        
+        // Espace entre les consulados
+        yPos += 4;
+      }
+      
+      // === FOOTER OFFICIEL (GARDER COMME ACTUELLEMENT) ===
+      const footerHeight = 20;
+      let footerY = Math.min(yPos + 8, pageHeight - footerHeight - 5);
+      
+      // Si on dépasse la page, ajouter une nouvelle page pour le footer
+      if (footerY < margin + 10) {
+        doc.addPage();
+        footerY = pageHeight - footerHeight - 5;
+      }
+      
+      // Ligne de séparation jaune avant le footer
+      doc.setFillColor(252, 177, 49); // #FCB131
+      doc.rect(margin, footerY - 2, pageWidth - 2 * margin, 2, 'F');
+      
+      // Fond bleu foncé pour le footer (professionnel)
+      doc.setFillColor(0, 29, 74); // #001d4a
+      doc.rect(0, footerY, pageWidth, footerHeight, 'F');
+      
+      // Texte du footer en blanc (style officiel)
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
       const pdfDateStr = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const timeStr = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
       doc.text(
-        `Documento generado el ${pdfDateStr} a las ${timeStr}`,
+        `Documento oficial generado el ${pdfDateStr} a las ${timeStr} - Sistema Consulados CABJ`,
         pageWidth / 2,
-        Math.min(finalY + 15, pageHeight - 15),
+        footerY + 7,
         { align: 'center' }
       );
       
+      // Nombre total de socios habilitados en jaune (proéminent)
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(252, 177, 49); // Jaune #FCB131
+      doc.text(
+        `Total de Socios Habilitados: ${approvedRequests.length}`,
+        pageWidth / 2,
+        footerY + 14,
+        { align: 'center' }
+      );
+      
+      // Ligne de séparation en bas du footer
+      doc.setFillColor(252, 177, 49); // #FCB131
+      doc.rect(0, footerY + footerHeight - 2, pageWidth, 2, 'F');
+      
       // Sauvegarder le PDF
-      const rivalName = (match.rival || 'Match').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+      const pdfRivalName = (match.rival || 'Match').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
       const matchDateStr = formatDateDisplay(match.date || '');
       // Convertir le format jj-mm-aaaa en jj_mm_aaaa pour le nom de fichier
       const dateFileName = matchDateStr.replace(/-/g, '_');
-      const fileName = `Lista_Definitiva_${rivalName}_${dateFileName}.pdf`;
+      const fileName = `Lista_Definitiva_${pdfRivalName}_${dateFileName}.pdf`;
       doc.save(fileName);
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -491,13 +788,49 @@ export const Habilitaciones = () => {
                                 </button>
                             )}
                             {(() => {
+                                // Fonction helper pour créer un hash unique d'un UUID string en nombre
+                                const hashUUID = (uuid: string): number => {
+                                  let hash = 0;
+                                  for (let i = 0; i < uuid.length; i++) {
+                                    const char = uuid.charCodeAt(i);
+                                    hash = ((hash << 5) - hash) + char;
+                                    hash = hash & hash; // Convertir en 32-bit integer
+                                  }
+                                  return Math.abs(hash) % 2147483647; // Max safe integer
+                                };
+                                
                                 const matchId = typeof match.id === 'string' ? parseInt(match.id, 10) : match.id;
-                                const allRequests = dataService.getSolicitudes(matchId);
+                                
+                                // Pour les matches avec UUID, utiliser le hash pour trouver les solicitudes
+                                const matchAny = match as any;
+                                const hasOriginalId = matchAny._originalId !== undefined && matchAny._originalId !== null;
+                                const isMatchUUID = typeof matchId === 'number' && matchId === 0 && hasOriginalId;
+                                
+                                let allRequests: Solicitud[] = [];
+                                if (isMatchUUID && typeof matchAny._originalId === 'string') {
+                                  // Utiliser le même hash que lors de la création des solicitudes
+                                  const solicitudesMatchId = hashUUID(matchAny._originalId);
+                                  // Pour compatibilité, aussi chercher avec 0 (anciennes solicitudes)
+                                  const reqsWithHash = dataService.getSolicitudes(solicitudesMatchId);
+                                  const reqsWithZero = dataService.getSolicitudes(0);
+                                  const allReqs = [...(Array.isArray(reqsWithHash) ? reqsWithHash : []), ...(Array.isArray(reqsWithZero) ? reqsWithZero : [])];
+                                  const uniqueReqs = Array.from(new Map(allReqs.map(r => [r.id, r])).values());
+                                  // Filtrer pour ce match spécifique (hash OU 0) et exclure CANCELLATION_REQUESTED
+                                  allRequests = uniqueReqs.filter(r => 
+                                    (r.match_id === solicitudesMatchId || r.match_id === 0) &&
+                                    r.status !== 'CANCELLATION_REQUESTED'
+                                  );
+                                } else {
+                                  // Pour les matches normaux, chercher normalement
+                                  const reqs = dataService.getSolicitudes(matchId);
+                                  allRequests = Array.isArray(reqs) ? reqs.filter(r => r.status !== 'CANCELLATION_REQUESTED') : [];
+                                }
+                                
                                 const allProcessed = allRequests.length > 0 && allRequests.every(req => req.status === 'APPROVED' || req.status === 'REJECTED');
                                 const hasApproved = allRequests.some(req => req.status === 'APPROVED');
-                                
+
                                 if (!allProcessed || !hasApproved) return null;
-                                
+
                                 const approvedRequests = allRequests.filter(req => req.status === 'APPROVED');
                                 
                                 return (

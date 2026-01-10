@@ -288,8 +288,9 @@ export const Partidos = () => {
                const rivalTeam = teams.find(t => t.id === m.rival_id || t.name === m.rival);
                const rivalLogo = rivalTeam?.logo;
                const bocaLogo = settings.matchLogoUrl || null;
-               const logoMatchSize = settings.logoMatchSize || 64;
-               const logoRivalSize = settings.logoRivalSize || 64;
+               // Réduire la taille des logos pour que tout rentre dans la carte
+               const logoMatchSize = Math.min(settings.logoMatchSize || 48, 48);
+               const logoRivalSize = Math.min(settings.logoRivalSize || 48, 48);
                
                // Déterminer quelle équipe est locale et laquelle est visiteuse
                const localTeamName = isHome ? 'Boca Juniors' : m.rival;
