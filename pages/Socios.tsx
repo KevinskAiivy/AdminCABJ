@@ -553,47 +553,10 @@ export const Socios = ({ user }: { user?: any }) => {
                                     ? 'bg-white/20 border-white/30 text-white' 
                                     : 'bg-white/60 border-white/30 text-gray-700'
                             }`}>{getGenderRoleLabel(socio.role || 'SOCIO', socio.gender)}</span>
-                            {/* Pastille de statut améliorée avec design moderne */}
-                            {computedStatus.label === 'AL DÍA' ? (
-                                <div className={`group relative flex items-center gap-1.5 px-2.5 py-1 rounded-xl transition-all duration-300 hover:scale-105 ${
-                                    isPresident || isReferente 
-                                        ? 'bg-gradient-to-br from-emerald-400/40 via-emerald-500/35 to-emerald-600/40 backdrop-blur-md text-white border border-emerald-300/50 shadow-lg shadow-emerald-500/30' 
-                                        : 'bg-gradient-to-br from-emerald-50 via-emerald-100/80 to-emerald-200/60 text-emerald-800 border-2 border-emerald-400/60 shadow-lg shadow-emerald-200/50'
-                                }`}>
-                                    <CheckCircle2 
-                                        size={12} 
-                                        className={`${isPresident || isReferente ? 'text-emerald-100 fill-emerald-300/30' : 'text-emerald-600 fill-emerald-400/40'} transition-transform group-hover:scale-110`} 
-                                        strokeWidth={2.5} 
-                                    />
-                                    <span className="text-[9px] font-black uppercase tracking-wider leading-tight">AL DÍA</span>
-                                </div>
-                            ) : computedStatus.label === 'EN DEUDA' ? (
-                                <div className={`group relative flex items-center gap-1.5 px-2.5 py-1 rounded-xl transition-all duration-300 hover:scale-105 ${
-                                    isPresident || isReferente 
-                                        ? 'bg-gradient-to-br from-amber-400/40 via-amber-500/35 to-amber-600/40 backdrop-blur-md text-white border border-amber-300/50 shadow-lg shadow-amber-500/30' 
-                                        : 'bg-gradient-to-br from-amber-50 via-amber-100/80 to-amber-200/60 text-amber-800 border-2 border-amber-400/60 shadow-lg shadow-amber-200/50'
-                                }`}>
-                                    <AlertTriangle 
-                                        size={12} 
-                                        className={`${isPresident || isReferente ? 'text-amber-100 fill-amber-300/30' : 'text-amber-600 fill-amber-400/40'} transition-transform group-hover:scale-110`} 
-                                        strokeWidth={2.5} 
-                                    />
-                                    <span className="text-[9px] font-black uppercase tracking-wider leading-tight">IRREGULAR</span>
-                                </div>
-                            ) : (
-                                <div className={`group relative flex items-center gap-1.5 px-2.5 py-1 rounded-xl transition-all duration-300 hover:scale-105 ${
-                                    isPresident || isReferente 
-                                        ? 'bg-gradient-to-br from-red-400/40 via-red-500/35 to-red-600/40 backdrop-blur-md text-white border border-red-300/50 shadow-lg shadow-red-500/30' 
-                                        : 'bg-gradient-to-br from-red-50 via-red-100/80 to-red-200/60 text-red-800 border-2 border-red-400/60 shadow-lg shadow-red-200/50'
-                                }`}>
-                                    <XCircle 
-                                        size={12} 
-                                        className={`${isPresident || isReferente ? 'text-red-100 fill-red-300/30' : 'text-red-600 fill-red-400/40'} transition-transform group-hover:scale-110`} 
-                                        strokeWidth={2.5} 
-                                    />
-                                    <span className="text-[9px] font-black uppercase tracking-wider leading-tight">DE BAJA</span>
-                                </div>
-                            )}
+                            {/* Pastille de statut */}
+                            <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest ${computedStatus.color} ${isPresident || isReferente ? 'bg-opacity-20 border border-white/30' : ''}`}>
+                                {computedStatus.label}
+                            </span>
                         </div>
                     </div>
                 </div>

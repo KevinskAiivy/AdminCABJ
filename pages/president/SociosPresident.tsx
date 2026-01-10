@@ -76,7 +76,7 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
   }, [searchQuery]);
 
   const calculateSocioStatus = (paymentStr: string) => {
-    if (!paymentStr) return { label: 'EN DEUDA', color: 'text-amber-600 bg-amber-50 border-amber-200', dot: 'bg-amber-500' };
+    if (!paymentStr) return { label: 'EN DEUDA', color: 'text-amber-600 bg-amber-50', dot: 'bg-amber-500' };
     
     let paymentDate: Date | null = null;
     
@@ -94,7 +94,7 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
     }
 
     if (!paymentDate || isNaN(paymentDate.getTime())) {
-        return { label: 'EN DEUDA', color: 'text-amber-600 bg-amber-50 border-amber-200', dot: 'bg-amber-500' };
+        return { label: 'EN DEUDA', color: 'text-amber-600 bg-amber-50', dot: 'bg-amber-500' };
     }
 
     const now = new Date();
@@ -102,9 +102,9 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
     const paymentAbsMonth = paymentDate.getFullYear() * 12 + paymentDate.getMonth();
     const diffMonths = currentAbsMonth - paymentAbsMonth;
     
-    if (diffMonths <= 0) return { label: 'AL DÍA', color: 'text-emerald-600 bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500' };
-    if (diffMonths <= 6) return { label: 'EN DEUDA', color: 'text-amber-600 bg-amber-50 border-amber-200', dot: 'bg-amber-500' };
-    return { label: 'DE BAJA', color: 'text-red-600 bg-red-50 border-red-200', dot: 'bg-red-500' };
+    if (diffMonths <= 0) return { label: 'AL DÍA', color: 'text-emerald-600 bg-emerald-50', dot: 'bg-emerald-500' };
+    if (diffMonths <= 6) return { label: 'EN DEUDA', color: 'text-amber-600 bg-amber-50', dot: 'bg-amber-500' };
+    return { label: 'DE BAJA', color: 'text-red-600 bg-red-50', dot: 'bg-red-500' };
   };
 
   const stats = useMemo(() => {
@@ -282,14 +282,27 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                 <div className="bg-white/10 p-4 rounded-xl border border-white/20"><Users size={28} className="text-[#FCB131]" /></div>
                 <div><h1 className="oswald text-3xl font-black text-white uppercase tracking-tighter">Mis Socios</h1><p className="text-[#FCB131] font-black uppercase text-[10px] tracking-[0.4em] mt-1">Padrón Local</p></div>
             </div>
-            <div className="relative z-10 flex gap-4">
-                <GlassCard className="px-4 py-2 flex flex-col items-center bg-white/10 border-white/10 text-white">
-                    <span className="text-xl font-black oswald">{stats.alDia}</span>
-                    <span className="text-[8px] uppercase tracking-widest opacity-70">Al Día</span>
+            <div className="relative z-10 flex gap-2.5 flex-wrap justify-center">
+                <GlassCard className="px-4 py-2.5 flex flex-col items-center bg-white/10 border-white/20 text-white backdrop-blur-sm hover:bg-white/20 transition-all shadow-lg">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                        <div className="p-1 rounded-lg bg-emerald-500/30"><CheckCircle2 size={14} className="text-emerald-300"/></div>
+                        <span className="text-xl font-black oswald">{stats.alDia}</span>
+                    </div>
+                    <span className="text-[8px] uppercase tracking-widest font-bold text-emerald-300">Al Día</span>
                 </GlassCard>
-                <GlassCard className="px-4 py-2 flex flex-col items-center bg-white/10 border-white/10 text-white">
-                    <span className="text-xl font-black oswald">{stats.deuda}</span>
-                    <span className="text-[8px] uppercase tracking-widest opacity-70">Irregular</span>
+                <GlassCard className="px-4 py-2.5 flex flex-col items-center bg-white/10 border-white/20 text-white backdrop-blur-sm hover:bg-white/20 transition-all shadow-lg">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                        <div className="p-1 rounded-lg bg-amber-500/30"><AlertTriangle size={14} className="text-amber-300"/></div>
+                        <span className="text-xl font-black oswald">{stats.deuda}</span>
+                    </div>
+                    <span className="text-[8px] uppercase tracking-widest font-bold text-amber-300">En Deuda</span>
+                </GlassCard>
+                <GlassCard className="px-4 py-2.5 flex flex-col items-center bg-white/10 border-white/20 text-white backdrop-blur-sm hover:bg-white/20 transition-all shadow-lg">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                        <div className="p-1 rounded-lg bg-red-500/30"><UserX size={14} className="text-red-300"/></div>
+                        <span className="text-xl font-black oswald">{stats.deBaja}</span>
+                    </div>
+                    <span className="text-[8px] uppercase tracking-widest font-bold text-red-300">De Baja</span>
                 </GlassCard>
             </div>
         </div>
@@ -538,48 +551,11 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                                 <span className={`uppercase opacity-70 ${isPresident || isReferente ? 'text-white/70' : ''}`}>Ultimo Pago:</span>
                                 <span className={`font-black ${isPresident || isReferente ? 'text-white' : 'text-[#003B94]'}`}>{formatLastPaymentDate(socio.last_month_paid)}</span>
                             </div>
-                            {/* Estado de cuota - Pastille améliorée avec design moderne et élégant */}
+                            {/* Estado de cuota */}
                             <div className="flex justify-start mt-2">
-                                {computedStatus.label === 'AL DÍA' ? (
-                                    <div className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 hover:scale-105 ${
-                                        isPresident || isReferente 
-                                            ? 'bg-gradient-to-br from-emerald-400/40 via-emerald-500/35 to-emerald-600/40 backdrop-blur-md text-white border border-emerald-300/50 shadow-lg shadow-emerald-500/30' 
-                                            : 'bg-gradient-to-br from-emerald-50 via-emerald-100/80 to-emerald-200/60 text-emerald-800 border-2 border-emerald-400/60 shadow-lg shadow-emerald-200/50'
-                                    }`}>
-                                        <CheckCircle2 
-                                            size={14} 
-                                            className={`${isPresident || isReferente ? 'text-emerald-100 fill-emerald-300/30' : 'text-emerald-600 fill-emerald-400/40'} transition-transform group-hover:scale-110`} 
-                                            strokeWidth={2.5} 
-                                        />
-                                        <span className="text-[10px] font-black uppercase tracking-wider leading-tight">AL DÍA</span>
-                                    </div>
-                                ) : computedStatus.label === 'EN DEUDA' ? (
-                                    <div className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 hover:scale-105 ${
-                                        isPresident || isReferente 
-                                            ? 'bg-gradient-to-br from-amber-400/40 via-amber-500/35 to-amber-600/40 backdrop-blur-md text-white border border-amber-300/50 shadow-lg shadow-amber-500/30' 
-                                            : 'bg-gradient-to-br from-amber-50 via-amber-100/80 to-amber-200/60 text-amber-800 border-2 border-amber-400/60 shadow-lg shadow-amber-200/50'
-                                    }`}>
-                                        <AlertTriangle 
-                                            size={14} 
-                                            className={`${isPresident || isReferente ? 'text-amber-100 fill-amber-300/30' : 'text-amber-600 fill-amber-400/40'} transition-transform group-hover:scale-110`} 
-                                            strokeWidth={2.5} 
-                                        />
-                                        <span className="text-[10px] font-black uppercase tracking-wider leading-tight">IRREGULAR</span>
-                                    </div>
-                                ) : (
-                                    <div className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 hover:scale-105 ${
-                                        isPresident || isReferente 
-                                            ? 'bg-gradient-to-br from-red-400/40 via-red-500/35 to-red-600/40 backdrop-blur-md text-white border border-red-300/50 shadow-lg shadow-red-500/30' 
-                                            : 'bg-gradient-to-br from-red-50 via-red-100/80 to-red-200/60 text-red-800 border-2 border-red-400/60 shadow-lg shadow-red-200/50'
-                                    }`}>
-                                        <XCircle 
-                                            size={14} 
-                                            className={`${isPresident || isReferente ? 'text-red-100 fill-red-300/30' : 'text-red-600 fill-red-400/40'} transition-transform group-hover:scale-110`} 
-                                            strokeWidth={2.5} 
-                                        />
-                                        <span className="text-[10px] font-black uppercase tracking-wider leading-tight">DE BAJA</span>
-                                    </div>
-                                )}
+                                <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest ${computedStatus.color} ${isPresident || isReferente ? 'bg-opacity-20 border border-white/30' : ''}`}>
+                                    {computedStatus.label}
+                                </span>
                             </div>
                         </div>
                     </div>
