@@ -138,28 +138,6 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
             });
           
           setAvailableMatches(processedMatches);
-          
-          if (selectedMatch) {
-              const matchId = typeof selectedMatch.id === 'string' ? parseInt(selectedMatch.id, 10) : selectedMatch.id;
-              if (!isNaN(matchId)) {
-                  const reqs = consuladoName ? dataService.getSolicitudes(matchId, consuladoName) : dataService.getSolicitudes(matchId);
-                  setSubmittedRequests(reqs || []);
-                  
-                  const hasSentRequests = (reqs || []).some(r => 
-                      r && (r.status === 'PENDING' || r.status === 'APPROVED' || r.status === 'REJECTED')
-                  );
-                  const hasCancellationRequest = (reqs || []).some(r => r && r.status === 'CANCELLATION_REQUESTED');
-                  
-                  if (hasSentRequests && !hasCancellationRequest) {
-                      setStagedSocios([]);
-                  }
-              } else {
-                  setSubmittedRequests([]);
-              }
-          } else {
-              setSubmittedRequests([]);
-              setStagedSocios([]);
-          }
       };
       
       loadMatches();
@@ -170,7 +148,8 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
           unsub();
           clearInterval(interval);
       };
-  }, [consulado_id, consuladoName, selectedMatch]);
+  }, [consulado_id, consuladoName]);
+  
   
   // Charger les socios
   useEffect(() => {
@@ -197,9 +176,9 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
   
   // Gérer la sélection d'un match
   const handleMatchSelection = (match: ProcessedMatch) => {
+      console.log('🔄 handleMatchSelection appelé avec:', match);
+      
       try {
-          console.log('🔄 handleMatchSelection appelé avec:', match);
-          
           if (!match || (match.status !== 'OPEN' && match.status !== 'SCHEDULED')) {
               console.warn('⚠️ Match invalide ou statut incorrect:', match);
               return;
@@ -220,12 +199,15 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
               ? dataService.getSolicitudes(matchId, consuladoName) 
               : dataService.getSolicitudes(matchId);
           
-          console.log('✅ Définition de selectedMatch et showSolicitarModal');
+          console.log('✅ Préparation des états - match:', match.id, 'requêtes:', Array.isArray(reqs) ? reqs.length : 0);
+          
+          // Définir tous les états de manière synchrone - React batching les groupe
           setSelectedMatch(match);
           setSubmittedRequests(Array.isArray(reqs) ? reqs : []);
           setStagedSocios([]);
           setShowSolicitarModal(true);
-          console.log('✅ États mis à jour - selectedMatch:', match, 'showSolicitarModal: true');
+          
+          console.log('✅ États définis - La modale devrait s\'afficher maintenant');
       } catch (error) {
           console.error('❌ Erreur lors de la sélection du match:', error);
           alert('Erreur lors de l\'ouverture de la modal. Veuillez réessayer.');
@@ -471,38 +453,60 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                                       </div>
                                   )}
                                   
-                                  <div className="relative z-10 p-5">
-                                      {/* Badges de statut */}
-                                      <div className="flex justify-between items-start mb-4 flex-wrap gap-2">
-                                          <div className="flex gap-2 flex-wrap">
+                                  <div className="relative z-10 p-2.5">
+                                      {/* Compétition et Fecha - Centrées en haut */}
+                                      <div className="flex flex-col items-center mb-1.5">
+                                          {/* Competition avec logo */}
+                                          <div className="flex items-center gap-1.5 justify-center mb-0.5">
+                                              {compLogo && (
+                                                  <img src={compLogo} alt={match.competition} className="w-4 h-4 object-contain" />
+                                              )}
+                                              <p className={`text-[9px] font-bold uppercase ${isOpen ? 'text-white/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>
+                                                  {match.competition}
+                                              </p>
+                                          </div>
+                                          
+                                          {/* Fecha/Jornada sous la compétition */}
+                                          {match.fecha_jornada && (
+                                              <div className={`flex items-center justify-center ${isOpen ? 'text-white/80' : isScheduled ? 'text-[#003B94]/80' : 'text-gray-400'}`}>
+                                                  <span className="text-[9px] font-bold uppercase">
+                                                      {match.fecha_jornada}
+                                                  </span>
+                                              </div>
+                                          )}
+                                      </div>
+                                      
+                                      {/* Badges de statut - À gauche */}
+                                      <div className="flex justify-between items-start mb-1 flex-wrap gap-1.5">
+                                          <div className="flex gap-1.5 flex-wrap">
                                               {isOpen && (
-                                                  <span className="bg-[#FCB131] text-[#001d4a] px-3 py-1.5 rounded-lg text-[10px] font-black uppercase animate-pulse flex items-center gap-1.5 shadow-lg border border-[#001d4a]/20">
-                                                      <Ticket size={12} strokeWidth={3} /> ABIERTO
+                                                  <span className="bg-[#FCB131] text-[#001d4a] px-2 py-0.5 rounded-lg text-[9px] font-black uppercase animate-pulse flex items-center gap-1 shadow-lg border border-[#001d4a]/20">
+                                                      <Ticket size={10} strokeWidth={3} /> ABIERTO
                                                   </span>
                                               )}
                                               {isScheduled && (
-                                                  <span className="bg-blue-100 text-[#003B94] px-3 py-1.5 rounded-lg text-[10px] font-black uppercase flex items-center gap-1.5 border-2 border-blue-300 shadow-sm">
-                                                      <Clock size={12} strokeWidth={3} /> PROGRAMADO
+                                                  <span className="bg-blue-100 text-[#003B94] px-2 py-0.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 border-2 border-blue-300 shadow-sm">
+                                                      <Clock size={10} strokeWidth={3} /> PROGRAMADO
                                                   </span>
                                               )}
                                               {match.status === 'CLOSED' && (
-                                                  <span className="bg-gray-100 text-gray-500 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase flex items-center gap-1.5 border border-gray-300">
+                                                  <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 border border-gray-300">
                                                       CERRADO
                                                   </span>
                                               )}
                                           </div>
                                           {hasSubmitted && (
-                                              <span className="bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase shadow-md border border-emerald-600">
-                                                  <CheckCircle2 size={10} className="inline mr-1" /> Enviadas
+                                              <span className="bg-emerald-500 text-white px-2 py-0.5 rounded-lg text-[8px] font-black uppercase shadow-md border border-emerald-600">
+                                                  <CheckCircle2 size={9} className="inline mr-0.5" /> Enviadas
                                               </span>
                                           )}
                                       </div>
                                       
                                       {/* Logos des équipes */}
-                                      <div className="flex items-center justify-center gap-4 mb-4 py-3">
+                                      <div className="flex items-center justify-center gap-3 mb-1.5 py-1">
                                           {/* Logo Boca */}
-                                          <div className="flex flex-col items-center gap-2">
-                                              <div className="w-16 h-16 flex items-center justify-center">
+                                          <div className="flex flex-col items-center gap-0.5">
+                                              <div className="w-14 h-14 flex items-center justify-center">
                                                   {settings.matchLogoUrl ? (
                                                       <img 
                                                           src={settings.matchLogoUrl} 
@@ -513,21 +517,21 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                                                       <BocaLogoSVG className="w-full h-full" />
                                                   )}
                                               </div>
-                                              <span className={`text-[9px] font-black uppercase ${isOpen ? 'text-white/90' : isScheduled ? 'text-[#003B94]' : 'text-gray-400'}`}>
+                                              <span className={`text-[8px] font-black uppercase ${isOpen ? 'text-white/90' : isScheduled ? 'text-[#003B94]' : 'text-gray-400'}`}>
                                                   Boca
                                               </span>
                                           </div>
                                           
                                           {/* VS */}
                                           <div className="flex flex-col items-center">
-                                              <span className={`text-xl font-black ${isOpen ? 'text-[#FCB131]' : isScheduled ? 'text-[#003B94]' : 'text-gray-400'}`}>
+                                              <span className={`text-lg font-black ${isOpen ? 'text-[#FCB131]' : isScheduled ? 'text-[#003B94]' : 'text-gray-400'}`}>
                                                   VS
                                               </span>
                                           </div>
                                           
                                           {/* Logo Rival */}
-                                          <div className="flex flex-col items-center gap-2">
-                                              <div className="w-16 h-16 flex items-center justify-center bg-white/10 rounded-lg border border-white/20">
+                                          <div className="flex flex-col items-center gap-0.5">
+                                              <div className="w-14 h-14 flex items-center justify-center bg-white/10 rounded-lg border border-white/20">
                                                   {rivalLogo ? (
                                                       <img 
                                                           src={rivalLogo} 
@@ -535,75 +539,59 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                                                           className="w-full h-full object-contain p-1"
                                                       />
                                                   ) : (
-                                                      <span className={`text-xs font-black italic ${isOpen ? 'text-white/20' : isScheduled ? 'text-[#003B94]/20' : 'text-gray-300'}`}>
+                                                      <span className={`text-[10px] font-black italic ${isOpen ? 'text-white/20' : isScheduled ? 'text-[#003B94]/20' : 'text-gray-300'}`}>
                                                           {match.rival_short || match.rival?.substring(0, 3).toUpperCase()}
                                                       </span>
                                                   )}
                                               </div>
-                                              <span className={`text-[9px] font-black uppercase truncate max-w-[60px] ${isOpen ? 'text-white/90' : isScheduled ? 'text-[#003B94]' : 'text-gray-400'}`} title={match.rival}>
+                                              <span className={`text-[8px] font-black uppercase truncate max-w-[60px] ${isOpen ? 'text-white/90' : isScheduled ? 'text-[#003B94]' : 'text-gray-400'}`} title={match.rival}>
                                                   {match.rival}
                                               </span>
                                           </div>
                                       </div>
                                       
-                                      {/* Info du match */}
-                                      <div className="mb-4 space-y-2">
-                                          {/* Competition avec logo */}
-                                          <div className="flex items-center gap-2 justify-center">
-                                              {compLogo && (
-                                                  <img src={compLogo} alt={match.competition} className="w-5 h-5 object-contain" />
-                                              )}
-                                              <p className={`text-[10px] font-bold uppercase ${isOpen ? 'text-white/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>
-                                                  {match.competition}
-                                              </p>
-                                          </div>
-                                          
-                                          {/* Date et heure */}
-                                          <div className={`flex items-center justify-center gap-3 text-[11px] font-bold ${isOpen ? 'text-white/90' : isScheduled ? 'text-[#003B94]' : 'text-gray-400'}`}>
-                                              <span className="flex items-center gap-1.5">
-                                                  <Calendar size={14} /> {formatDateDisplay(match.date || '')}
-                                              </span>
-                                              <span className="flex items-center gap-1.5">
-                                                  <Clock size={14} /> {formatHourDisplay(match.hour || '')}
-                                              </span>
-                                          </div>
-                                          
-                                          {/* Venue */}
-                                          {match.venue && (
-                                              <div className={`flex items-center justify-center gap-1.5 text-[10px] font-bold ${isOpen ? 'text-white/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>
-                                                  <MapPin size={12} /> {match.venue}
-                                              </div>
-                                          )}
+                                      {/* Heure */}
+                                      <div className={`flex items-center justify-center text-[9px] font-bold mb-1.5 ${isOpen ? 'text-white/90' : isScheduled ? 'text-[#003B94]' : 'text-gray-400'}`}>
+                                          <span className="flex items-center gap-1">
+                                              <Clock size={11} /> {formatHourDisplay(match.hour || '')}
+                                          </span>
                                       </div>
                                       
+                                      {/* Venue */}
+                                      {match.venue && (
+                                          <div className={`flex items-center justify-center gap-1 text-[9px] font-bold mb-1.5 ${isOpen ? 'text-white/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>
+                                              <MapPin size={10} /> {match.venue}
+                                          </div>
+                                      )}
+                                      
                                       {/* Fenêtres d'ouverture/fermeture */}
-                                      <div className="grid grid-cols-2 gap-3 mb-4">
-                                          <div className={`text-center p-3 rounded-xl border-2 flex flex-col items-center justify-center backdrop-blur-sm ${
+                                      <div className="grid grid-cols-2 gap-2 mb-2.5">
+                                          <div className={`text-center p-1.5 rounded-lg border-2 flex flex-col items-center justify-center backdrop-blur-sm ${
                                               isOpen ? 'bg-black/30 border-white/20' : isScheduled ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
                                           }`}>
-                                              <span className={`text-[8px] font-black uppercase block mb-1.5 ${isOpen ? 'text-white/60' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>
+                                              <span className={`text-[7px] font-black uppercase block mb-0.5 ${isOpen ? 'text-white/60' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>
                                                   Apertura
                                               </span>
                                               <div className="flex flex-col items-center leading-tight">
-                                                  <span className={`text-sm font-black ${isOpen ? 'text-[#FCB131]' : isScheduled ? 'text-[#003B94]' : 'text-gray-400'}`}>
+                                                  <span className={`text-[10px] font-black ${isOpen ? 'text-[#FCB131]' : isScheduled ? 'text-[#003B94]' : 'text-gray-400'}`}>
                                                       {formatDateDisplay(match.apertura_date || '')}
                                                   </span>
-                                                  <span className={`text-[10px] font-bold mt-0.5 ${isOpen ? 'text-white/90' : isScheduled ? 'text-[#003B94]/90' : 'text-gray-400'}`}>
+                                                  <span className={`text-[8px] font-bold mt-0.5 ${isOpen ? 'text-white/90' : isScheduled ? 'text-[#003B94]/90' : 'text-gray-400'}`}>
                                                       {formatHourDisplay(match.apertura_hour || '')}
                                                   </span>
                                               </div>
                                           </div>
-                                          <div className={`text-center p-3 rounded-xl border-2 flex flex-col items-center justify-center backdrop-blur-sm ${
+                                          <div className={`text-center p-1.5 rounded-lg border-2 flex flex-col items-center justify-center backdrop-blur-sm ${
                                               isOpen ? 'bg-black/30 border-white/20' : isScheduled ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
                                           }`}>
-                                              <span className={`text-[8px] font-black uppercase block mb-1.5 ${isOpen ? 'text-white/60' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>
+                                              <span className={`text-[7px] font-black uppercase block mb-0.5 ${isOpen ? 'text-white/60' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>
                                                   Cierre
                                               </span>
                                               <div className="flex flex-col items-center leading-tight">
-                                                  <span className={`text-sm font-black ${isOpen ? 'text-white' : isScheduled ? 'text-[#003B94]' : 'text-gray-400'}`}>
+                                                  <span className={`text-[10px] font-black ${isOpen ? 'text-white' : isScheduled ? 'text-[#003B94]' : 'text-gray-400'}`}>
                                                       {formatDateDisplay(match.cierre_date || '')}
                                                   </span>
-                                                  <span className={`text-[10px] font-bold mt-0.5 ${isOpen ? 'text-white/80' : isScheduled ? 'text-[#003B94]/90' : 'text-gray-400'}`}>
+                                                  <span className={`text-[8px] font-bold mt-0.5 ${isOpen ? 'text-white/80' : isScheduled ? 'text-[#003B94]/90' : 'text-gray-400'}`}>
                                                       {formatHourDisplay(match.cierre_hour || '')}
                                                   </span>
                                               </div>
@@ -617,13 +605,13 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                                                   e.stopPropagation();
                                                   handleMatchSelection(match);
                                               }}
-                                              className={`w-full py-3.5 rounded-xl font-black uppercase text-xs shadow-lg transition-all duration-300 flex items-center justify-center gap-2 ${
+                                              className={`w-full py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 ${
                                                   isOpen
                                                       ? 'bg-[#FCB131] text-[#001d4a] hover:bg-white hover:shadow-[0_0_30px_rgba(252,177,49,0.5)] transform hover:scale-[1.02]'
                                                       : 'bg-[#003B94] text-white hover:bg-[#001d4a] hover:shadow-[0_0_20px_rgba(0,59,148,0.4)] transform hover:scale-[1.02]'
                                               }`}
                                           >
-                                              <Ticket size={16} strokeWidth={2.5} /> 
+                                              <Ticket size={13} strokeWidth={2.5} /> 
                                               {isOpen ? 'Solicitar Habilitaciones' : 'Ver Detalles'}
                                           </button>
                                       )}
@@ -655,6 +643,11 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
             backgroundColor: 'rgba(0, 29, 74, 0.92)', 
             backdropFilter: 'blur(8px)', 
             WebkitBackdropFilter: 'blur(8px)',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -842,7 +835,7 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                           Debe solicitar una cancelación para modificarla.
                         </p>
                       </div>
-                    ) : filteredSocios.length > 0 && selectedMatch ? (
+                    ) : (filteredSocios.length > 0 && selectedMatch) ? (
                       <div className="max-h-[500px] overflow-y-auto custom-scrollbar divide-y divide-gray-100">
                         {filteredSocios.map(socio => {
                           if (!selectedMatch || !socio || !socio.id) return null;
@@ -1000,7 +993,7 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                           </div>
                         </div>
                       </div>
-                    ) : stagedSocios.length > 0 ? (
+                    ) : (stagedSocios.length > 0) ? (
                       <>
                         <div className="max-h-[400px] overflow-y-auto custom-scrollbar space-y-2 mb-4">
                           {stagedSocios.map(socio => (

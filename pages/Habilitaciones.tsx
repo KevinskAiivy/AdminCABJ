@@ -408,84 +408,84 @@ export const Habilitaciones = () => {
                 );
                 
                 return (
-                <GlassCard key={match.id} className={`p-4 border flex flex-col relative overflow-hidden ${getContainerStyle(match.status, match.is_home)}`}>
+                <GlassCard key={match.id} className={`p-3 border flex flex-col relative overflow-hidden ${getContainerStyle(match.status, match.is_home)}`}>
                     
-                    <div className={`absolute top-0 right-0 p-2 rounded-bl-xl ${isDark ? 'bg-white/10' : isYellow ? 'bg-[#001d4a]/10' : isScheduled ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                        {match.is_home ? <Home size={12} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} /> : <Plane size={12} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} />}
+                    <div className={`absolute top-0 right-0 p-1.5 rounded-bl-xl ${isDark ? 'bg-white/10' : isYellow ? 'bg-[#001d4a]/10' : isScheduled ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                        {match.is_home ? <Home size={10} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} /> : <Plane size={10} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} />}
                     </div>
 
-                    <div className="flex justify-between items-start mb-3 pr-8">
+                    <div className="flex justify-between items-start mb-2 pr-7">
                         {getStatusBadge(match.status)}
                     </div>
                     
                     {/* Logos des équipes */}
-                    <div className="flex items-center justify-center gap-3 mb-3">
+                    <div className="flex items-center justify-center gap-2.5 mb-2">
                         {localTeam?.logo ? (
                             <img 
                                 src={localTeam.logo} 
                                 alt={localTeam.name || 'Local'} 
-                                className="w-10 h-10 object-contain"
+                                className="w-12 h-12 object-contain"
                                 onError={(e) => {
                                     (e.target as HTMLImageElement).style.display = 'none';
                                 }}
                             />
                         ) : (
-                            <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
+                            <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
                                 <Home size={16} className={isDark ? 'text-white/50' : 'text-[#003B94]/50'} />
                             </div>
                         )}
-                        <span className={`text-xs font-black ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/60' : isScheduled ? 'text-[#003B94]/60' : 'text-gray-400'}`}>VS</span>
+                        <span className={`text-[10px] font-black ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/60' : isScheduled ? 'text-[#003B94]/60' : 'text-gray-400'}`}>VS</span>
                         {rivalTeam?.logo ? (
                             <img 
                                 src={rivalTeam.logo} 
                                 alt={rivalTeam.name || match.rival || 'Rival'} 
-                                className="w-10 h-10 object-contain"
+                                className="w-12 h-12 object-contain"
                                 onError={(e) => {
                                     (e.target as HTMLImageElement).style.display = 'none';
                                 }}
                             />
                         ) : (
-                            <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
+                            <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
                                 <Plane size={16} className={isDark ? 'text-white/50' : 'text-[#003B94]/50'} />
                             </div>
                         )}
                     </div>
                     
-                    <div className="mb-4">
-                        <p className={`text-[8px] font-bold uppercase mb-1 ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>{match.competition}</p>
-                        <h3 className={`oswald text-xl font-black uppercase leading-tight ${isDark ? 'text-white' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#001d4a]'}`}>vs {match.rival}</h3>
-                        <div className={`flex items-center gap-2 mt-1 text-[9px] font-bold ${isDark ? 'text-white/80' : isYellow ? 'text-[#001d4a]/80' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'}`}>
-                            <Calendar size={10} /> {formatDateDisplay(match.date)} {formatHourDisplay(match.hour)}
+                    <div className="mb-2">
+                        <p className={`text-[8px] font-bold uppercase mb-0.5 ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>{match.competition}</p>
+                        <h3 className={`oswald text-lg font-black uppercase leading-tight ${isDark ? 'text-white' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#001d4a]'}`}>vs {match.rival}</h3>
+                        <div className={`flex items-center gap-2 mt-0.5 text-[9px] font-bold ${isDark ? 'text-white/80' : isYellow ? 'text-[#001d4a]/80' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'}`}>
+                            <Calendar size={9} /> {formatDateDisplay(match.date)} {formatHourDisplay(match.hour)}
                         </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                        <div className={`text-center p-1.5 rounded-lg border flex flex-col items-center justify-center ${isDark ? 'bg-black/20 border-white/10' : isYellow ? 'bg-[#FFD23F]/30 border-[#001d4a]/20' : isScheduled ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
+                    <div className="grid grid-cols-2 gap-1.5 mb-2">
+                        <div className={`text-center p-1 rounded-lg border flex flex-col items-center justify-center ${isDark ? 'bg-black/20 border-white/10' : isYellow ? 'bg-[#FFD23F]/30 border-[#001d4a]/20' : isScheduled ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
                             <span className={`text-[6px] font-black uppercase block mb-0.5 ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>Apertura</span>
                             <div className="flex flex-col items-center leading-tight">
-                                <span className={`text-[10px] font-black ${isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'}`}>{formatDateDisplay(match.apertura_date)}</span>
-                                <span className={`text-[8px] font-bold ${isDark ? 'text-white/80' : isYellow ? 'text-[#001d4a]/80' : isScheduled ? 'text-[#003B94]/80' : 'text-[#001d4a]/70'}`}>{formatHourDisplay(match.apertura_hour)}</span>
+                                <span className={`text-[9px] font-black ${isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'}`}>{formatDateDisplay(match.apertura_date)}</span>
+                                <span className={`text-[7px] font-bold ${isDark ? 'text-white/80' : isYellow ? 'text-[#001d4a]/80' : isScheduled ? 'text-[#003B94]/80' : 'text-[#001d4a]/70'}`}>{formatHourDisplay(match.apertura_hour)}</span>
                             </div>
                         </div>
-                        <div className={`text-center p-1.5 rounded-lg border flex flex-col items-center justify-center ${isDark ? 'bg-black/20 border-white/10' : isYellow ? 'bg-[#FFD23F]/30 border-[#001d4a]/20' : isScheduled ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
+                        <div className={`text-center p-1 rounded-lg border flex flex-col items-center justify-center ${isDark ? 'bg-black/20 border-white/10' : isYellow ? 'bg-[#FFD23F]/30 border-[#001d4a]/20' : isScheduled ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
                             <span className={`text-[6px] font-black uppercase block mb-0.5 ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>Cierre</span>
                             <div className="flex flex-col items-center leading-tight">
-                                <span className={`text-[10px] font-black ${isDark ? 'text-white' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#001d4a]'}`}>{formatDateDisplay(match.cierre_date)}</span>
-                                <span className={`text-[8px] font-bold ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/80' : 'text-[#001d4a]/60'}`}>{formatHourDisplay(match.cierre_hour)}</span>
+                                <span className={`text-[9px] font-black ${isDark ? 'text-white' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#001d4a]'}`}>{formatDateDisplay(match.cierre_date)}</span>
+                                <span className={`text-[7px] font-bold ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/80' : 'text-[#001d4a]/60'}`}>{formatHourDisplay(match.cierre_hour)}</span>
                             </div>
                         </div>
                     </div>
 
                     <div className="mt-auto">
-                        <div className="flex items-center justify-between mb-2 px-1">
+                        <div className="flex items-center justify-between mb-1.5 px-1">
                             <span className={`text-[8px] font-bold uppercase tracking-widest ${isDark ? 'text-white/50' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>Solicitudes</span>
-                            <span className={`text-base font-black oswald ${isDark ? 'text-white' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#001d4a]'}`}>{match.activeRequests}</span>
+                            <span className={`text-sm font-black oswald ${isDark ? 'text-white' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#001d4a]'}`}>{match.activeRequests}</span>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1.5">
                             {match.status === 'OPEN' && (
                                 <button 
                                     onClick={() => handleOpenMatch(match)} 
-                                    className="flex-1 py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all flex items-center justify-center gap-2 bg-[#FCB131] text-[#001d4a] hover:bg-white"
+                                    className="flex-1 py-1.5 rounded-xl font-black uppercase text-[9px] shadow-lg transition-all flex items-center justify-center gap-1.5 bg-[#FCB131] text-[#001d4a] hover:bg-white"
                                 >
                                     Gestionar en Vivo
                                 </button>
@@ -503,10 +503,10 @@ export const Habilitaciones = () => {
                                 return (
                                     <button
                                         onClick={() => generatePDFForMatch(match, approvedRequests)}
-                                        className={`${match.status === 'OPEN' ? 'px-3' : 'flex-1'} py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all flex items-center justify-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600`}
+                                        className={`${match.status === 'OPEN' ? 'px-2.5' : 'flex-1'} py-1.5 rounded-xl font-black uppercase text-[9px] shadow-lg transition-all flex items-center justify-center gap-1.5 bg-emerald-500 text-white hover:bg-emerald-600`}
                                         title="Descargar lista definitiva en PDF"
                                     >
-                                        <FileText size={12} /> {match.status === 'OPEN' ? 'Imprimir' : 'Imprimir Lista'}
+                                        <FileText size={10} /> {match.status === 'OPEN' ? 'Imprimir' : 'Imprimir Lista'}
                                     </button>
                                 );
                             })()}
