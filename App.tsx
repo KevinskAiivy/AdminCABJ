@@ -40,16 +40,9 @@ const FullScreenLoader = ({ message }: { message?: string }) => {
     
     return (
         <div className="min-h-screen bg-[#001d4a] flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-            {/* Background Effects */}
-            <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#003B94]/30 rounded-full blur-[120px] animate-pulse"></div>
-                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#FCB131]/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '3s' }}></div>
-            </div>
-            
             <div className="relative z-10 flex flex-col items-center">
                 {/* Logo */}
                 <div className="relative mb-8 animate-pulse">
-                    <div className="absolute inset-0 bg-[#FCB131] blur-[50px] opacity-20 rounded-full"></div>
                     {logoUrl && logoUrl.length > 50 ? (
                         <img 
                             src={logoUrl} 
@@ -199,13 +192,17 @@ export const App: React.FC = () => {
   }, [user, logout]);
 
   // Afficher le loader seulement lors d'un chargement réel (initialisation des données)
+  // Le loader ne s'affiche que si :
+  // 1. loading est true (en cours de chargement)
+  // 2. ET isInitializing est true (chargement réel des données depuis la base de données)
+  // Cela garantit que le loader ne s'affiche que lors d'un chargement réel, pas lors de changements de page ou actions normales
   if (loading && isInitializing) {
       return <FullScreenLoader message={dataService.loadingMessage || "Inicializando..."} />;
   }
 
   if (!user) {
     return (
-      <Suspense fallback={<FullScreenLoader />}>
+      <Suspense fallback={null}>
         <Login onLogin={(session) => setUser(session)} />
       </Suspense>
     );

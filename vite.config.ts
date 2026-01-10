@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
     server: {
-        port: 3000,
-        host: '0.0.0.0',
+        port: 5173,
+        host: 'localhost',
     },
     plugins: [react()],
     envPrefix: 'VITE_', // Ne charger que les variables préfixées par VITE_

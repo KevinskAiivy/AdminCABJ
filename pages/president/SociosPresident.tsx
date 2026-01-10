@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { GlassCard } from '../../components/GlassCard';
 import { CustomSelect } from '../../components/CustomSelect';
-import { Users, Search, CheckCircle2, AlertTriangle, UserX, Edit2, Trash2, Star, X, ChevronLeft, ChevronRight, User, Save, Phone, Mail, Loader2, Building2, Lock, Unlock, ArrowRightLeft, CheckCircle, XCircle, Clock, Inbox, Send } from 'lucide-react';
+import { Users, Search, CheckCircle2, AlertTriangle, UserX, Edit2, Trash2, Star, X, ChevronLeft, ChevronRight, User, Save, Phone, Mail, Loader2, Building2, Lock, Unlock, ArrowRightLeft, CheckCircle, XCircle, Clock, Inbox, Send, BadgeCheck } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { Socio, TransferRequest } from '../../types';
 import { getGenderRoleLabel, getGenderLabel as getGenderLabelUtil } from '../../utils/genderLabels';
@@ -431,10 +431,10 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                 
                 if (isPresident) {
                     variant = 'gold';
-                    containerClass = "border-[#001d4a]/20";
+                    containerClass = "border-[#FCB131]/40 shadow-[0_8px_32px_rgba(252,177,49,0.4)] bg-gradient-to-br from-[#FFD700]/95 via-[#FFC125]/90 to-[#FFA500]/95 backdrop-blur-xl";
                 } else if (isReferente) {
                     variant = 'dark';
-                    containerClass = "border-white/10 shadow-[0_8px_32px_rgba(0,29,74,0.4)]";
+                    containerClass = "border-[#FCB131]/30 shadow-[0_8px_32px_rgba(0,29,74,0.5)] bg-gradient-to-br from-[#001d4a]/95 via-[#003B94]/90 to-[#001d4a]/95 backdrop-blur-xl";
                 } else if (computedStatus.label === 'EN DEUDA') {
                     variant = 'light';
                     containerClass = "border-amber-300/40 shadow-[0_4px_16px_rgba(245,158,11,0.1)]";
@@ -486,13 +486,19 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                     </div>
 
                     <div className="p-5 pb-3 flex items-start gap-4 relative">
-                        {/* Étoile pour les présidents */}
+                        {/* Pastille pour les présidents */}
                         {isPresident && (
-                            <div className="absolute top-4 left-4 w-12 h-12 rounded-full bg-[#001d4a] flex items-center justify-center shadow-lg border-2 border-[#FCB131]/30 z-10">
-                                <Star size={20} className="text-[#FCB131] fill-[#FCB131]" strokeWidth={3} />
+                            <div className="absolute top-3 left-3 w-14 h-14 rounded-full bg-gradient-to-br from-[#001d4a] to-[#003B94] flex items-center justify-center shadow-[0_4px_12px_rgba(252,177,49,0.4)] border-2 border-[#FCB131] z-10 animate-pulse">
+                                <Star size={24} className="text-[#FCB131] fill-[#FCB131]" strokeWidth={2.5} />
                             </div>
                         )}
-                        <div className={`flex-1 min-w-0 ${isPresident ? 'pl-16' : 'pr-16'}`}>
+                        {/* Pastille pour les referentes */}
+                        {isReferente && !isPresident && (
+                            <div className="absolute top-3 left-3 w-14 h-14 rounded-full bg-gradient-to-br from-[#001d4a] to-[#003B94] flex items-center justify-center shadow-[0_4px_12px_rgba(252,177,49,0.3)] border-2 border-[#FCB131] z-10">
+                                <BadgeCheck size={24} className="text-[#FCB131] fill-[#FCB131]" strokeWidth={2.5} />
+                            </div>
+                        )}
+                        <div className={`flex-1 min-w-0 ${isPresident || isReferente ? 'pl-20' : 'pr-16'}`}>
                             {/* Nom du socio en premier */}
                             <h4 className={`oswald text-lg tracking-tight leading-none truncate mb-2 ${isPresident || isReferente ? 'text-white' : 'text-[#001d4a]'}`}>
                                 <span className="font-black uppercase">{socio.last_name.toUpperCase()}</span> <span className="font-normal capitalize">{socio.first_name.toLowerCase()}</span>
@@ -532,17 +538,48 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                                 <span className={`uppercase opacity-70 ${isPresident || isReferente ? 'text-white/70' : ''}`}>Ultimo Pago:</span>
                                 <span className={`font-black ${isPresident || isReferente ? 'text-white' : 'text-[#003B94]'}`}>{formatLastPaymentDate(socio.last_month_paid)}</span>
                             </div>
-                            {/* Estado de cuota - Pastille juste en dessous du texte "Ultimo Pago" */}
-                            <div className="flex justify-start">
-                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-lg ${
-                                    computedStatus.label === 'AL DÍA' 
-                                        ? (isPresident || isReferente ? 'bg-emerald-100/20 text-white border border-white/30' : 'bg-emerald-100 text-emerald-700 border border-emerald-300') :
-                                    computedStatus.label === 'EN DEUDA' 
-                                        ? (isPresident || isReferente ? 'bg-amber-100/20 text-white border border-white/30' : 'bg-amber-100 text-amber-700 border border-amber-300') :
-                                        (isPresident || isReferente ? 'bg-red-100/20 text-white border border-white/30' : 'bg-red-100 text-red-700 border border-red-300')
-                                }`}>
-                                    {computedStatus.label || 'N/A'}
-                                </span>
+                            {/* Estado de cuota - Pastille améliorée avec design moderne et élégant */}
+                            <div className="flex justify-start mt-2">
+                                {computedStatus.label === 'AL DÍA' ? (
+                                    <div className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 hover:scale-105 ${
+                                        isPresident || isReferente 
+                                            ? 'bg-gradient-to-br from-emerald-400/40 via-emerald-500/35 to-emerald-600/40 backdrop-blur-md text-white border border-emerald-300/50 shadow-lg shadow-emerald-500/30' 
+                                            : 'bg-gradient-to-br from-emerald-50 via-emerald-100/80 to-emerald-200/60 text-emerald-800 border-2 border-emerald-400/60 shadow-lg shadow-emerald-200/50'
+                                    }`}>
+                                        <CheckCircle2 
+                                            size={14} 
+                                            className={`${isPresident || isReferente ? 'text-emerald-100 fill-emerald-300/30' : 'text-emerald-600 fill-emerald-400/40'} transition-transform group-hover:scale-110`} 
+                                            strokeWidth={2.5} 
+                                        />
+                                        <span className="text-[10px] font-black uppercase tracking-wider leading-tight">AL DÍA</span>
+                                    </div>
+                                ) : computedStatus.label === 'EN DEUDA' ? (
+                                    <div className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 hover:scale-105 ${
+                                        isPresident || isReferente 
+                                            ? 'bg-gradient-to-br from-amber-400/40 via-amber-500/35 to-amber-600/40 backdrop-blur-md text-white border border-amber-300/50 shadow-lg shadow-amber-500/30' 
+                                            : 'bg-gradient-to-br from-amber-50 via-amber-100/80 to-amber-200/60 text-amber-800 border-2 border-amber-400/60 shadow-lg shadow-amber-200/50'
+                                    }`}>
+                                        <AlertTriangle 
+                                            size={14} 
+                                            className={`${isPresident || isReferente ? 'text-amber-100 fill-amber-300/30' : 'text-amber-600 fill-amber-400/40'} transition-transform group-hover:scale-110`} 
+                                            strokeWidth={2.5} 
+                                        />
+                                        <span className="text-[10px] font-black uppercase tracking-wider leading-tight">IRREGULAR</span>
+                                    </div>
+                                ) : (
+                                    <div className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-300 hover:scale-105 ${
+                                        isPresident || isReferente 
+                                            ? 'bg-gradient-to-br from-red-400/40 via-red-500/35 to-red-600/40 backdrop-blur-md text-white border border-red-300/50 shadow-lg shadow-red-500/30' 
+                                            : 'bg-gradient-to-br from-red-50 via-red-100/80 to-red-200/60 text-red-800 border-2 border-red-400/60 shadow-lg shadow-red-200/50'
+                                    }`}>
+                                        <XCircle 
+                                            size={14} 
+                                            className={`${isPresident || isReferente ? 'text-red-100 fill-red-300/30' : 'text-red-600 fill-red-400/40'} transition-transform group-hover:scale-110`} 
+                                            strokeWidth={2.5} 
+                                        />
+                                        <span className="text-[10px] font-black uppercase tracking-wider leading-tight">DE BAJA</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
