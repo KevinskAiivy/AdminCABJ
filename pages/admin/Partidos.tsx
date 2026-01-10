@@ -384,15 +384,15 @@ export const Partidos = () => {
                                    <span className={`oswald text-3xl md:text-4xl font-black uppercase tracking-tighter drop-shadow-lg ${
                                        isHome 
                                            ? 'text-[#FCB131] [text-shadow:0_0_20px_rgba(252,177,49,0.5),0_2px_4px_rgba(0,0,0,0.3)]' 
-                                           : 'text-[#001d4a] [text-shadow:0_0_15px_rgba(0,29,74,0.4),0_2px_4px_rgba(0,0,0,0.2)]'
-                                   }`}>
+                                           : '[text-shadow:0_0_15px_rgba(0,29,74,0.4),0_2px_4px_rgba(0,0,0,0.2)]'
+                                   }`} style={!isHome ? { color: 'rgba(0, 29, 74, 1)' } : undefined}>
                                        {m.fecha_jornada}
                                    </span>
                                </div>
                            )}
                            
                            {/* Date en dessous */}
-                           <div className={`text-xs font-bold flex items-center gap-2 ${isHome ? 'text-white/80' : 'text-gray-500'}`}>
+                           <div className={`text-xs font-bold flex items-center gap-2 ${isHome ? 'text-white/80' : 'text-gray-500'}`} style={!isHome ? { color: 'rgba(0, 0, 0, 1)' } : undefined}>
                                <Calendar size={12} className={isHome ? 'text-[#FCB131]/70' : 'text-[#003B94]/70'} /> 
                                {formatDateDisplay(m.date)}
                            </div>
