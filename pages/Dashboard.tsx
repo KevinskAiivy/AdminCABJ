@@ -1,14 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { GlassCard } from '../components/GlassCard';
-import { Calendar, Activity, Star, Trophy, X, MapPin, Gift, Building2, Users, Globe } from 'lucide-react';
+import { Calendar, Activity, Star, Trophy, X, MapPin, Gift, Building2, Users, Globe, Cake } from 'lucide-react';
 import { dataService } from '../services/dataService';
-import { AgendaEvent, Match } from '../types';
+import { AgendaEvent, Match, Socio } from '../types';
 import { NextMatchCard } from '../components/NextMatchCard';
 
 interface DaySummary {
     date: Date;
     events: AgendaEvent[];
+    birthdays: Socio[];
 }
 
 // Config for Event Types
@@ -23,6 +24,7 @@ const EVENT_TYPE_CONFIG: Record<string, { label: string, icon: any, color: strin
 
 export const Dashboard = () => {
   const [weeklyEvents, setWeeklyEvents] = useState<AgendaEvent[]>([]);
+  const [allBirthdays, setAllBirthdays] = useState<Socio[]>([]);
   const [nextMatch, setNextMatch] = useState<any>(null);
   const [selectedDay, setSelectedDay] = useState<DaySummary | null>(null);
 
@@ -40,8 +42,53 @@ export const Dashboard = () => {
         }).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         
         setWeeklyEvents(relevantEvents);
+        
+        // 2. Load All Socios Birthdays for the next 7 days (Admin sees all socios)
+        const allSocios = dataService.getSocios();
+        const todayStr = today.toISOString().split('T')[0];
+        const nextWeekStr = nextWeek.toISOString().split('T')[0];
+        
+        // Filter socios with birth_date in the next 7 days
+        const upcomingBirthdays = allSocios.filter(socio => {
+            if (!socio.birth_date || socio.birth_date.trim() === '') return false;
+            
+            // Parse birth_date (format can be DD/MM/YYYY or YYYY-MM-DD)
+            let birthDay: number, birthMonth: number;
+            if (socio.birth_date.includes('/')) {
+                // Format DD/MM/YYYY
+                const parts = socio.birth_date.split('/');
+                birthDay = parseInt(parts[0], 10);
+                birthMonth = parseInt(parts[1], 10);
+            } else if (socio.birth_date.includes('-')) {
+                // Format YYYY-MM-DD or DD-MM-YYYY
+                const parts = socio.birth_date.split('-');
+                if (parts[0].length === 4) {
+                    // Format YYYY-MM-DD
+                    birthMonth = parseInt(parts[1], 10);
+                    birthDay = parseInt(parts[2], 10);
+                } else {
+                    // Format DD-MM-YYYY
+                    birthDay = parseInt(parts[0], 10);
+                    birthMonth = parseInt(parts[1], 10);
+                }
+            } else {
+                return false;
+            }
+            
+            // Check if this birthday falls in the next 7 days
+            const currentYear = today.getFullYear();
+            const birthdayThisYear = new Date(currentYear, birthMonth - 1, birthDay);
+            const birthdayNextYear = new Date(currentYear + 1, birthMonth - 1, birthDay);
+            
+            // Adjust if birthday has already passed this year
+            const birthdayDate = birthdayThisYear < today ? birthdayNextYear : birthdayThisYear;
+            
+            return birthdayDate >= today && birthdayDate <= nextWeek;
+        });
+        
+        setAllBirthdays(upcomingBirthdays);
 
-        // 2. Load Next Match - Trouver le vrai prochain match (le plus proche dans le futur)
+        // 3. Load Next Match - Trouver le vrai prochain match (le plus proche dans le futur)
         const allMatches = dataService.getMatches();
         const now = new Date();
         
@@ -93,7 +140,7 @@ export const Dashboard = () => {
     return d;
   });
 
-  const getEventCounts = (events: AgendaEvent[]) => {
+  const getEventCounts = (events: AgendaEvent[], birthdays: Socio[] = []) => {
       const counts: Record<string, number> = {};
       events.forEach(e => {
           let label = 'Eventos';
@@ -104,7 +151,48 @@ export const Dashboard = () => {
           
           counts[label] = (counts[label] || 0) + 1;
       });
+      if (birthdays.length > 0) {
+          counts['Cumpleaños'] = birthdays.length;
+      }
       return counts;
+  };
+  
+  const getEventsForDate = (date: Date) => {
+      const dateIso = date.toISOString().split('T')[0];
+      const dateStr = `${date.getDate().toString().padStart(2,'0')}/${(date.getMonth()+1).toString().padStart(2,'0')}`;
+      
+      // Filter agenda events for this date
+      const dayEvents = weeklyEvents.filter(e => e.date === dateIso);
+      
+      // Filter birthdays for this date (compare DD/MM only, ignore year)
+      const dayBirthdays = allBirthdays.filter(socio => {
+          if (!socio.birth_date || socio.birth_date.trim() === '') return false;
+          
+          // Extract day and month from birth_date
+          let birthDay: string, birthMonth: string;
+          if (socio.birth_date.includes('/')) {
+              const parts = socio.birth_date.split('/');
+              birthDay = parts[0].padStart(2, '0');
+              birthMonth = parts[1].padStart(2, '0');
+          } else if (socio.birth_date.includes('-')) {
+              const parts = socio.birth_date.split('-');
+              if (parts[0].length === 4) {
+                  // Format YYYY-MM-DD
+                  birthMonth = parts[1].padStart(2, '0');
+                  birthDay = parts[2].padStart(2, '0');
+              } else {
+                  // Format DD-MM-YYYY
+                  birthDay = parts[0].padStart(2, '0');
+                  birthMonth = parts[1].padStart(2, '0');
+              }
+          } else {
+              return false;
+          }
+          
+          return `${birthDay}/${birthMonth}` === dateStr;
+      });
+      
+      return { dayEvents, dayBirthdays };
   };
 
   const getGroupedEvents = (events: AgendaEvent[]) => {
@@ -156,16 +244,15 @@ export const Dashboard = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
               {next7Days.map((date, idx) => {
-                  const dateIso = date.toISOString().split('T')[0];
-                  const dayEvents = weeklyEvents.filter(e => e.date === dateIso);
-                  const counts = getEventCounts(dayEvents);
+                  const { dayEvents, dayBirthdays } = getEventsForDate(date);
+                  const counts = getEventCounts(dayEvents, dayBirthdays);
                   const isToday = idx === 0;
-                  const hasEvents = dayEvents.length > 0;
+                  const hasEvents = dayEvents.length > 0 || dayBirthdays.length > 0;
                   
                   return (
                       <GlassCard 
                           key={idx} 
-                          onClick={() => hasEvents && setSelectedDay({ date, events: dayEvents })}
+                          onClick={() => hasEvents && setSelectedDay({ date, events: dayEvents, birthdays: dayBirthdays })}
                           className={`p-3 flex flex-col gap-2 min-h-[120px] transition-all group border ${
                               isToday 
                               ? 'border-[#FCB131] bg-gradient-to-b from-white to-amber-50 shadow-md' 
@@ -184,9 +271,15 @@ export const Dashboard = () => {
                           <div className="flex-1 flex flex-col gap-1.5 justify-center">
                               {hasEvents ? (
                                   Object.entries(counts).map(([cat, count]) => (
-                                      <div key={cat} className="flex items-center justify-between bg-[#003B94]/5 px-2 py-1.5 rounded-lg border border-[#003B94]/5">
-                                          <span className="text-[7px] font-black text-[#001d4a] uppercase truncate max-w-[60px]">{cat}</span>
-                                          <span className="text-[9px] font-bold text-[#003B94]">{count}</span>
+                                      <div key={cat} className={`flex items-center justify-between px-2 py-1.5 rounded-lg border ${
+                                          cat === 'Cumpleaños' ? 'bg-blue-50 border-blue-100' : 'bg-[#003B94]/5 border-[#003B94]/5'
+                                      }`}>
+                                          <span className={`text-[7px] font-black uppercase truncate max-w-[60px] ${
+                                              cat === 'Cumpleaños' ? 'text-blue-600' : 'text-[#001d4a]'
+                                          }`}>{cat}</span>
+                                          <span className={`text-[9px] font-bold ${
+                                              cat === 'Cumpleaños' ? 'text-blue-600' : 'text-[#003B94]'
+                                          }`}>{count}</span>
                                       </div>
                                   ))
                               ) : (
@@ -221,6 +314,39 @@ export const Dashboard = () => {
                   <div className="p-8 overflow-y-auto custom-scrollbar bg-white">
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           
+                          {/* Birthdays Section */}
+                          {selectedDay.birthdays && selectedDay.birthdays.length > 0 && (
+                              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                  <h4 className="flex items-center gap-2 text-blue-600 font-black uppercase text-sm tracking-widest border-b border-gray-100 pb-2">
+                                      <Cake size={16} /> Cumpleaños ({selectedDay.birthdays.length})
+                                  </h4>
+                                  <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                      {selectedDay.birthdays.map(socio => (
+                                          <div key={socio.id} className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-colors">
+                                              <div className="w-10 h-10 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center text-xs font-black shrink-0">
+                                                  {socio.first_name?.[0]?.toUpperCase() || ''}{socio.last_name?.[0]?.toUpperCase() || ''}
+                                              </div>
+                                              <div className="flex-1 min-w-0">
+                                                  <p className="text-[10px] font-bold text-[#001d4a] uppercase truncate">
+                                                      {socio.last_name} {socio.first_name}
+                                                  </p>
+                                                  {socio.category && (
+                                                      <p className="text-[8px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">
+                                                          {socio.category}
+                                                      </p>
+                                                  )}
+                                                  {socio.consulado && (
+                                                      <p className="text-[8px] text-blue-600 font-bold uppercase tracking-wider mt-0.5">
+                                                          {socio.consulado}
+                                                      </p>
+                                                  )}
+                                              </div>
+                                          </div>
+                                      ))}
+                                  </div>
+                              </div>
+                          )}
+                          
                           {/* Dynamically Render Categories */}
                           {Object.entries(getGroupedEvents(selectedDay.events)).map(([type, events]) => {
                               const config = EVENT_TYPE_CONFIG[type] || EVENT_TYPE_CONFIG['EVENTO'];
@@ -254,7 +380,7 @@ export const Dashboard = () => {
                               );
                           })}
 
-                          {selectedDay.events.length === 0 && (
+                          {selectedDay.events.length === 0 && (!selectedDay.birthdays || selectedDay.birthdays.length === 0) && (
                               <div className="col-span-full py-12 flex flex-col items-center justify-center text-gray-300">
                                   <Calendar size={48} className="mb-2 opacity-20" />
                                   <p className="text-xs font-bold uppercase tracking-widest">Sin eventos registrados</p>

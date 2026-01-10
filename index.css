@@ -1,4 +1,23 @@
 /* Custom styles for Consulados CABJ Application */
 
+/* Custom Scrollbar Styles */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(252, 177, 49, 0.3);
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(252, 177, 49, 0.5);
+}
+
 /* Additional utility classes if needed */
 /* Most styles are handled via Tailwind CSS and inline styles in index.html */

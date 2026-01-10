@@ -103,8 +103,39 @@ export const DashboardPresident = ({ consulado_id }: { consulado_id: string }) =
   const getEventsForDate = (date: Date) => {
     const dateStr = `${date.getDate().toString().padStart(2,'0')}/${(date.getMonth()+1).toString().padStart(2,'0')}`;
     const isoDateStr = date.toISOString().split('T')[0];
+    
+    // Filtrer les anniversaires pour cette date (comparer DD/MM uniquement, ignorer l'année)
+    const dayBirthdays = birthdays.filter(b => {
+        if (!b.birth_date || b.birth_date.trim() === '') return false;
+        
+        // Extraire le jour et le mois de birth_date
+        let birthDay: string, birthMonth: string;
+        if (b.birth_date.includes('/')) {
+            // Format DD/MM/YYYY
+            const parts = b.birth_date.split('/');
+            birthDay = parts[0].padStart(2, '0');
+            birthMonth = parts[1].padStart(2, '0');
+        } else if (b.birth_date.includes('-')) {
+            // Format YYYY-MM-DD ou DD-MM-YYYY
+            const parts = b.birth_date.split('-');
+            if (parts[0].length === 4) {
+                // Format YYYY-MM-DD
+                birthMonth = parts[1].padStart(2, '0');
+                birthDay = parts[2].padStart(2, '0');
+            } else {
+                // Format DD-MM-YYYY
+                birthDay = parts[0].padStart(2, '0');
+                birthMonth = parts[1].padStart(2, '0');
+            }
+        } else {
+            return false;
+        }
+        
+        return `${birthDay}/${birthMonth}` === dateStr;
+    });
+    
     return {
-        dayBirthdays: birthdays.filter(b => b.birth_date.startsWith(dateStr)),
+        dayBirthdays,
         dayAgenda: generalEvents.filter(e => e.date === isoDateStr)
     };
   };

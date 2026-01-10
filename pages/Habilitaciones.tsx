@@ -1,9 +1,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { GlassCard } from '../components/GlassCard';
-import { Ticket, Clock, CheckCircle2, XCircle, Calendar, MapPin, X, UserCheck, UserX, Filter, Timer, Archive, Home, Plane } from 'lucide-react';
-import { Match, Solicitud, Socio } from '../types';
+import { Ticket, Clock, CheckCircle2, XCircle, Calendar, MapPin, X, UserCheck, UserX, Filter, Timer, Archive, Home, Plane, FileText } from 'lucide-react';
+import { Match, Solicitud, Socio, Team } from '../types';
 import { dataService } from '../services/dataService';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface ProcessedMatch extends Match {
   status: 'OPEN' | 'SCHEDULED' | 'CLOSED';
@@ -65,6 +67,7 @@ const formatHourDisplay = (hourStr: string) => {
 export const Habilitaciones = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [allSocios, setAllSocios] = useState<Socio[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [now, setNow] = useState(new Date());
   const [selectedMatch, setSelectedMatch] = useState<ProcessedMatch | null>(null);
   const [requests, setRequests] = useState<Solicitud[]>([]);
@@ -73,6 +76,7 @@ export const Habilitaciones = () => {
     const load = () => {
         setMatches(dataService.getMatches());
         setAllSocios(dataService.getSocios());
+        setTeams(dataService.getTeams());
     };
     load();
     const unsub = dataService.subscribe(load);
@@ -92,7 +96,9 @@ export const Habilitaciones = () => {
           if (now >= ap && now <= ci) status = 'OPEN';
           else if (now < ap) status = 'SCHEDULED';
           
-          return { ...m, status, activeRequests: dataService.getSolicitudes(m.id).length };
+          // Convertir l'ID en number si c'est une chaîne
+          const matchId = typeof m.id === 'string' ? parseInt(m.id, 10) : m.id;
+          return { ...m, status, activeRequests: dataService.getSolicitudes(matchId).length };
       })
       .sort((a, b) => {
           // Tri systématique par date (plus ancien en premier)
@@ -106,13 +112,226 @@ export const Habilitaciones = () => {
   }, [matches, now]);
 
   const handleOpenMatch = (match: ProcessedMatch) => {
-    setRequests(dataService.getSolicitudes(match.id));
+    // Convertir l'ID en number si c'est une chaîne
+    const matchId = typeof match.id === 'string' ? parseInt(match.id, 10) : match.id;
+    setRequests(dataService.getSolicitudes(matchId));
     setSelectedMatch(match);
   };
 
   const handleStatusChange = async (reqId: string, status: any) => {
     await dataService.updateSolicitudStatus(reqId, status);
-    setRequests(prev => prev.map(r => r.id === reqId ? { ...r, status } : r));
+    // Recharger les requests pour avoir les données à jour
+    if (selectedMatch) {
+      const matchId = typeof selectedMatch.id === 'string' ? parseInt(selectedMatch.id, 10) : selectedMatch.id;
+      setRequests(dataService.getSolicitudes(matchId));
+    } else {
+      setRequests(prev => prev.map(r => r.id === reqId ? { ...r, status } : r));
+    }
+  };
+  
+  // Vérifier si toutes les sollicitations ont été traitées (pas de PENDING)
+  const allRequestsProcessed = useMemo(() => {
+    if (!selectedMatch || requests.length === 0) return false;
+    return requests.every(req => req.status === 'APPROVED' || req.status === 'REJECTED');
+  }, [selectedMatch, requests]);
+  
+  // Fonction helper pour générer le PDF avec des données spécifiques (utilisée depuis la carte)
+  const generatePDFForMatch = async (match: ProcessedMatch, approvedRequests: Solicitud[]) => {
+    if (approvedRequests.length === 0) {
+      alert('No hay solicitudes aprobadas para generar el PDF');
+      return;
+    }
+    await generatePDFWithData(match, approvedRequests);
+  };
+  
+  // Générer le PDF de la liste définitive (utilisée depuis le modal)
+  const generatePDF = async () => {
+    if (!selectedMatch) return;
+    
+    const approvedRequests = requests.filter(req => req.status === 'APPROVED');
+    if (approvedRequests.length === 0) {
+      alert('No hay solicitudes aprobadas para generar el PDF');
+      return;
+    }
+    await generatePDFWithData(selectedMatch, approvedRequests);
+  };
+  
+  // Fonction principale de génération de PDF
+  const generatePDFWithData = async (match: ProcessedMatch | Match, approvedRequests: Solicitud[]) => {
+    
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      let yPos = margin;
+      let hasLogo = false;
+      
+      // Récupérer le logo depuis les settings
+      const settings = dataService.getAppSettings();
+      const logoUrl = settings.logoUrl || settings.loginLogoUrl;
+      
+      // Ajouter le logo si disponible (image base64)
+      if (logoUrl && logoUrl.length > 50 && (logoUrl.startsWith('data:image') || logoUrl.startsWith('http'))) {
+        try {
+          const logo = await loadImage(logoUrl);
+          const logoWidth = 40;
+          const logoHeight = (logo.height * logoWidth) / logo.width;
+          doc.addImage(logo, 'PNG', pageWidth / 2 - logoWidth / 2, yPos, logoWidth, logoHeight);
+          yPos += logoHeight + 10;
+          hasLogo = true;
+        } catch (error) {
+          console.warn('Error loading logo:', error);
+          // Continuer sans logo
+        }
+      }
+      
+      if (!hasLogo) {
+        yPos += 10;
+      }
+      
+      // Titre
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('LISTA DEFINITIVA DE HABILITACIONES', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 12;
+      
+      // Informations du match
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Partido: vs ${match.rival || 'N/A'}`, margin, yPos);
+      yPos += 8;
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Competencia: ${match.competition || 'N/A'}`, margin, yPos);
+      yPos += 6;
+      doc.text(`Fecha: ${formatDateDisplay(match.date || '')} - ${formatHourDisplay(match.hour || '')}`, margin, yPos);
+      yPos += 6;
+      if (match.venue) {
+        doc.text(`Sede: ${match.venue}`, margin, yPos);
+        yPos += 6;
+      }
+      if (match.stadium) {
+        doc.text(`Estadio: ${match.stadium}`, margin, yPos);
+        yPos += 6;
+      }
+      yPos += 5;
+      
+      // Ligne de séparation
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 10;
+      
+      // Table des socios acceptés
+      const tableData = approvedRequests.map(req => {
+        // Trouver le socio pour obtenir le numéro de socio et les noms séparés
+        const socio = allSocios.find(s => s.id === req.socio_id);
+        const numeroSocio = socio?.numero_socio || socio?.dni || req.socio_dni || 'N/A';
+        
+        // Utiliser last_name et first_name si disponibles, sinon parser socio_name
+        let apellido = '';
+        let nombre = '';
+        if (socio && socio.last_name && socio.first_name) {
+          apellido = socio.last_name.toUpperCase();
+          nombre = socio.first_name.charAt(0).toUpperCase() + socio.first_name.slice(1).toLowerCase();
+        } else {
+          // Parser depuis socio_name (format peut être "LAST_NAME FIRST_NAME" ou "FIRST_NAME LAST_NAME")
+          // On essaie d'identifier le format en vérifiant si le premier mot est en majuscules
+          const nameParts = req.socio_name.trim().split(/\s+/);
+          if (nameParts.length >= 2) {
+            // Si le premier mot est tout en majuscules ou plus long, c'est probablement le nom de famille
+            if (nameParts[0] === nameParts[0].toUpperCase() || nameParts[0].length > nameParts[1].length) {
+              apellido = nameParts[0].toUpperCase();
+              nombre = nameParts.slice(1).join(' ').charAt(0).toUpperCase() + nameParts.slice(1).join(' ').slice(1).toLowerCase();
+            } else {
+              // Sinon, le dernier mot est probablement le nom de famille
+              apellido = nameParts[nameParts.length - 1].toUpperCase();
+              nombre = nameParts.slice(0, -1).join(' ').charAt(0).toUpperCase() + nameParts.slice(0, -1).join(' ').slice(1).toLowerCase();
+            }
+          } else {
+            apellido = req.socio_name.toUpperCase();
+            nombre = '';
+          }
+        }
+        
+        return [
+          apellido,
+          nombre,
+          numeroSocio,
+          req.consulado || 'N/A'
+        ];
+      });
+      
+      // Trier par consulado puis par nom
+      tableData.sort((a, b) => {
+        const consuladoCompare = (a[3] as string).localeCompare(b[3] as string);
+        if (consuladoCompare !== 0) return consuladoCompare;
+        return (a[0] as string).localeCompare(b[0] as string);
+      });
+      
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Apellido', 'Nombre', 'N° Socio', 'Consulado']],
+        body: tableData,
+        styles: {
+          fontSize: 8,
+          cellPadding: 3,
+          font: 'helvetica',
+        },
+        headStyles: {
+          fillColor: [0, 59, 148], // #003B94
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 9,
+        },
+        alternateRowStyles: {
+          fillColor: [245, 247, 250],
+        },
+        margin: { left: margin, right: margin },
+      });
+      
+      // Footer avec date de génération
+      const finalY = (doc as any).lastAutoTable?.finalY || yPos + 50;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(128, 128, 128);
+      const pdfDateStr = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const timeStr = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+      doc.text(
+        `Documento generado el ${pdfDateStr} a las ${timeStr}`,
+        pageWidth / 2,
+        Math.min(finalY + 15, pageHeight - 15),
+        { align: 'center' }
+      );
+      
+      // Sauvegarder le PDF
+      const rivalName = (match.rival || 'Match').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+      const matchDateStr = formatDateDisplay(match.date || '');
+      // Convertir le format jj-mm-aaaa en jj_mm_aaaa pour le nom de fichier
+      const dateFileName = matchDateStr.replace(/-/g, '_');
+      const fileName = `Lista_Definitiva_${rivalName}_${dateFileName}.pdf`;
+      doc.save(fileName);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Error al generar el PDF. Por favor, intente nuevamente.');
+    }
+  };
+  
+  // Fonction helper pour charger une image depuis une URL ou base64
+  const loadImage = (url: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      if (url.startsWith('http')) {
+        img.crossOrigin = 'anonymous';
+      }
+      img.onload = () => resolve(img);
+      img.onerror = (err) => {
+        console.error('Error loading image:', err);
+        reject(err);
+      };
+      img.src = url;
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -170,61 +389,128 @@ export const Habilitaciones = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {processedMatches.map(match => {
                 const isDark = match.status === 'OPEN' || (match.is_home && match.status !== 'SCHEDULED');
                 const isYellow = match.status === 'CLOSED' && !match.is_home;
                 const isScheduled = match.status === 'SCHEDULED';
                 const isOpen = match.status === 'OPEN';
+                
+                // Trouver les équipes pour les logos
+                const localTeam = teams.find(t => 
+                    t.name?.toLowerCase().includes('boca') || 
+                    t.name?.toLowerCase().includes('junior')
+                );
+                const rivalTeam = teams.find(t => 
+                    t.name?.toLowerCase() === match.rival?.toLowerCase() ||
+                    t.short_name?.toLowerCase() === match.rival?.toLowerCase() ||
+                    t.name?.toLowerCase().includes(match.rival?.toLowerCase() || '')
+                );
+                
                 return (
-                <GlassCard key={match.id} className={`p-6 border flex flex-col relative overflow-hidden ${getContainerStyle(match.status, match.is_home)} ${isOpen ? 'col-span-full' : ''}`}>
+                <GlassCard key={match.id} className={`p-4 border flex flex-col relative overflow-hidden ${getContainerStyle(match.status, match.is_home)}`}>
                     
                     <div className={`absolute top-0 right-0 p-2 rounded-bl-xl ${isDark ? 'bg-white/10' : isYellow ? 'bg-[#001d4a]/10' : isScheduled ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                        {match.is_home ? <Home size={14} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} /> : <Plane size={14} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} />}
+                        {match.is_home ? <Home size={12} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} /> : <Plane size={12} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} />}
                     </div>
 
-                    <div className="flex justify-between items-start mb-4 pr-8">
+                    <div className="flex justify-between items-start mb-3 pr-8">
                         {getStatusBadge(match.status)}
                     </div>
                     
-                    <div className="mb-6">
-                        <p className={`text-[9px] font-bold uppercase mb-1 ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>{match.competition}</p>
-                        <h3 className={`oswald text-2xl font-black uppercase leading-tight ${isDark ? 'text-white' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#001d4a]'}`}>vs {match.rival}</h3>
-                        <div className={`flex items-center gap-2 mt-2 text-[10px] font-bold ${isDark ? 'text-white/80' : isYellow ? 'text-[#001d4a]/80' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'}`}>
-                            <Calendar size={12} /> {formatDateDisplay(match.date)} {formatHourDisplay(match.hour)}
+                    {/* Logos des équipes */}
+                    <div className="flex items-center justify-center gap-3 mb-3">
+                        {localTeam?.logo ? (
+                            <img 
+                                src={localTeam.logo} 
+                                alt={localTeam.name || 'Local'} 
+                                className="w-10 h-10 object-contain"
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                            />
+                        ) : (
+                            <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
+                                <Home size={16} className={isDark ? 'text-white/50' : 'text-[#003B94]/50'} />
+                            </div>
+                        )}
+                        <span className={`text-xs font-black ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/60' : isScheduled ? 'text-[#003B94]/60' : 'text-gray-400'}`}>VS</span>
+                        {rivalTeam?.logo ? (
+                            <img 
+                                src={rivalTeam.logo} 
+                                alt={rivalTeam.name || match.rival || 'Rival'} 
+                                className="w-10 h-10 object-contain"
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                            />
+                        ) : (
+                            <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
+                                <Plane size={16} className={isDark ? 'text-white/50' : 'text-[#003B94]/50'} />
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="mb-4">
+                        <p className={`text-[8px] font-bold uppercase mb-1 ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>{match.competition}</p>
+                        <h3 className={`oswald text-xl font-black uppercase leading-tight ${isDark ? 'text-white' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#001d4a]'}`}>vs {match.rival}</h3>
+                        <div className={`flex items-center gap-2 mt-1 text-[9px] font-bold ${isDark ? 'text-white/80' : isYellow ? 'text-[#001d4a]/80' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'}`}>
+                            <Calendar size={10} /> {formatDateDisplay(match.date)} {formatHourDisplay(match.hour)}
                         </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-3 mb-6">
-                        <div className={`text-center p-2 rounded-lg border flex flex-col items-center justify-center ${isDark ? 'bg-black/20 border-white/10' : isYellow ? 'bg-[#FFD23F]/30 border-[#001d4a]/20' : isScheduled ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
-                            <span className={`text-[7px] font-black uppercase block mb-1 ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>Apertura</span>
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                        <div className={`text-center p-1.5 rounded-lg border flex flex-col items-center justify-center ${isDark ? 'bg-black/20 border-white/10' : isYellow ? 'bg-[#FFD23F]/30 border-[#001d4a]/20' : isScheduled ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
+                            <span className={`text-[6px] font-black uppercase block mb-0.5 ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>Apertura</span>
                             <div className="flex flex-col items-center leading-tight">
-                                <span className={`text-xs font-black ${isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'}`}>{formatDateDisplay(match.apertura_date)}</span>
-                                <span className={`text-[9px] font-bold ${isDark ? 'text-white/80' : isYellow ? 'text-[#001d4a]/80' : isScheduled ? 'text-[#003B94]/80' : 'text-[#001d4a]/70'}`}>{formatHourDisplay(match.apertura_hour)}</span>
+                                <span className={`text-[10px] font-black ${isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'}`}>{formatDateDisplay(match.apertura_date)}</span>
+                                <span className={`text-[8px] font-bold ${isDark ? 'text-white/80' : isYellow ? 'text-[#001d4a]/80' : isScheduled ? 'text-[#003B94]/80' : 'text-[#001d4a]/70'}`}>{formatHourDisplay(match.apertura_hour)}</span>
                             </div>
                         </div>
-                        <div className={`text-center p-2 rounded-lg border flex flex-col items-center justify-center ${isDark ? 'bg-black/20 border-white/10' : isYellow ? 'bg-[#FFD23F]/30 border-[#001d4a]/20' : isScheduled ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
-                            <span className={`text-[7px] font-black uppercase block mb-1 ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>Cierre</span>
+                        <div className={`text-center p-1.5 rounded-lg border flex flex-col items-center justify-center ${isDark ? 'bg-black/20 border-white/10' : isYellow ? 'bg-[#FFD23F]/30 border-[#001d4a]/20' : isScheduled ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
+                            <span className={`text-[6px] font-black uppercase block mb-0.5 ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>Cierre</span>
                             <div className="flex flex-col items-center leading-tight">
-                                <span className={`text-xs font-black ${isDark ? 'text-white' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#001d4a]'}`}>{formatDateDisplay(match.cierre_date)}</span>
-                                <span className={`text-[9px] font-bold ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/80' : 'text-[#001d4a]/60'}`}>{formatHourDisplay(match.cierre_hour)}</span>
+                                <span className={`text-[10px] font-black ${isDark ? 'text-white' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#001d4a]'}`}>{formatDateDisplay(match.cierre_date)}</span>
+                                <span className={`text-[8px] font-bold ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/80' : 'text-[#001d4a]/60'}`}>{formatHourDisplay(match.cierre_hour)}</span>
                             </div>
                         </div>
                     </div>
 
                     <div className="mt-auto">
-                        <div className="flex items-center justify-between mb-3 px-1">
-                            <span className={`text-[9px] font-bold uppercase tracking-widest ${isDark ? 'text-white/50' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>Solicitudes</span>
-                            <span className={`text-lg font-black oswald ${isDark ? 'text-white' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#001d4a]'}`}>{match.activeRequests}</span>
+                        <div className="flex items-center justify-between mb-2 px-1">
+                            <span className={`text-[8px] font-bold uppercase tracking-widest ${isDark ? 'text-white/50' : isYellow ? 'text-[#001d4a]/70' : isScheduled ? 'text-[#003B94]/70' : 'text-gray-400'}`}>Solicitudes</span>
+                            <span className={`text-base font-black oswald ${isDark ? 'text-white' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#001d4a]'}`}>{match.activeRequests}</span>
                         </div>
-                        {match.status === 'OPEN' && (
-                            <button 
-                                onClick={() => handleOpenMatch(match)} 
-                                className="w-full py-3 rounded-xl font-black uppercase text-xs shadow-lg transition-all flex items-center justify-center gap-2 bg-[#FCB131] text-[#001d4a] hover:bg-white"
-                            >
-                                Gestionar en Vivo
-                            </button>
-                        )}
+                        <div className="flex gap-2">
+                            {match.status === 'OPEN' && (
+                                <button 
+                                    onClick={() => handleOpenMatch(match)} 
+                                    className="flex-1 py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all flex items-center justify-center gap-2 bg-[#FCB131] text-[#001d4a] hover:bg-white"
+                                >
+                                    Gestionar en Vivo
+                                </button>
+                            )}
+                            {(() => {
+                                const matchId = typeof match.id === 'string' ? parseInt(match.id, 10) : match.id;
+                                const allRequests = dataService.getSolicitudes(matchId);
+                                const allProcessed = allRequests.length > 0 && allRequests.every(req => req.status === 'APPROVED' || req.status === 'REJECTED');
+                                const hasApproved = allRequests.some(req => req.status === 'APPROVED');
+                                
+                                if (!allProcessed || !hasApproved) return null;
+                                
+                                const approvedRequests = allRequests.filter(req => req.status === 'APPROVED');
+                                
+                                return (
+                                    <button
+                                        onClick={() => generatePDFForMatch(match, approvedRequests)}
+                                        className={`${match.status === 'OPEN' ? 'px-3' : 'flex-1'} py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all flex items-center justify-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600`}
+                                        title="Descargar lista definitiva en PDF"
+                                    >
+                                        <FileText size={12} /> {match.status === 'OPEN' ? 'Imprimir' : 'Imprimir Lista'}
+                                    </button>
+                                );
+                            })()}
+                        </div>
                     </div>
                 </GlassCard>
             )})}
@@ -248,7 +534,18 @@ export const Habilitaciones = () => {
                                 {selectedMatch.status === 'OPEN' ? 'Ventana Abierta' : 'Ventana Cerrada/Programada'}
                             </p>
                         </div>
-                        <X onClick={() => setSelectedMatch(null)} className="cursor-pointer opacity-60 hover:opacity-100 p-2 hover:bg-white/10 rounded-full transition-all" />
+                        <div className="flex items-center gap-3">
+                            {allRequestsProcessed && (
+                                <button
+                                    onClick={generatePDF}
+                                    className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-emerald-600 transition-all flex items-center gap-2"
+                                    title="Descargar lista definitiva en PDF"
+                                >
+                                    <FileText size={14} /> Imprimir Lista Definitiva
+                                </button>
+                            )}
+                            <X onClick={() => setSelectedMatch(null)} className="cursor-pointer opacity-60 hover:opacity-100 p-2 hover:bg-white/10 rounded-full transition-all" />
+                        </div>
                     </div>
                     <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50 custom-scrollbar">
                         {requests.length > 0 ? (

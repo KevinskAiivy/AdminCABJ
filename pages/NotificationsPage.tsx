@@ -19,17 +19,46 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
       return () => unsubscribe();
   }, [user]);
 
-  const handleDelete = (id: string) => {
-      dataService.deleteNotification(id);
-      setNotifications(prev => prev.filter(n => n.id !== id));
+  const handleDelete = async (id: string) => {
+      try {
+          await dataService.deleteNotification(id);
+          setNotifications(prev => prev.filter(n => n.id !== id));
+      } catch (error: any) {
+          console.error('Error deleting notification:', error);
+          alert('Error al eliminar la notificación');
+      }
+  };
+  
+  const handleMarkAsRead = async (id: string) => {
+      try {
+          await dataService.markNotificationAsRead(id);
+          setNotifications(prev => prev.map(n => n.id === id ? {...n, read: true} : n));
+      } catch (error: any) {
+          console.error('Error marking notification as read:', error);
+      }
+  };
+  
+  const handleMarkAllAsRead = async () => {
+      try {
+          const unreadNotifications = notifications.filter(n => !n.read);
+          await Promise.all(unreadNotifications.map(n => dataService.markNotificationAsRead(n.id)));
+          setNotifications(prev => prev.map(n => ({...n, read: true})));
+      } catch (error: any) {
+          console.error('Error marking all notifications as read:', error);
+      }
   };
 
   const filteredNotifications = useMemo(() => {
       return notifications.filter(n => {
           const matchType = filterType === 'ALL' || n.type === filterType;
-          const matchSearch = n.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+          const matchSearch = searchQuery === '' || 
+                              n.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                               n.message.toLowerCase().includes(searchQuery.toLowerCase());
           return matchType && matchSearch;
+      }).sort((a, b) => {
+          // Trier par : non lues en premier, puis par date décroissante
+          if (a.read !== b.read) return a.read ? 1 : -1;
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
       });
   }, [notifications, filterType, searchQuery]);
 
@@ -54,7 +83,7 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
         {/* Toolbar */}
         <div className="bg-white p-4 rounded-xl shadow-sm border border-[#003B94]/10 flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="flex gap-2 overflow-x-auto w-full md:w-auto">
-                {['ALL', 'TRANSFER', 'SYSTEM'].map(type => (
+                {['ALL', 'TRANSFER', 'SYSTEM', 'ALERT'].map(type => (
                     <button 
                         key={type}
                         onClick={() => setFilterType(type)}
@@ -64,10 +93,18 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
                             : 'bg-gray-50 text-gray-400 hover:text-[#001d4a] hover:bg-gray-100'
                         }`}
                     >
-                        {type === 'ALL' ? 'Todas' : type === 'TRANSFER' ? 'Transferencias' : 'Sistema'}
+                        {type === 'ALL' ? 'Todas' : type === 'TRANSFER' ? 'Transferencias' : type === 'ALERT' ? 'Alertas' : 'Sistema'}
                     </button>
                 ))}
             </div>
+            {notifications.filter(n => !n.read).length > 0 && (
+                <button
+                    onClick={handleMarkAllAsRead}
+                    className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center gap-2 whitespace-nowrap"
+                >
+                    <CheckCircle2 size={12} /> Marcar todas como leídas
+                </button>
+            )}
             <div className="relative group w-full md:w-64">
                 <input 
                     type="text" 
@@ -109,13 +146,24 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
                                 </p>
                             </div>
 
-                            <button 
-                                onClick={() => handleDelete(notif.id)}
-                                className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all self-center ml-2"
-                                title="Eliminar permanentemente"
-                            >
-                                <Trash2 size={16} />
-                            </button>
+                            <div className="flex items-center gap-1 self-center ml-2">
+                                {!notif.read && (
+                                    <button 
+                                        onClick={() => handleMarkAsRead(notif.id)}
+                                        className="p-2 text-gray-300 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+                                        title="Marcar como leída"
+                                    >
+                                        <CheckCircle2 size={16} />
+                                    </button>
+                                )}
+                                <button 
+                                    onClick={() => handleDelete(notif.id)}
+                                    className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                    title="Eliminar permanentemente"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
                         </div>
                     </GlassCard>
                 ))

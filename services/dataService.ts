@@ -1914,7 +1914,60 @@ class DataService {
       }
   }
   
-  getBirthdays(c: string, d: number) { return []; }
+  getBirthdays(consuladoName: string | null, days: number): Socio[] {
+      // Si consuladoName est null ou undefined, retourner tous les socios (pour les admins)
+      const today = new Date();
+      const endDate = new Date(today);
+      endDate.setDate(today.getDate() + days);
+      
+      // Filtrer les socios par consulado si fourni, sinon prendre tous
+      const relevantSocios = consuladoName 
+          ? this.socios.filter(s => {
+              // Comparaison case-insensitive et trim
+              const socioConsulado = (s.consulado || '').trim().toLowerCase();
+              const targetConsulado = consuladoName.trim().toLowerCase();
+              return socioConsulado === targetConsulado;
+          })
+          : this.socios; // Pour les admins, retourner tous les socios
+      
+      // Filtrer ceux dont l'anniversaire tombe dans les prochains 'days' jours
+      return relevantSocios.filter(socio => {
+          if (!socio.birth_date || socio.birth_date.trim() === '') return false;
+          
+          // Parser birth_date (format peut être DD/MM/YYYY ou YYYY-MM-DD ou DD-MM-YYYY)
+          let birthDay: number, birthMonth: number;
+          if (socio.birth_date.includes('/')) {
+              // Format DD/MM/YYYY
+              const parts = socio.birth_date.split('/');
+              birthDay = parseInt(parts[0], 10);
+              birthMonth = parseInt(parts[1], 10);
+          } else if (socio.birth_date.includes('-')) {
+              // Format YYYY-MM-DD ou DD-MM-YYYY
+              const parts = socio.birth_date.split('-');
+              if (parts[0].length === 4) {
+                  // Format YYYY-MM-DD
+                  birthMonth = parseInt(parts[1], 10);
+                  birthDay = parseInt(parts[2], 10);
+              } else {
+                  // Format DD-MM-YYYY
+                  birthDay = parseInt(parts[0], 10);
+                  birthMonth = parseInt(parts[1], 10);
+              }
+          } else {
+              return false;
+          }
+          
+          // Vérifier si cet anniversaire tombe dans les prochains 'days' jours
+          const currentYear = today.getFullYear();
+          const birthdayThisYear = new Date(currentYear, birthMonth - 1, birthDay);
+          const birthdayNextYear = new Date(currentYear + 1, birthMonth - 1, birthDay);
+          
+          // Ajuster si l'anniversaire est déjà passé cette année
+          const birthdayDate = birthdayThisYear < today ? birthdayNextYear : birthdayThisYear;
+          
+          return birthdayDate >= today && birthdayDate <= endDate;
+      });
+  }
   
   getTransfers(consulado_name: string) {
       // Transferts entrants: seulement ceux en attente d'approbation
@@ -2182,7 +2235,7 @@ class DataService {
 
   // Obtener todos los esquemas de las tablas principales
   public async getAllTableSchemas(): Promise<Record<string, TableSchema>> {
-    const tables = ['socios', 'consulados', 'matches', 'teams', 'competitions', 'agenda', 'mensajes', 'users', 'solicitudes', 'notifications'];
+    const tables = ['socios', 'consulados', 'matches', 'teams', 'competitions', 'agenda', 'mensajes', 'users', 'solicitudes', 'notifications', 'transfer_requests'];
     const schemas: Record<string, TableSchema> = {};
     
     await Promise.all(
@@ -2381,6 +2434,21 @@ class DataService {
           { dbField: 'data', appField: 'data', type: 'json', nullable: true }
         );
         break;
+        
+      case 'transfer_requests':
+        mappings.push(
+          { dbField: 'id', appField: 'id', type: 'text', nullable: false },
+          { dbField: 'socio_id', appField: 'socio_id', type: 'text', nullable: false },
+          { dbField: 'socio_name', appField: 'socio_name', type: 'text', nullable: false },
+          { dbField: 'from_consulado_id', appField: 'from_consulado_id', type: 'text', nullable: false },
+          { dbField: 'from_consulado_name', appField: 'from_consulado_name', type: 'text', nullable: false },
+          { dbField: 'to_consulado_id', appField: 'to_consulado_id', type: 'text', nullable: false },
+          { dbField: 'to_consulado_name', appField: 'to_consulado_name', type: 'text', nullable: false },
+          { dbField: 'comments', appField: 'comments', type: 'text', nullable: true },
+          { dbField: 'status', appField: 'status', type: 'text', nullable: false }, // PENDING, APPROVED, REJECTED, CANCELLED
+          { dbField: 'request_date', appField: 'request_date', type: 'text', nullable: false }
+        );
+        break;
     }
     
     return mappings;
@@ -2403,6 +2471,7 @@ class DataService {
       this.users = [];
       this.solicitudes = [];
       this.notifications = [];
+      this.transfers = [];
       
       this.notify();
       
@@ -2581,6 +2650,20 @@ class DataService {
               } else {
                 this.notifications = (notificationsData || []).map(mapNotificationFromDB);
                 results[table] = { success: true, count: this.notifications.length };
+              }
+              break;
+              
+            case 'transfer_requests':
+              this.loadingMessage = "Re-mapeando transferencias...";
+              const { data: transfersData, error: transfersError } = await supabase
+                .from('transfer_requests')
+                .select('*');
+              
+              if (transfersError) {
+                results[table] = { success: false, count: 0, error: transfersError.message };
+              } else {
+                this.transfers = (transfersData || []).map(mapTransferFromDB);
+                results[table] = { success: true, count: this.transfers.length };
               }
               break;
               

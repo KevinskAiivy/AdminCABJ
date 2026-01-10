@@ -35,7 +35,8 @@ const TABLE_CONFIG = [
   { name: 'competitions', icon: Trophy, color: 'yellow', label: 'Torneos' },
   { name: 'agenda', icon: Clock, color: 'pink', label: 'Agenda' },
   { name: 'mensajes', icon: MessageSquare, color: 'indigo', label: 'Mensajes' },
-  { name: 'users', icon: Users, color: 'teal', label: 'Usuarios' }
+  { name: 'users', icon: Users, color: 'teal', label: 'Usuarios' },
+  { name: 'transfer_requests', icon: ArrowRight, color: 'cyan', label: 'Transferencias' }
 ] as const;
 
 export const Database = () => {

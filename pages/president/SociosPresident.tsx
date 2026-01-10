@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { GlassCard } from '../../components/GlassCard';
+import { CustomSelect } from '../../components/CustomSelect';
 import { Users, Search, CheckCircle2, AlertTriangle, UserX, Edit2, Trash2, Star, X, ChevronLeft, ChevronRight, User, Save, Phone, Mail, Loader2, Building2, Lock, Unlock, ArrowRightLeft, CheckCircle, XCircle, Clock, Inbox, Send } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { Socio, TransferRequest } from '../../types';
@@ -176,6 +177,7 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                 from_consulado_name: currentConsulado,
                 to_consulado_id: toConsulado.id,
                 to_consulado_name: pendingConsulado,
+                comments: (formData as any).transferComments || undefined,
                 status: 'PENDING'
             });
             
@@ -200,6 +202,11 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
         setPendingConsulado(null);
         setConsuladoSelection('');
         setIsConsuladoLocked(true);
+        setFormData((prev: any) => {
+            const newData = {...prev};
+            delete newData.transferComments;
+            return newData;
+        });
     } catch (e: any) { 
         alert(`Error al guardar: ${e.message || 'Error desconocido'}`); 
     } finally { 
@@ -306,39 +313,44 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                     </div>
                 </div>
                 <div className="space-y-3">
-                    {incomingTransfers.map(transfer => (
-                        <GlassCard key={transfer.id} className="p-4 bg-white/80 border border-amber-200">
-                            <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Clock size={16} className="text-amber-600" />
-                                        <span className="text-xs font-black text-[#001d4a] uppercase">{transfer.socio_name}</span>
-                                        <span className="text-[9px] font-bold text-gray-500">({transfer.socio_id})</span>
+                    {incomingTransfers.map(transfer => {
+                        const allSocios = dataService.getSocios(); // Obtenir tous les socios, pas seulement ceux du consulado actuel
+                        const socio = allSocios.find(s => s.id === transfer.socio_id);
+                        const numeroSocio = socio?.numero_socio || socio?.dni || transfer.socio_id;
+                        return (
+                            <GlassCard key={transfer.id} className="p-4 bg-white/80 border border-amber-200">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Clock size={16} className="text-amber-600" />
+                                            <span className="text-xs font-black text-[#001d4a] uppercase">{transfer.socio_name}</span>
+                                            <span className="text-[9px] font-bold text-gray-500">(N° {numeroSocio})</span>
+                                        </div>
+                                        <p className="text-xs text-gray-600 mb-1">
+                                            <span className="font-bold">Desde:</span> {transfer.from_consulado_name}
+                                        </p>
+                                        <p className="text-[9px] text-gray-500">
+                                            Solicitado el: {new Date(transfer.request_date).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                        </p>
                                     </div>
-                                    <p className="text-xs text-gray-600 mb-1">
-                                        <span className="font-bold">Desde:</span> {transfer.from_consulado_name}
-                                    </p>
-                                    <p className="text-[9px] text-gray-500">
-                                        Solicitado el: {new Date(transfer.request_date).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                    </p>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => handleAcceptTransfer(transfer.id)}
+                                            className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all font-black text-[9px] uppercase tracking-widest flex items-center gap-2"
+                                        >
+                                            <CheckCircle size={14} /> Aprobar
+                                        </button>
+                                        <button
+                                            onClick={() => handleRejectTransfer(transfer.id)}
+                                            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all font-black text-[9px] uppercase tracking-widest flex items-center gap-2"
+                                        >
+                                            <XCircle size={14} /> Rechazar
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => handleAcceptTransfer(transfer.id)}
-                                        className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all font-black text-[9px] uppercase tracking-widest flex items-center gap-2"
-                                    >
-                                        <CheckCircle size={14} /> Aprobar
-                                    </button>
-                                    <button
-                                        onClick={() => handleRejectTransfer(transfer.id)}
-                                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all font-black text-[9px] uppercase tracking-widest flex items-center gap-2"
-                                    >
-                                        <XCircle size={14} /> Rechazar
-                                    </button>
-                                </div>
-                            </div>
-                        </GlassCard>
-                    ))}
+                            </GlassCard>
+                        );
+                    })}
                 </div>
             </div>
         )}
@@ -354,51 +366,56 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                     </div>
                 </div>
                 <div className="space-y-3">
-                    {outgoingTransfers.filter(t => t.status === 'PENDING').map(transfer => (
-                        <GlassCard key={transfer.id} className={`p-4 bg-white/80 border ${
-                            transfer.status === 'PENDING' ? 'border-blue-200' :
-                            transfer.status === 'APPROVED' ? 'border-emerald-200' :
-                            'border-gray-200'
-                        }`}>
-                            <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        {transfer.status === 'PENDING' && <Clock size={16} className="text-blue-600" />}
-                                        {transfer.status === 'APPROVED' && <CheckCircle size={16} className="text-emerald-600" />}
-                                        {transfer.status === 'REJECTED' && <XCircle size={16} className="text-red-600" />}
-                                        {transfer.status === 'CANCELLED' && <X size={16} className="text-gray-600" />}
-                                        <span className="text-xs font-black text-[#001d4a] uppercase">{transfer.socio_name}</span>
-                                        <span className="text-[9px] font-bold text-gray-500">({transfer.socio_id})</span>
-                                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
-                                            transfer.status === 'PENDING' ? 'bg-blue-100 text-blue-700' :
-                                            transfer.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
-                                            transfer.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                                            'bg-gray-100 text-gray-700'
-                                        }`}>
-                                            {transfer.status === 'PENDING' ? 'Pendiente' :
-                                             transfer.status === 'APPROVED' ? 'Aprobado' :
-                                             transfer.status === 'REJECTED' ? 'Rechazado' :
-                                             'Cancelado'}
-                                        </span>
+                    {outgoingTransfers.filter(t => t.status === 'PENDING').map(transfer => {
+                        const allSocios = dataService.getSocios(); // Obtenir tous les socios, pas seulement ceux du consulado actuel
+                        const socio = allSocios.find(s => s.id === transfer.socio_id);
+                        const numeroSocio = socio?.numero_socio || socio?.dni || transfer.socio_id;
+                        return (
+                            <GlassCard key={transfer.id} className={`p-4 bg-white/80 border ${
+                                transfer.status === 'PENDING' ? 'border-blue-200' :
+                                transfer.status === 'APPROVED' ? 'border-emerald-200' :
+                                'border-gray-200'
+                            }`}>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            {transfer.status === 'PENDING' && <Clock size={16} className="text-blue-600" />}
+                                            {transfer.status === 'APPROVED' && <CheckCircle size={16} className="text-emerald-600" />}
+                                            {transfer.status === 'REJECTED' && <XCircle size={16} className="text-red-600" />}
+                                            {transfer.status === 'CANCELLED' && <X size={16} className="text-gray-600" />}
+                                            <span className="text-xs font-black text-[#001d4a] uppercase">{transfer.socio_name}</span>
+                                            <span className="text-[9px] font-bold text-gray-500">(N° {numeroSocio})</span>
+                                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
+                                                transfer.status === 'PENDING' ? 'bg-blue-100 text-blue-700' :
+                                                transfer.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                                                transfer.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                                                'bg-gray-100 text-gray-700'
+                                            }`}>
+                                                {transfer.status === 'PENDING' ? 'Pendiente' :
+                                                 transfer.status === 'APPROVED' ? 'Aprobado' :
+                                                 transfer.status === 'REJECTED' ? 'Rechazado' :
+                                                 'Cancelado'}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-gray-600 mb-1">
+                                            <span className="font-bold">Hacia:</span> {transfer.to_consulado_name}
+                                        </p>
+                                        <p className="text-[9px] text-gray-500">
+                                            Solicitado el: {new Date(transfer.request_date).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                        </p>
                                     </div>
-                                    <p className="text-xs text-gray-600 mb-1">
-                                        <span className="font-bold">Hacia:</span> {transfer.to_consulado_name}
-                                    </p>
-                                    <p className="text-[9px] text-gray-500">
-                                        Solicitado el: {new Date(transfer.request_date).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                    </p>
+                                    {transfer.status === 'PENDING' && (
+                                        <button
+                                            onClick={() => handleCancelTransfer(transfer.id)}
+                                            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all font-black text-[9px] uppercase tracking-widest flex items-center gap-2"
+                                        >
+                                            <X size={14} /> Cancelar
+                                        </button>
+                                    )}
                                 </div>
-                                {transfer.status === 'PENDING' && (
-                                    <button
-                                        onClick={() => handleCancelTransfer(transfer.id)}
-                                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all font-black text-[9px] uppercase tracking-widest flex items-center gap-2"
-                                    >
-                                        <X size={14} /> Cancelar
-                                    </button>
-                                )}
-                            </div>
-                        </GlassCard>
-                    ))}
+                            </GlassCard>
+                        );
+                    })}
                 </div>
             </div>
         )}
@@ -562,6 +579,7 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                             setPendingConsulado(null);
                             setConsuladoSelection('');
                             setIsConsuladoLocked(true);
+                            setShowSaveConfirm(false);
                         }} className="cursor-pointer opacity-60 hover:opacity-100 p-1 hover:bg-white/10 rounded-full transition-colors absolute top-3 right-3 z-20" size={20} />
                     </div>
 
@@ -668,75 +686,134 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <h3 className="text-[#003B94] font-black uppercase text-[9px] tracking-widest border-b border-[#003B94]/10 pb-1 flex items-center gap-1.5"><Building2 size={11}/> Transferir a Otro Consulado</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 bg-gradient-to-br from-[#001d4a] to-[#003B94] p-3 rounded-lg border border-[#FCB131]/30 shadow-lg relative overflow-hidden">
-                                <div className="space-y-1 relative z-10">
-                                    <label className="text-[8px] font-black text-white uppercase tracking-widest flex items-center gap-1"><ArrowRightLeft size={9} /> Consulado</label>
-                                    {pendingConsulado === null ? (
-                                        <div className="space-y-1.5">
-                                            <div className="flex gap-2">
-                                                <div className="relative flex-1">
-                                                    <select 
-                                                        disabled={isConsuladoLocked}
-                                                        className={`w-full rounded-lg py-2 px-3 font-bold text-xs outline-none transition-all appearance-none cursor-pointer border ${isConsuladoLocked ? 'bg-white/10 text-white border-white/20' : 'bg-white/10 text-white border-white/20 focus:border-[#FCB131]'}`} 
-                                                        value={consuladoSelection} 
-                                                        onChange={e => setConsuladoSelection(e.target.value)}
-                                                    >
-                                                        <option value="" className="text-black">Sede Central</option>
-                                                        {consulados.map(c => <option key={c.id} value={c.name} className="text-black">{c.name}</option>)}
-                                                    </select>
+                        <div className="space-y-3">
+                            <h3 className="text-[#003B94] font-black uppercase text-[9px] tracking-widest border-b border-[#003B94]/10 pb-1 flex items-center gap-1.5">
+                                <ArrowRightLeft size={11} className="text-[#FCB131]" /> 
+                                Transferir a Otro Consulado
+                            </h3>
+                            
+                            <div className="bg-gradient-to-br from-[#001d4a] to-[#003B94] p-4 rounded-xl border border-[#FCB131]/30 shadow-lg relative overflow-hidden">
+                                <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none">
+                                    <ArrowRightLeft size={100} className="text-white" />
+                                </div>
+                                
+                                {pendingConsulado === null ? (
+                                    <div className="space-y-3 relative z-10">
+                                        <div className="flex items-center gap-2">
+                                            <CustomSelect
+                                                label="Consulado de Destino"
+                                                value={consuladoSelection}
+                                                onChange={(val) => setConsuladoSelection(val)}
+                                                options={[
+                                                    {value: '', label: 'Seleccionar Consulado...'},
+                                                    ...consulados.filter(c => c.name !== currentConsulado).map(c => ({
+                                                        value: c.name,
+                                                        label: `${c.name} - ${c.city}, ${c.country}`
+                                                    }))
+                                                ]}
+                                                searchable
+                                                disabled={isConsuladoLocked}
+                                                placeholder="Seleccionar consulado..."
+                                                className="text-white flex-1"
+                                            />
+                                            <button 
+                                                onClick={() => { 
+                                                    setIsConsuladoLocked(!isConsuladoLocked);
+                                                    if (isConsuladoLocked) {
+                                                        setPendingConsulado(null);
+                                                    }
+                                                }} 
+                                                className={`p-2.5 rounded-lg transition-all shadow-lg border ${
+                                                    isConsuladoLocked 
+                                                        ? 'bg-white/10 text-white/50 border-white/20 hover:bg-white/20' 
+                                                        : 'bg-[#FCB131]/20 text-[#FCB131] border-[#FCB131]/30 hover:bg-[#FCB131]/30'
+                                                }`}
+                                                title={isConsuladoLocked ? 'Desbloquear selección' : 'Bloquear selección'}
+                                            >
+                                                {isConsuladoLocked ? <Lock size={16} /> : <Unlock size={16} />}
+                                            </button>
+                                        </div>
+                                        
+                                        {!isConsuladoLocked && consuladoSelection !== '' && consuladoSelection !== (formData.consulado || '') && (
+                                            <>
+                                                <div className="p-3 rounded-lg text-[8px] font-bold uppercase tracking-widest flex items-center gap-2 bg-amber-500/20 text-amber-200 border border-amber-400/30 backdrop-blur-sm">
+                                                    <AlertTriangle size={12} className="text-amber-300" />
+                                                    <span>Cambio de consulado pendiente de validación</span>
                                                 </div>
                                                 <button 
                                                     onClick={() => { 
-                                                        setIsConsuladoLocked(false); 
-                                                        setPendingConsulado(null);
-                                                    }} 
-                                                    className="text-white/50 hover:text-[#FCB131] transition-colors"
-                                                >
-                                                    {isConsuladoLocked ? <Lock size={12} /> : <Unlock size={12} />}
-                                                </button>
-                                                {!isConsuladoLocked && consuladoSelection !== (formData.consulado || '') && consuladoSelection !== '' && (
-                                                    <button 
-                                                        onClick={() => { 
+                                                        if (consuladoSelection && consuladoSelection !== (formData.consulado || '')) {
                                                             setPendingConsulado(consuladoSelection); 
                                                             setIsConsuladoLocked(true);
-                                                        }} 
-                                                        className="bg-[#FCB131] text-[#001d4a] px-2.5 rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-white transition-all shadow-lg"
-                                                    >
-                                                        Validar
-                                                    </button>
-                                                )}
+                                                        }
+                                                    }} 
+                                                    className="w-full bg-[#FCB131] text-[#001d4a] px-4 py-2.5 rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-white transition-all shadow-lg flex items-center justify-center gap-2"
+                                                >
+                                                    <CheckCircle2 size={14} /> Validar Transferencia
+                                                </button>
+                                            </>
+                                        )}
+                                        
+                                        {consuladoSelection === (formData.consulado || '') && consuladoSelection !== '' && (
+                                            <div className="p-3 rounded-lg text-[8px] font-bold uppercase tracking-widest flex items-center gap-2 bg-blue-500/20 text-blue-200 border border-blue-400/30 backdrop-blur-sm">
+                                                <AlertTriangle size={12} className="text-blue-300" />
+                                                <span>El socio ya pertenece a este consulado</span>
                                             </div>
-                                            {/* Alerte si le consulado est en cours de modification */}
-                                            {!isConsuladoLocked && consuladoSelection !== (formData.consulado || '') && consuladoSelection !== '' && (
-                                                <div className="p-2 rounded-lg text-[7px] font-bold uppercase tracking-widest flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-200">
-                                                    <AlertTriangle size={10} />
-                                                    Cambio de consulado pendiente
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3 relative z-10">
+                                        <div className="liquid-glass-dark border-2 border-[#FCB131]/40 rounded-xl p-4 flex flex-col gap-3">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <CheckCircle2 size={16} className="text-[#FCB131]" />
+                                                    <span className="text-[9px] font-black text-[#FCB131] uppercase tracking-widest">Transferencia Validada</span>
                                                 </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-1.5">
-                                            <div className="bg-[#FFFCE4] border border-[#FCB131] rounded-lg p-2 flex items-center justify-between text-[8px] font-bold text-[#001d4a]">
-                                                <span className="flex items-center gap-1.5">
-                                                    <CheckCircle2 size={10} className="text-[#FCB131]" />
-                                                    Traslado: <span className="font-black">{(formData.consulado || 'Sede Central')}</span> → <span className="font-black text-[#003B94]">{pendingConsulado || 'Sede Central'}</span>
-                                                </span>
                                                 <button 
                                                     onClick={() => { 
                                                         setConsuladoSelection(formData.consulado || ''); 
                                                         setPendingConsulado(null);
                                                         setIsConsuladoLocked(true);
                                                     }} 
-                                                    className="text-red-500 hover:text-red-700 font-black uppercase text-[7px] tracking-widest"
+                                                    className="text-red-400 hover:text-red-300 font-black uppercase text-[8px] tracking-widest px-2 py-1 hover:bg-red-500/20 rounded-lg transition-all"
                                                 >
                                                     Cancelar
                                                 </button>
                                             </div>
+                                            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
+                                                <div className="flex items-center gap-2 text-[8px] font-bold text-white/80 uppercase tracking-widest">
+                                                    <span className="opacity-70">Desde:</span>
+                                                    <span className="font-black text-[#FCB131]">{formData.consulado || 'Sede Central'}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 my-1.5">
+                                                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#FCB131] to-transparent"></div>
+                                                    <ArrowRightLeft size={12} className="text-[#FCB131]" />
+                                                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#FCB131] to-transparent"></div>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-[8px] font-bold text-white/80 uppercase tracking-widest">
+                                                    <span className="opacity-70">Hacia:</span>
+                                                    <span className="font-black text-[#FCB131]">{pendingConsulado || 'Sede Central'}</span>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[7px] font-black text-white/70 uppercase tracking-widest">Comentarios (opcional)</label>
+                                                <textarea
+                                                    rows={2}
+                                                    className="w-full bg-white/10 border border-white/20 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white/20 focus:border-[#FCB131]/40 text-white placeholder-white/40 resize-none backdrop-blur-sm"
+                                                    placeholder="Agregar comentarios sobre la transferencia..."
+                                                    value={(formData as any).transferComments || ''}
+                                                    onChange={e => setFormData({...formData, transferComments: e.target.value} as any)}
+                                                />
+                                            </div>
                                         </div>
-                                    )}
-                                </div>
+                                        <div className="p-3 rounded-lg text-[7px] font-bold text-white/80 uppercase tracking-widest bg-blue-500/20 border border-blue-400/30 backdrop-blur-sm">
+                                            <span className="flex items-center gap-1.5">
+                                                <AlertTriangle size={10} className="text-blue-300" />
+                                                La transferencia será procesada después de guardar. El consulado de destino recibirá una notificación para aprobarla.
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -749,6 +826,11 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                             setPendingConsulado(null);
                             setConsuladoSelection('');
                             setIsConsuladoLocked(true);
+                            setFormData((prev: any) => {
+                                const newData = {...prev};
+                                delete newData.transferComments;
+                                return newData;
+                            });
                         }} className="px-6 py-2 rounded-lg bg-gray-100 text-gray-500 font-black uppercase text-[9px] tracking-widest hover:bg-gray-200 transition-all">Cancelar</button>
                         <button onClick={requestSave} disabled={isSaving} className="px-6 py-2 rounded-lg bg-[#003B94] text-white font-black uppercase text-[9px] tracking-widest shadow-lg hover:bg-[#001d4a] transition-all disabled:opacity-50 flex items-center gap-2">
                             {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
