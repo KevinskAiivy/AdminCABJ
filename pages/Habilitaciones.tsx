@@ -297,87 +297,79 @@ export const Habilitaciones = () => {
   const generatePDFWithData = async (match: ProcessedMatch | Match, approvedRequests: Solicitud[]) => {
     
     try {
-      const doc = new jsPDF();
+      // Créer un document PDF au format A4
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 20;
       let yPos = margin;
       
-      // === HEADER : LISTA DEFINITIVA DE HABILITACIONES + LOGO + COMPETITION + FECHA ===
-      // Fond bleu foncé pour l'en-tête
-      doc.setFillColor(0, 29, 74); // #001d4a
-      const headerHeight = 50;
-      doc.rect(0, 0, pageWidth, headerHeight, 'F');
+      // Stocker les valeurs nécessaires pour le footer (accessible dans didDrawPage)
+      const footerData = {
+        approvedRequestsCount: approvedRequests.length,
+        footerHeight: 20,
+        A4_WIDTH: 210,
+        A4_HEIGHT: 297,
+        margin: 20
+      };
       
+      // Configurer l'événement didDrawPage pour dessiner le footer sur la dernière page seulement
+      // Cet événement se déclenche après chaque dessin de page
+      doc.events.push(['didDrawPage', function(data: any) {
+        const currentPageNum = doc.internal.getCurrentPageInfo().pageNumber;
+        const totalPages = doc.internal.getNumberOfPages();
+        
+        // Dessiner le footer seulement sur la dernière page
+        if (currentPageNum === totalPages) {
+          const footerY = footerData.A4_HEIGHT - footerData.footerHeight; // 277mm depuis le haut
+          
+          // Ligne de séparation jaune avant le footer
+          doc.setFillColor(252, 177, 49); // #FCB131
+          doc.rect(footerData.margin, footerY - 2, footerData.A4_WIDTH - 2 * footerData.margin, 2, 'F');
+          
+          // Fond bleu foncé pour le footer
+          doc.setFillColor(0, 29, 74); // #001d4a
+          doc.rect(0, footerY, footerData.A4_WIDTH, footerData.footerHeight, 'F');
+          
+          // Texte du footer en blanc
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'normal');
+          const pdfDateStr = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          const timeStr = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+          doc.text(
+            `Documento oficial generado el ${pdfDateStr} a las ${timeStr} - Sistema Consulados CABJ`,
+            footerData.A4_WIDTH / 2,
+            footerY + 7,
+            { align: 'center' }
+          );
+          
+          // Nombre total de socios habilitados en jaune
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(252, 177, 49); // Jaune #FCB131
+          doc.text(
+            `Total de Socios Habilitados: ${footerData.approvedRequestsCount}`,
+            footerData.A4_WIDTH / 2,
+            footerY + 14,
+            { align: 'center' }
+          );
+          
+          // Ligne de séparation en bas du footer (tout en bas de la page A4)
+          doc.setFillColor(252, 177, 49); // #FCB131
+          doc.rect(0, footerData.A4_HEIGHT - 2, footerData.A4_WIDTH, 2, 'F');
+        }
+      }]);
+      
+      // === HEADER COMPLET : TOUT DANS LE HEADER ===
       // Récupérer le logo officiel depuis les settings
       const settings = dataService.getAppSettings();
       const logoUrl = settings.logoUrl || settings.loginLogoUrl;
       
-      // Logo officiel à gauche
-      let logoX = margin + 10;
-      let logoWidth = 0;
-      let logoY = 0;
-      if (logoUrl && logoUrl.length > 50 && (logoUrl.startsWith('data:image') || logoUrl.startsWith('http'))) {
-        try {
-          const logo = await loadImage(logoUrl);
-          logoWidth = 30;
-          const logoHeight = (logo.height * logoWidth) / logo.width;
-          logoY = (headerHeight - logoHeight) / 2;
-          doc.addImage(logo, 'PNG', logoX, logoY, logoWidth, logoHeight);
-        } catch (error) {
-          console.warn('Error loading official logo:', error);
-        }
-      }
-      
-      // Titre "LISTA DEFINITIVA DE HABILITACIONES" au centre (première ligne)
-      doc.setTextColor(255, 255, 255); // Blanc
-      doc.setFontSize(13);
-      doc.setFont('helvetica', 'bold');
-      doc.text('LISTA DEFINITIVA DE HABILITACIONES', pageWidth / 2, 18, { align: 'center' });
-      
-      // Competition et Fecha en dessous du titre (centré aussi)
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(252, 177, 49); // Jaune #FCB131
-      let compText = match.competition || 'N/A';
-      if (match.fecha_jornada) {
-        compText += ` - ${match.fecha_jornada}`;
-      }
-      doc.text(compText.toUpperCase(), pageWidth / 2, 30, { align: 'center', maxWidth: pageWidth - 2 * margin });
-      
-      // Logo à droite si présent
-      if (logoWidth > 0) {
-        // Logo déjà ajouté à gauche, peut aussi ajouter à droite pour symétrie si besoin
-        // Mais pour l'instant on le garde juste à gauche
-      }
-      
-      // Ligne de séparation jaune en bas de l'en-tête
-      doc.setFillColor(252, 177, 49); // #FCB131
-      doc.rect(0, headerHeight - 2, pageWidth, 2, 'F');
-      
-      yPos = headerHeight + 12; // Position après l'en-tête
-      
-      // === DATE, HEURE ET STADE (en dessous du header) ===
-      doc.setTextColor(0, 29, 74); // Bleu foncé #001d4a
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      
-      let infoLine = `Fecha: ${formatDateDisplay(match.date || '')} - Hora: ${formatHourDisplay(match.hour || '')}`;
-      if (match.stadium) {
-        infoLine += ` - Estadio: ${match.stadium}`;
-      } else if (match.venue) {
-        infoLine += ` - Sede: ${match.venue}`;
-      }
-      doc.text(infoLine, margin, yPos);
-      yPos += 10;
-      
-      // Ligne de séparation
-      doc.setDrawColor(0, 59, 148); // #003B94
-      doc.setLineWidth(0.5);
-      doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 12;
-      
-      // === LOGOS DES ÉQUIPES (Boca vs Rival) ===
       // Trouver les équipes pour les logos
       const localTeam = teams.find(t => 
         t.name?.toLowerCase().includes('boca') || 
@@ -392,65 +384,116 @@ export const Habilitaciones = () => {
       
       const bocaLogo = settings.matchLogoUrl || null;
       const rivalLogo = rivalTeam?.logo;
-      const logoSize = 35;
-      const logosY = yPos;
+      
+      // Header avec hauteur suffisante pour tout le contenu (logo officiel, titre, compétition, fecha, date, heure, stade, logos équipes)
+      const headerHeight = 80;
+      
+      // Fond bleu foncé pour l'en-tête complet
+      doc.setFillColor(0, 29, 74); // #001d4a
+      doc.rect(0, 0, pageWidth, headerHeight, 'F');
+      
+      let currentY = 8; // Position verticale dans le header
+      
+      // Logo officiel à gauche (en haut du header)
+      let logoWidth = 0;
+      if (logoUrl && logoUrl.length > 50 && (logoUrl.startsWith('data:image') || logoUrl.startsWith('http'))) {
+        try {
+          const logo = await loadImage(logoUrl);
+          logoWidth = 22;
+          const logoHeight = (logo.height * logoWidth) / logo.width;
+          doc.addImage(logo, 'PNG', margin + 5, currentY, logoWidth, logoHeight);
+        } catch (error) {
+          console.warn('Error loading official logo:', error);
+        }
+      }
+      
+      // Titre "LISTA DEFINITIVA DE HABILITACIONES" au centre (première ligne)
+      doc.setTextColor(255, 255, 255); // Blanc
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('LISTA DEFINITIVA DE HABILITACIONES', pageWidth / 2, currentY + 5, { align: 'center' });
+      currentY += 8;
+      
+      // Competition et Fecha en dessous du titre (centré, jaune)
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(252, 177, 49); // Jaune #FCB131
+      let compText = match.competition || 'N/A';
+      if (match.fecha_jornada) {
+        compText += ` - ${match.fecha_jornada}`;
+      }
+      doc.text(compText.toUpperCase(), pageWidth / 2, currentY, { align: 'center', maxWidth: pageWidth - 2 * margin });
+      currentY += 6;
+      
+      // Date, Heure et Stade en dessous de la compétition (blanc, taille plus grande)
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(255, 255, 255); // Blanc
+      let dateLine = `Fecha: ${formatDateDisplay(match.date || '')} - Hora: ${formatHourDisplay(match.hour || '')}`;
+      if (match.stadium) {
+        dateLine += ` - Estadio: ${match.stadium}`;
+      } else if (match.venue) {
+        dateLine += ` - Sede: ${match.venue}`;
+      }
+      doc.text(dateLine, pageWidth / 2, currentY, { align: 'center' });
+      currentY += 8;
+      
+      // Logos des équipes dans le header (sous les infos de date/stade)
+      const logoSize = 25;
+      const logosY = currentY;
       
       // Logo Boca Juniors à gauche (centré dans une zone)
       const leftLogoCenterX = pageWidth / 4; // 1/4 de la largeur
-      let leftLogoWidth = 0;
       if (bocaLogo) {
         try {
           const logo = await loadImage(bocaLogo);
           const logoRatio = logo.width / logo.height;
           const finalLogoHeight = logoSize;
-          leftLogoWidth = finalLogoHeight * logoRatio;
-          const leftLogoX = leftLogoCenterX - (leftLogoWidth / 2);
-          doc.addImage(logo, 'PNG', leftLogoX, logosY, leftLogoWidth, finalLogoHeight);
+          const finalLogoWidth = finalLogoHeight * logoRatio;
+          const leftLogoX = leftLogoCenterX - (finalLogoWidth / 2);
+          doc.addImage(logo, 'PNG', leftLogoX, logosY, finalLogoWidth, finalLogoHeight);
         } catch (error) {
           console.warn('Error loading Boca logo:', error);
         }
       }
       
-      // Texte "VS" au centre
-      doc.setFontSize(12);
+      // Texte "VS" au centre (jaune, visible sur fond bleu foncé)
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 29, 74); // #001d4a
-      doc.text('VS', pageWidth / 2, logosY + (logoSize / 2) + 4, { align: 'center' });
+      doc.setTextColor(252, 177, 49); // Jaune #FCB131 pour "VS"
+      doc.text('VS', pageWidth / 2, logosY + (logoSize / 2) + 2, { align: 'center' });
       
       // Logo équipe adverse à droite (centré dans une zone)
       const rightLogoCenterX = (pageWidth * 3) / 4; // 3/4 de la largeur
-      let rightLogoWidth = 0;
       if (rivalLogo) {
         try {
           const logo = await loadImage(rivalLogo);
           const logoRatio = logo.width / logo.height;
           const finalLogoHeight = logoSize;
-          rightLogoWidth = finalLogoHeight * logoRatio;
-          const rightLogoX = rightLogoCenterX - (rightLogoWidth / 2);
-          doc.addImage(logo, 'PNG', rightLogoX, logosY, rightLogoWidth, finalLogoHeight);
+          const finalLogoWidth = finalLogoHeight * logoRatio;
+          const rightLogoX = rightLogoCenterX - (finalLogoWidth / 2);
+          doc.addImage(logo, 'PNG', rightLogoX, logosY, finalLogoWidth, finalLogoHeight);
         } catch (error) {
           console.warn('Error loading rival logo:', error);
         }
       }
       
-      // Noms des équipes sous les logos (centrés)
-      doc.setFontSize(9);
+      // Noms des équipes sous les logos (centrés, blanc, très petite taille)
+      doc.setFontSize(6);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 29, 74); // Bleu foncé
-      doc.text('Boca Juniors', leftLogoCenterX, logosY + logoSize + 8, { align: 'center' });
+      doc.setTextColor(255, 255, 255); // Blanc
+      doc.text('Boca Juniors', leftLogoCenterX, logosY + logoSize + 5, { align: 'center' });
       const rivalName = match.rival || rivalTeam?.name || rivalTeam?.short_name || 'Adversario';
-      doc.text(rivalName, rightLogoCenterX, logosY + logoSize + 8, { align: 'center' });
+      doc.text(rivalName, rightLogoCenterX, logosY + logoSize + 5, { align: 'center' });
       
-      yPos = logosY + logoSize + 20; // Position après les logos
+      // Ligne de séparation jaune en bas de l'en-tête
+      doc.setFillColor(252, 177, 49); // #FCB131
+      doc.rect(0, headerHeight - 2, pageWidth, 2, 'F');
       
-      // Ligne de séparation avant la liste
-      doc.setDrawColor(0, 59, 148); // #003B94
-      doc.setLineWidth(0.5);
-      doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 12;
+      yPos = headerHeight + 8; // Position après l'en-tête complet
       
-      // === CORPS DU DOCUMENT : LISTE DES SOCIOS TRIÉS PAR CONSULADO (SANS TABLEAU) ===
-      // Préparer les données des socios
+      // === CORPS DU DOCUMENT : TABLEAU POUR REMPLIR TOUT LE CORPS DE LA PAGE ===
+      // Préparer les données des socios pour le tableau
       const sociosData = approvedRequests.map(req => {
         const socio = allSocios.find(s => s.id === req.socio_id);
         const numeroSocio = socio?.numero_socio || socio?.dni || req.socio_dni || 'N/A';
@@ -481,7 +524,8 @@ export const Habilitaciones = () => {
           apellido,
           nombre,
           numeroSocio,
-          consulado: req.consulado || 'N/A'
+          consulado: req.consulado || 'N/A',
+          nombreCompleto: `${apellido}, ${nombre}`.trim()
         };
       });
       
@@ -492,7 +536,7 @@ export const Habilitaciones = () => {
         return a.apellido.localeCompare(b.apellido);
       });
       
-      // Grouper par consulado
+      // Grouper par consulado et créer les données du tableau
       const sociosByConsulado = sociosData.reduce((acc, socio) => {
         if (!acc[socio.consulado]) {
           acc[socio.consulado] = [];
@@ -501,80 +545,186 @@ export const Habilitaciones = () => {
         return acc;
       }, {} as Record<string, typeof sociosData>);
       
-      // Entête simple de la liste
-      doc.setTextColor(0, 29, 74); // Bleu foncé #001d4a
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('LISTA DE SOCIOS HABILITADOS', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 12;
-      
-      // Ligne de séparation sous l'entête
-      doc.setDrawColor(0, 59, 148); // #003B94
-      doc.setLineWidth(1);
-      doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 8;
-      
-      // Afficher les socios groupés par consulado
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(0, 29, 74); // Bleu foncé
-      
+      // Créer les lignes du tableau groupées par consulado
+      const tableBody: string[][] = [];
       const consulados = Object.keys(sociosByConsulado).sort();
       
-      for (const consulado of consulados) {
-        // Titre du consulado
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 59, 148); // Bleu #003B94
-        doc.text(`CONSULADO: ${consulado}`, margin, yPos);
-        yPos += 8;
-        
-        // Ligne sous le titre du consulado
-        doc.setDrawColor(252, 177, 49); // Jaune #FCB131
-        doc.setLineWidth(0.5);
-        doc.line(margin, yPos - 2, pageWidth - margin, yPos - 2);
-        yPos += 4;
-        
-        // Liste des socios du consulado
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0, 29, 74); // Bleu foncé
-        
-        for (const socio of sociosByConsulado[consulado]) {
-          // Vérifier si on dépasse la page
-          if (yPos > pageHeight - 30) {
-            doc.addPage();
-            yPos = margin;
+      if (consulados.length === 0) {
+        // Si aucun socio, ajouter une ligne vide pour remplir l'espace
+        tableBody.push(['', '', '', '']);
+      } else {
+        for (const consulado of consulados) {
+          // Ajouter une ligne d'en-tête pour le consulado
+          tableBody.push([`CONSULADO: ${consulado}`, '', '', '']);
+          
+          // Ajouter les socios du consulado
+          for (const socio of sociosByConsulado[consulado]) {
+            tableBody.push([
+              socio.nombreCompleto || '',
+              `N° Socio: ${socio.numeroSocio}`,
+              consulado,
+              ''
+            ]);
           }
           
-          const socioLine = `${socio.apellido}, ${socio.nombre} - N° Socio: ${socio.numeroSocio}`;
-          doc.text(socioLine, margin + 5, yPos);
-          yPos += 6;
+          // Ajouter une ligne vide entre les consulados pour la séparation
+          tableBody.push(['', '', '', '']);
         }
-        
-        // Espace entre les consulados
-        yPos += 4;
       }
       
-      // === FOOTER OFFICIEL (GARDER COMME ACTUELLEMENT) ===
-      const footerHeight = 20;
-      let footerY = Math.min(yPos + 8, pageHeight - footerHeight - 5);
+      // Calculer l'espace disponible pour le tableau (entre le header et le footer)
+      const footerHeight = 20; // en mm
+      const A4_HEIGHT = 297; // en mm
+      const A4_WIDTH = 210; // en mm
+      const startYTable = yPos;
+      const endYTable = A4_HEIGHT - footerHeight - 5; // Laisse 5mm d'espace avant le footer
+      const availableHeight = endYTable - startYTable;
       
-      // Si on dépasse la page, ajouter une nouvelle page pour le footer
-      if (footerY < margin + 10) {
+      // Si le tableau est vide ou très petit, ajouter des lignes vides pour remplir l'espace
+      let finalTableBody = tableBody;
+      if (tableBody.length === 0 || (tableBody.length <= 2 && tableBody.every(row => row.every(cell => !cell || cell.trim() === '')))) {
+        // Calculer le nombre de lignes nécessaires pour remplir l'espace disponible
+        // Hauteur du header du tableau: ~10mm, hauteur par ligne: ~6mm
+        const headerHeight = 10;
+        const rowHeight = 6;
+        const availableRowsHeight = availableHeight - headerHeight;
+        const numRowsNeeded = Math.max(Math.floor(availableRowsHeight / rowHeight), 20); // Au moins 20 lignes
+        finalTableBody = Array(numRowsNeeded).fill(['', '', '', '']);
+      }
+      
+      // Créer le tableau avec autoTable qui remplit tout l'espace disponible
+      autoTable(doc, {
+        startY: startYTable,
+        head: [['Apellido y Nombre', 'N° Socio', 'Consulado', '']],
+        body: finalTableBody,
+        theme: 'grid',
+        headStyles: { 
+          fillColor: [0, 29, 74], // Bleu foncé #001d4a
+          textColor: [252, 177, 49], // Jaune #FCB131
+          fontStyle: 'bold',
+          halign: 'left',
+          fontSize: 10,
+          cellPadding: 3,
+          minCellHeight: 8
+        },
+        bodyStyles: {
+          fillColor: [255, 255, 255], // Blanc
+          textColor: [0, 29, 74], // Bleu foncé
+          fontSize: 9,
+          cellPadding: 3,
+          minCellHeight: 6
+        },
+        columnStyles: {
+          0: { cellWidth: 70, fontStyle: 'bold' }, // Nom - largeur fixe
+          1: { cellWidth: 50, halign: 'left' }, // N° Socio
+          2: { cellWidth: 60, halign: 'left' }, // Consulado
+          3: { cellWidth: 'auto' } // Colonne vide pour remplir
+        },
+        styles: { 
+          fontSize: 9, 
+          cellPadding: 3,
+          overflow: 'linebreak',
+          cellWidth: 'wrap',
+          minCellHeight: 6
+        },
+        alternateRowStyles: { 
+          fillColor: [248, 250, 252] // Gris très clair
+        },
+        // Personnaliser les lignes d'en-tête de consulado et les lignes vides
+        didParseCell: function(data: any) {
+          // Si la cellule contient "CONSULADO:", c'est une ligne d'en-tête de consulado
+          if (data.cell.text && Array.isArray(data.cell.text) && data.cell.text[0] && 
+              typeof data.cell.text[0] === 'string' && data.cell.text[0].includes('CONSULADO:')) {
+            data.cell.styles.fillColor = [0, 59, 148]; // Bleu #003B94
+            data.cell.styles.textColor = [252, 177, 49]; // Jaune
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fontSize = 10;
+            data.row.styles.minCellHeight = 8;
+            // Fusionner les cellules pour l'en-tête du consulado
+            data.cell.colSpan = 4;
+          }
+          // Si la ligne est vide (toutes les cellules vides), garder l'espace mais rendre invisible
+          const rowData = data.row.raw || (data.table.body[data.row.index] || []);
+          if (rowData.every((cell: string) => !cell || cell.trim() === '')) {
+            data.cell.styles.fillColor = [255, 255, 255];
+            data.cell.styles.textColor = [255, 255, 255];
+            data.row.styles.minCellHeight = 6;
+            data.cell.text = [''];
+            // Dessiner les bordures même pour les lignes vides pour maintenir la structure du tableau
+            data.cell.styles.lineColor = [200, 200, 200]; // Gris clair pour les bordures
+            data.cell.styles.lineWidth = 0.1;
+          }
+        },
+        // Marges pour le tableau
+        margin: { left: margin, right: margin },
+        showHead: 'firstPage',
+        showFoot: 'never',
+        // Permettre la pagination automatique
+        pageBreak: 'auto'
+      });
+      
+      // Mettre à jour yPos après le tableau
+      const finalY = (doc as any).lastAutoTable?.finalY || endYTable;
+      yPos = finalY + 5; // Petit espace après le tableau
+      
+      // Si le tableau n'a pas atteint le footer, ajouter un rectangle pour remplir l'espace restant
+      if (yPos < endYTable - 10) {
+        // Dessiner un rectangle blanc pour remplir l'espace entre le tableau et le footer
+        doc.setFillColor(255, 255, 255);
+        doc.rect(margin, yPos, A4_WIDTH - 2 * margin, endYTable - yPos - 5, 'F');
+        yPos = endYTable - 5;
+      }
+      
+      // === FOOTER OFFICIEL - TOUJOURS EN BAS DE LA PAGE A4 (MÊME SI ESPACE VIDE) ===
+      const footerHeight = 20; // en mm
+      
+      // Dimensions A4 explicites (210mm x 297mm en portrait)
+      const A4_WIDTH = 210;
+      const A4_HEIGHT = 297;
+      
+      // Vérifier si on doit passer à une nouvelle page pour le contenu
+      // On vérifie si le contenu dépasse l'espace disponible (en laissant toujours de la place pour le footer)
+      if (yPos > A4_HEIGHT - footerHeight - 10) {
         doc.addPage();
-        footerY = pageHeight - footerHeight - 5;
+        yPos = margin;
       }
       
-      // Ligne de séparation jaune avant le footer
-      doc.setFillColor(252, 177, 49); // #FCB131
-      doc.rect(margin, footerY - 2, pageWidth - 2 * margin, 2, 'F');
+      // IMPORTANT: Le footer est TOUJOURS en bas de la page A4
+      // Aller explicitement à la dernière page pour dessiner le footer
+      const totalPages = doc.internal.getNumberOfPages();
+      if (totalPages > 0) {
+        doc.setPage(totalPages);
+      }
       
-      // Fond bleu foncé pour le footer (professionnel)
+      // Utiliser les dimensions A4 explicites pour garantir la position exacte
+      // Le footer doit être à 20mm du bas de la page A4 (297mm)
+      // Position Y du footer = 297 - 20 = 277mm depuis le haut
+      const footerY = A4_HEIGHT - footerHeight; // 277mm
+      
+      // Debug: vérifier les dimensions (pour diagnostic)
+      console.log('PDF Footer Position:', {
+        A4_WIDTH,
+        A4_HEIGHT,
+        footerY,
+        footerHeight,
+        totalPages,
+        margin,
+        pageHeightFromDoc: doc.internal.pageSize.getHeight()
+      });
+      
+      // Dessiner le footer directement sur la dernière page en utilisant les coordonnées A4 explicites
+      // Ligne de séparation jaune avant le footer (2mm au-dessus du footer, à 275mm)
+      doc.setFillColor(252, 177, 49); // #FCB131
+      doc.rect(margin, footerY - 2, A4_WIDTH - 2 * margin, 2, 'F');
+      
+      // Fond bleu foncé pour le footer (professionnel) - toujours en bas de la page A4
+      // Le rectangle commence à footerY (277mm) et a une hauteur de footerHeight (20mm)
+      // Il va de 277mm à 297mm (bas de la page)
       doc.setFillColor(0, 29, 74); // #001d4a
-      doc.rect(0, footerY, pageWidth, footerHeight, 'F');
+      doc.rect(0, footerY, A4_WIDTH, footerHeight, 'F');
       
       // Texte du footer en blanc (style officiel)
+      // Position: footerY (277mm) + 7mm = 284mm depuis le haut
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
@@ -582,25 +732,76 @@ export const Habilitaciones = () => {
       const timeStr = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
       doc.text(
         `Documento oficial generado el ${pdfDateStr} a las ${timeStr} - Sistema Consulados CABJ`,
-        pageWidth / 2,
+        A4_WIDTH / 2,
         footerY + 7,
         { align: 'center' }
       );
       
-      // Nombre total de socios habilitados en jaune (proéminent)
+      // Nombre total de socios habilitados en jaune (proéminent) - sur la dernière page uniquement
+      // Position: footerY (277mm) + 14mm = 291mm depuis le haut
       doc.setFontSize(8);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(252, 177, 49); // Jaune #FCB131
       doc.text(
         `Total de Socios Habilitados: ${approvedRequests.length}`,
-        pageWidth / 2,
+        A4_WIDTH / 2,
         footerY + 14,
         { align: 'center' }
       );
       
-      // Ligne de séparation en bas du footer
+      // Ligne de séparation en bas du footer (tout en bas de la page A4, dernière ligne)
+      // Position: A4_HEIGHT (297mm) - 2mm = 295mm depuis le haut, hauteur 2mm
       doc.setFillColor(252, 177, 49); // #FCB131
-      doc.rect(0, footerY + footerHeight - 2, pageWidth, 2, 'F');
+      doc.rect(0, A4_HEIGHT - 2, A4_WIDTH, 2, 'F');
+      
+      // IMPORTANT: Forcer le dessin du footer en bas de la dernière page juste avant la sauvegarde
+      // Même si didDrawPage est configuré, on dessine aussi directement pour garantir la visibilité
+      const finalPageCheck = doc.internal.getNumberOfPages();
+      if (finalPageCheck > 0) {
+        // Aller à la dernière page
+        doc.setPage(finalPageCheck);
+        
+        // S'assurer qu'on utilise les bonnes dimensions (A4 = 297mm de hauteur)
+        // Le footer doit être à 277mm depuis le haut (297 - 20 = 277)
+        const finalFooterY = A4_HEIGHT - footerHeight;
+        
+        // Redessiner le footer complètement pour garantir qu'il est visible
+        // Ligne de séparation jaune avant le footer
+        doc.setFillColor(252, 177, 49); // #FCB131
+        doc.rect(margin, finalFooterY - 2, A4_WIDTH - 2 * margin, 2, 'F');
+        
+        // Fond bleu foncé pour le footer
+        doc.setFillColor(0, 29, 74); // #001d4a
+        doc.rect(0, finalFooterY, A4_WIDTH, footerHeight, 'F');
+        
+        // Texte du footer en blanc
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        const finalDateStr = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const finalTimeStr = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+        doc.text(
+          `Documento oficial generado el ${finalDateStr} a las ${finalTimeStr} - Sistema Consulados CABJ`,
+          A4_WIDTH / 2,
+          finalFooterY + 7,
+          { align: 'center' }
+        );
+        
+        // Nombre total de socios habilitados en jaune
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(252, 177, 49); // Jaune #FCB131
+        doc.text(
+          `Total de Socios Habilitados: ${approvedRequests.length}`,
+          A4_WIDTH / 2,
+          finalFooterY + 14,
+          { align: 'center' }
+        );
+        
+        // Ligne de séparation en bas du footer (tout en bas de la page A4)
+        doc.setFillColor(252, 177, 49); // #FCB131
+        doc.rect(0, A4_HEIGHT - 2, A4_WIDTH, 2, 'F');
+      }
       
       // Sauvegarder le PDF
       const pdfRivalName = (match.rival || 'Match').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
