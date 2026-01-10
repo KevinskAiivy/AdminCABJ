@@ -392,7 +392,7 @@ export const Partidos = () => {
                            )}
                            
                            {/* Date en dessous */}
-                           <div className={`text-xs font-bold flex items-center gap-2 ${isHome ? 'text-white/80' : 'text-gray-500'}`} style={!isHome ? { color: 'rgba(0, 0, 0, 1)' } : undefined}>
+                           <div className={`text-xs font-bold flex items-center gap-2 ${isHome ? 'text-white/80' : ''}`} style={!isHome ? { color: 'rgba(0, 4, 10, 1)' } : undefined}>
                                <Calendar size={12} className={isHome ? 'text-[#FCB131]/70' : 'text-[#003B94]/70'} /> 
                                {formatDateDisplay(m.date)}
                            </div>
