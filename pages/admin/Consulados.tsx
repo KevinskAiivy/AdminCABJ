@@ -695,7 +695,7 @@ export const Consulados = () => {
                     <div className="h-36 relative shrink-0 overflow-hidden">
                         {consulado.banner ? (<img src={consulado.banner} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />) : (<div className="w-full h-full bg-gradient-to-br from-[#003B94] via-[#001d4a] to-black"></div>)}
                         <div className="absolute inset-0 bg-[#001d4a]/20 group-hover:bg-transparent transition-colors duration-500"></div>
-                        {consulado.is_official && (<div className="absolute top-3 right-3 bg-[#001d4a] w-10 h-10 rounded-full shadow-lg z-20 flex items-center justify-center border-2 border-[#FCB131] animate-in zoom-in duration-500"><Star size={18} className="text-[#FCB131] fill-[#FCB131] animate-pulse" /></div>)}
+                        {consulado.is_official && (<div className="absolute top-3 right-3 bg-[#FCB131] w-10 h-10 rounded-full shadow-lg z-20 flex items-center justify-center animate-in zoom-in duration-500"><Star size={28} className="text-[#001d4a] fill-[#001d4a] animate-pulse" strokeWidth={0.3} /></div>)}
                         <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-[-10px] group-hover:translate-y-0 z-20">
                             <div className={`flex gap-2 ${consulado.is_official ? 'mr-12' : ''}`}>
                                 <button onClick={(e) => { e.stopPropagation(); handleEdit(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white text-white hover:text-[#003B94] rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110"><Edit2 size={14} /></button>
@@ -757,14 +757,21 @@ export const Consulados = () => {
                     <X onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(false); }} className="cursor-pointer opacity-60 hover:opacity-100 p-2 hover:bg-white/10 rounded-full transition-colors" size={20} />
                 </div>
 
-                <div className="flex justify-center bg-gray-50 border-b border-gray-200 px-6 pt-3 gap-2 overflow-x-auto shrink-0">
+                <div className="flex justify-center backdrop-blur-md border-b border-[#003B94]/30 px-6 pt-3 gap-2 overflow-x-auto shrink-0 shadow-[0_2px_10px_rgba(0,0,0,0.1)]" style={{ backgroundColor: 'unset', background: 'unset', backgroundImage: 'none' }}>
                     {[
                         { id: 'INFO', label: 'Info General', icon: Building2 },
                         { id: 'SOCIAL', label: 'Redes Sociales', icon: Globe },
                         { id: 'LOCATION', label: 'Ubicación', icon: MapPin },
                         { id: 'BOARD', label: 'Directiva', icon: Users }
                     ].map(tab => (
-                        <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-1.5 px-4 py-2 rounded-t-lg text-[9px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap ${activeTab === tab.id ? 'bg-white text-[#003B94] shadow-[0_-2px_5px_rgba(0,0,0,0.05)] border-t border-x border-gray-200 z-10 translate-y-[1px]' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}><tab.icon size={12} className={activeTab === tab.id ? 'text-[#FCB131]' : ''} /> {tab.label}</button>
+                        <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-1.5 px-5 py-2.5 rounded-t-xl text-[9px] font-black uppercase tracking-widest transition-all duration-300 relative whitespace-nowrap ${
+                            activeTab === tab.id 
+                                ? 'bg-[#003B94] backdrop-blur-sm text-[#FCB131] shadow-[0_-4px_15px_rgba(252,177,49,0.2)] border-t-2 border-x-2 border-[#FCB131]/40 border-b-0 z-10 translate-y-[1px] before:absolute before:inset-0 before:bg-gradient-to-b before:from-[#FCB131]/20 before:to-transparent before:rounded-t-xl' 
+                                : 'bg-white/5 text-[#001d4a] hover:text-[#FCB131] hover:bg-[#003B94]/60 backdrop-blur-sm border-t-2 border-x-2 border-transparent hover:border-[#FCB131]/30'
+                        }`}>
+                            <tab.icon size={12} className={`transition-colors ${activeTab === tab.id ? 'text-[#FCB131]' : 'text-[#001d4a]'}`} /> 
+                            <span className={activeTab === tab.id ? 'text-[#FCB131]' : 'text-[#001d4a]'}>{tab.label}</span>
+                        </button>
                     ))}
                 </div>
 
@@ -895,9 +902,9 @@ export const Consulados = () => {
                     )}
                 </div>
 
-                <div className="p-4 bg-[#FCB131] border-t border-[#e5a02d] flex justify-end gap-3 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-20 relative">
+                <div className="p-4 bg-gradient-to-r from-[#001d4a] via-[#003B94] to-[#001d4a] border-t border-[#003B94] flex justify-end gap-3 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-20 relative">
                     <button onClick={() => setIsEditModalOpen(false)} className="px-5 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest text-[#001d4a] bg-white border border-white/50 hover:bg-white/90 transition-colors">Cancelar</button>
-                    <button onClick={handleSave} className="bg-[#003B94] text-white px-6 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-xl flex items-center gap-2 hover:bg-[#001d4a] transition-all"><Save size={14} /> Guardar</button>
+                    <button onClick={handleSave} className="bg-[#FCB131] text-[#001d4a] px-6 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-xl flex items-center gap-2 hover:bg-[#FFD23F] transition-all"><Save size={14} /> Guardar</button>
                 </div>
             </div>
         </div>
