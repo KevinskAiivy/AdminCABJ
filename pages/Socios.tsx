@@ -437,15 +437,18 @@ export const Socios = ({ user }: { user?: any }) => {
                 <select value={filterConsulado} onChange={(e) => setFilterConsulado(e.target.value)} className="w-full bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Consulados</option><option value="SEDE CENTRAL">Sede Central</option>{consulados.sort((a,b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
                 <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
             </div>
-            <div className="relative min-w-[150px]">
-                <select value={filterCuotaStatus} onChange={(e) => setFilterCuotaStatus(e.target.value)} className="w-full bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide">
-                    <option value="ALL">Estado Cuota</option>
-                    <option value="AL DÍA">Al Día</option>
-                    <option value="EN DEUDA">En Deuda</option>
-                    <option value="DE BAJA">De Baja</option>
-                </select>
-                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
-            </div>
+            {/* Filtre Estado de la cuota - visible uniquement pour PRESIDENTE et REFERENTE */}
+            {(user?.role === 'PRESIDENTE' || user?.role === 'REFERENTE') && (
+                <div className="relative min-w-[150px]">
+                    <select value={filterCuotaStatus} onChange={(e) => setFilterCuotaStatus(e.target.value)} className="w-full bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide">
+                        <option value="ALL">Estado Cuota</option>
+                        <option value="AL DÍA">Al Día</option>
+                        <option value="EN DEUDA">En Deuda</option>
+                        <option value="DE BAJA">De Baja</option>
+                    </select>
+                    <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
+                </div>
+            )}
             <div className="relative min-w-[130px]">
                 <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} className="w-full bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide">
                     <option value="ALL">Roles</option>
@@ -555,10 +558,21 @@ export const Socios = ({ user }: { user?: any }) => {
                                     ? 'bg-white/20 border-white/30 text-white' 
                                     : 'bg-white/60 border-white/30 text-gray-700'
                             }`}>{getGenderRoleLabel(socio.role || 'SOCIO', socio.gender)}</span>
-                            {/* Pastille de statut */}
-                            <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest ${computedStatus.color} ${isPresident ? 'bg-opacity-20 border border-[#001d4a]/30' : isReferente ? 'bg-opacity-20 border border-white/30' : ''}`}>
-                                {computedStatus.label}
-                            </span>
+                        </div>
+                        {/* Email et téléphone */}
+                        <div className="flex flex-col gap-1.5 mt-3">
+                            {socio.email && (
+                                <div className={`flex items-center gap-1.5 ${isPresident ? 'text-[#001d4a]/80' : isReferente ? 'text-white/80' : 'text-gray-600'}`}>
+                                    <Mail size={11} className={isPresident ? "text-[#001d4a]/60" : isReferente ? "text-white/60" : "text-gray-400"} />
+                                    <span className={`text-[9px] font-bold truncate ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-gray-700'}`}>{socio.email}</span>
+                                </div>
+                            )}
+                            {socio.phone && (
+                                <div className={`flex items-center gap-1.5 ${isPresident ? 'text-[#001d4a]/80' : isReferente ? 'text-white/80' : 'text-gray-600'}`}>
+                                    <Phone size={11} className={isPresident ? "text-[#001d4a]/60" : isReferente ? "text-white/60" : "text-gray-400"} />
+                                    <span className={`text-[9px] font-bold truncate ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-gray-700'}`}>{socio.phone}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -567,9 +581,12 @@ export const Socios = ({ user }: { user?: any }) => {
                         <MapPin size={14} className={isPresident ? "text-[#001d4a]" : isReferente ? "text-[#FCB131]" : "text-[#FCB131]"} />
                         <span className={`text-[10px] font-black uppercase tracking-widest truncate ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : ''}`}>{socio.consulado || 'SEDE CENTRAL'}</span>
                     </div>
+                    {/* Pastille de statut - déplacée ici */}
                     <div className={`text-[9px] font-bold flex items-center justify-between border-t ${isPresident ? 'border-[#001d4a]/20' : 'border-white/20'} pt-2 ${isPresident ? 'text-[#001d4a] bg-[#001d4a]/5' : isReferente ? 'text-white bg-white/10' : 'text-[#001d4a] bg-white/20'} backdrop-blur-sm rounded-lg px-3 py-2`}>
-                        <span className={`uppercase opacity-70 ${isPresident ? 'text-[#001d4a]/70' : isReferente ? 'text-white/70' : ''}`}>Ultimo Pago:</span>
-                        <span className={`font-black ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-[#003B94]'}`}>{formatLastPaymentDate(socio.last_month_paid)}</span>
+                        <span className={`uppercase opacity-70 ${isPresident ? 'text-[#001d4a]/70' : isReferente ? 'text-white/70' : ''}`}>Estado:</span>
+                        <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest ${computedStatus.color} ${isPresident ? 'bg-opacity-20 border border-[#001d4a]/30' : isReferente ? 'bg-opacity-20 border border-white/30' : ''}`}>
+                            {computedStatus.label}
+                        </span>
                     </div>
                 </div>
             </GlassCard>

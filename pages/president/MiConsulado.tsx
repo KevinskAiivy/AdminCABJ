@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { GlassCard } from '../../components/GlassCard';
 import { CustomSelect } from '../../components/CustomSelect';
-import { Building2, MapPin, Globe, Users, Edit2, Save, Upload, Image as ImageIcon, UserCircle, Crown, Briefcase, FileText, Wallet, UserCheck } from 'lucide-react';
+import { Building2, MapPin, Globe, Users, Edit2, Save, Upload, Image as ImageIcon, UserCircle, Crown, Briefcase, FileText, Wallet, UserCheck, Newspaper, Gift, Plane } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { Consulado, Socio } from '../../types';
 
@@ -117,8 +117,8 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border border-[#003B94]/10 overflow-hidden">
-            <div className="flex border-b border-gray-200">
+        <div className="liquid-glass rounded-xl shadow-lg border border-white/20 overflow-hidden backdrop-blur-xl bg-gradient-to-br from-white/40 via-white/30 to-white/20">
+            <div className="flex gap-2 p-2">
                 {[
                     { id: 'info', label: 'Información General', icon: Building2 },
                     { id: 'directiva', label: 'Comisión Directiva', icon: Users }
@@ -126,14 +126,17 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
                     <button 
                         key={tab.id} 
                         onClick={() => setActiveTab(tab.id as 'info' | 'directiva')} 
-                        className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all relative ${
+                        className={`flex items-center gap-2 px-6 py-3.5 text-[10px] font-black uppercase tracking-widest transition-all duration-300 relative rounded-lg backdrop-blur-sm ${
                             activeTab === tab.id 
-                                ? 'text-[#003B94] border-b-2 border-[#003B94] bg-[#003B94]/5' 
-                                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                                ? 'bg-gradient-to-br from-[#003B94]/90 to-[#001d4a]/90 text-white shadow-lg shadow-[#003B94]/30 border border-white/30' 
+                                : 'text-gray-600 hover:text-[#003B94] hover:bg-white/40 border border-transparent hover:border-white/30'
                         }`}
                     >
-                        <tab.icon size={14} className={activeTab === tab.id ? 'text-[#FCB131]' : ''} /> 
+                        <tab.icon size={14} className={activeTab === tab.id ? 'text-[#FCB131]' : 'text-gray-500'} /> 
                         {tab.label}
+                        {activeTab === tab.id && (
+                            <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
+                        )}
                     </button>
                 ))}
             </div>
@@ -361,6 +364,78 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
                                     ) : (
                                         <div className="bg-white border border-gray-200 rounded-lg py-2.5 px-3 text-xs font-bold text-[#001d4a]">
                                             {formData.vocal || 'Vacante'}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                                        <UserCircle size={10} /> Secretaria de la Mujer
+                                    </label>
+                                    {isEditing ? (
+                                        <CustomSelect
+                                            value={(formData as any).secretaria_mujer || ''}
+                                            onChange={(val) => setFormData({...formData, secretaria_mujer: val})}
+                                            options={[{value: '', label: 'Vacante'}, ...boardCandidates]}
+                                            searchable
+                                            placeholder="Seleccionar..."
+                                        />
+                                    ) : (
+                                        <div className="bg-white border border-gray-200 rounded-lg py-2.5 px-3 text-xs font-bold text-[#001d4a]">
+                                            {(formData as any).secretaria_mujer || 'Vacante'}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                                        <Newspaper size={10} /> Prensa
+                                    </label>
+                                    {isEditing ? (
+                                        <CustomSelect
+                                            value={(formData as any).prensa || ''}
+                                            onChange={(val) => setFormData({...formData, prensa: val})}
+                                            options={[{value: '', label: 'Vacante'}, ...boardCandidates]}
+                                            searchable
+                                            placeholder="Seleccionar..."
+                                        />
+                                    ) : (
+                                        <div className="bg-white border border-gray-200 rounded-lg py-2.5 px-3 text-xs font-bold text-[#001d4a]">
+                                            {(formData as any).prensa || 'Vacante'}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                                        <Gift size={10} /> Beneficios Xeneizes
+                                    </label>
+                                    {isEditing ? (
+                                        <CustomSelect
+                                            value={(formData as any).beneficios_xeneizes || ''}
+                                            onChange={(val) => setFormData({...formData, beneficios_xeneizes: val})}
+                                            options={[{value: '', label: 'Vacante'}, ...boardCandidates]}
+                                            searchable
+                                            placeholder="Seleccionar..."
+                                        />
+                                    ) : (
+                                        <div className="bg-white border border-gray-200 rounded-lg py-2.5 px-3 text-xs font-bold text-[#001d4a]">
+                                            {(formData as any).beneficios_xeneizes || 'Vacante'}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                                        <Plane size={10} /> Turismo
+                                    </label>
+                                    {isEditing ? (
+                                        <CustomSelect
+                                            value={(formData as any).turismo || ''}
+                                            onChange={(val) => setFormData({...formData, turismo: val})}
+                                            options={[{value: '', label: 'Vacante'}, ...boardCandidates]}
+                                            searchable
+                                            placeholder="Seleccionar..."
+                                        />
+                                    ) : (
+                                        <div className="bg-white border border-gray-200 rounded-lg py-2.5 px-3 text-xs font-bold text-[#001d4a]">
+                                            {(formData as any).turismo || 'Vacante'}
                                         </div>
                                     )}
                                 </div>

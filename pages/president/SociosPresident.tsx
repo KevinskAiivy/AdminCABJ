@@ -13,6 +13,7 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
   const [socios, setSocios] = useState<Socio[]>(dataService.getSocios(consulado_id));
   const [consulados, setConsulados] = useState(dataService.getConsulados());
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterCuotaStatus, setFilterCuotaStatus] = useState<string>('ALL');
   const [selectedSocio, setSelectedSocio] = useState<Socio | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -53,28 +54,6 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
       return () => unsubscribe();
   }, [consulado_id, currentConsulado]);
 
-  const filteredSocios = useMemo(() => {
-    return socios.filter(s => {
-      const q = searchQuery.toLowerCase();
-      return s.name.toLowerCase().includes(q) || 
-             (s.numero_socio && s.numero_socio.includes(q)) ||
-             s.dni.includes(q) || 
-             s.id.includes(q);
-    });
-  }, [socios, searchQuery]);
-
-  const totalPages = Math.ceil(filteredSocios.length / itemsPerPage);
-  
-  const currentItems = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredSocios.slice(start, start + itemsPerPage);
-  }, [filteredSocios, currentPage]);
-
-  // Réinitialiser la page à 1 quand la recherche change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
-
   const calculateSocioStatus = (paymentStr: string) => {
     if (!paymentStr) return { label: 'EN DEUDA', color: 'text-amber-600 bg-amber-50', dot: 'bg-amber-500' };
     
@@ -106,6 +85,33 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
     if (diffMonths <= 6) return { label: 'EN DEUDA', color: 'text-amber-600 bg-amber-50', dot: 'bg-amber-500' };
     return { label: 'DE BAJA', color: 'text-red-600 bg-red-50', dot: 'bg-red-500' };
   };
+
+  const filteredSocios = useMemo(() => {
+    return socios.filter(s => {
+      const q = searchQuery.toLowerCase();
+      const matchesSearch = s.name.toLowerCase().includes(q) || 
+             (s.numero_socio && s.numero_socio.includes(q)) ||
+             s.dni.includes(q) || 
+             s.id.includes(q);
+      
+      const dynamicStatus = calculateSocioStatus(s.last_month_paid || '').label;
+      const matchesCuotaStatus = filterCuotaStatus === 'ALL' || dynamicStatus === filterCuotaStatus;
+      
+      return matchesSearch && matchesCuotaStatus;
+    });
+  }, [socios, searchQuery, filterCuotaStatus]);
+
+  const totalPages = Math.ceil(filteredSocios.length / itemsPerPage);
+  
+  const currentItems = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredSocios.slice(start, start + itemsPerPage);
+  }, [filteredSocios, currentPage]);
+
+  // Réinitialiser la page à 1 quand la recherche ou le filtre change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterCuotaStatus]);
 
   const stats = useMemo(() => {
     let alDia = 0, deuda = 0, deBaja = 0;
@@ -308,10 +314,19 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
         </div>
 
         {/* Toolbar */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-[#003B94]/10 flex items-center justify-between">
-            <div className="relative group w-full max-w-md">
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-[#003B94]/10 flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="relative group w-full sm:max-w-md">
                 <input type="text" placeholder="Buscar socio..." className="w-full bg-[#003B94]/5 border-transparent rounded-lg py-2.5 pl-10 pr-4 outline-none text-xs font-bold text-[#001d4a] transition-all focus:bg-white focus:ring-2 focus:ring-[#003B94]/10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#003B94]/30" size={16} />
+            </div>
+            <div className="relative min-w-[150px]">
+                <select value={filterCuotaStatus} onChange={(e) => setFilterCuotaStatus(e.target.value)} className="w-full bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide">
+                    <option value="ALL">Estado Cuota</option>
+                    <option value="AL DÍA">Al Día</option>
+                    <option value="EN DEUDA">En Deuda</option>
+                    <option value="DE BAJA">De Baja</option>
+                </select>
+                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
             </div>
         </div>
 
@@ -465,8 +480,8 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                     className={`flex flex-col group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_-5px_rgba(0,29,74,0.2)] ${containerClass} p-0`}
                     variant={variant}
                 >
-                    {/* Action buttons - toujours visibles en haut à droite */}
-                    <div className="absolute top-3 right-3 z-10 flex gap-2 opacity-100">
+                    {/* Action buttons - visibles uniquement au survol */}
+                    <div className="absolute top-3 right-3 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                         <button 
                             onClick={(e) => { 
                                 e.stopPropagation(); 
@@ -543,20 +558,30 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                                     {getGenderRoleLabel(socio.role || 'SOCIO', socio.gender)}
                                 </span>
                             </div>
+                            {/* Email et téléphone */}
+                            <div className="flex flex-col gap-1.5 mt-3">
+                                {socio.email && (
+                                    <div className={`flex items-center gap-1.5 ${isPresident || isReferente ? 'text-white/80' : 'text-gray-600'}`}>
+                                        <Mail size={11} className={isPresident || isReferente ? "text-white/60" : "text-gray-400"} />
+                                        <span className={`text-[9px] font-bold truncate ${isPresident || isReferente ? 'text-white' : 'text-gray-700'}`}>{socio.email}</span>
+                                    </div>
+                                )}
+                                {socio.phone && (
+                                    <div className={`flex items-center gap-1.5 ${isPresident || isReferente ? 'text-white/80' : 'text-gray-600'}`}>
+                                        <Phone size={11} className={isPresident || isReferente ? "text-white/60" : "text-gray-400"} />
+                                        <span className={`text-[9px] font-bold truncate ${isPresident || isReferente ? 'text-white' : 'text-gray-700'}`}>{socio.phone}</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                     <div className="px-5 py-3 space-y-3">
-                        <div className={`text-[9px] font-bold ${isPresident || isReferente ? 'text-white bg-white/10' : 'text-[#001d4a] bg-white/20'} backdrop-blur-sm rounded-lg px-3 py-2`}>
-                            <div className="flex items-center justify-between mb-1">
-                                <span className={`uppercase opacity-70 ${isPresident || isReferente ? 'text-white/70' : ''}`}>Ultimo Pago:</span>
-                                <span className={`font-black ${isPresident || isReferente ? 'text-white' : 'text-[#003B94]'}`}>{formatLastPaymentDate(socio.last_month_paid)}</span>
-                            </div>
-                            {/* Estado de cuota */}
-                            <div className="flex justify-start mt-2">
-                                <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest ${computedStatus.color} ${isPresident || isReferente ? 'bg-opacity-20 border border-white/30' : ''}`}>
-                                    {computedStatus.label}
-                                </span>
-                            </div>
+                        {/* Estado de cuota - déplacée ici */}
+                        <div className={`text-[9px] font-bold flex items-center justify-between border-t ${isPresident || isReferente ? 'border-white/20' : 'border-gray-200'} pt-2 ${isPresident || isReferente ? 'text-white bg-white/10' : 'text-[#001d4a] bg-white/20'} backdrop-blur-sm rounded-lg px-3 py-2`}>
+                            <span className={`uppercase opacity-70 ${isPresident || isReferente ? 'text-white/70' : ''}`}>Estado:</span>
+                            <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest ${computedStatus.color} ${isPresident || isReferente ? 'bg-opacity-20 border border-white/30' : ''}`}>
+                                {computedStatus.label}
+                            </span>
                         </div>
                     </div>
                 </GlassCard>
