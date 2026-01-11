@@ -4,6 +4,7 @@ import { GlassCard } from '../components/GlassCard';
 import { Ticket, Clock, CheckCircle2, XCircle, Calendar, MapPin, X, UserCheck, UserX, Filter, Timer, Archive, Home, Plane, FileText } from 'lucide-react';
 import { Match, Solicitud, Socio, Team } from '../types';
 import { dataService } from '../services/dataService';
+import { BocaLogoSVG } from '../constants';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -68,6 +69,7 @@ export const Habilitaciones = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [allSocios, setAllSocios] = useState<Socio[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [settings, setSettings] = useState(dataService.getAppSettings());
   const [now, setNow] = useState(new Date());
   const [selectedMatch, setSelectedMatch] = useState<ProcessedMatch | null>(null);
   const [requests, setRequests] = useState<Solicitud[]>([]);
@@ -77,6 +79,7 @@ export const Habilitaciones = () => {
         setMatches(dataService.getMatches());
         setAllSocios(dataService.getSocios());
         setTeams(dataService.getTeams());
+        setSettings(dataService.getAppSettings());
     };
     load();
     const unsub = dataService.subscribe(load);
@@ -979,18 +982,18 @@ export const Habilitaciones = () => {
                     
                     {/* Logos des équipes */}
                     <div className="flex items-center justify-center gap-2.5 mb-2">
-                        {localTeam?.logo ? (
+                        {settings.matchLogoUrl ? (
                             <img 
-                                src={localTeam.logo} 
-                                alt={localTeam.name || 'Local'} 
+                                src={settings.matchLogoUrl} 
+                                alt="Boca Juniors" 
                                 className="w-12 h-12 object-contain"
                                 onError={(e) => {
                                     (e.target as HTMLImageElement).style.display = 'none';
                                 }}
                             />
                         ) : (
-                            <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
-                                <Home size={16} className={isDark ? 'text-white/50' : 'text-[#003B94]/50'} />
+                            <div className="w-12 h-12 flex items-center justify-center">
+                                <BocaLogoSVG style={{ width: '48px', height: '48px' }} />
                             </div>
                         )}
                         <span className={`text-[10px] font-black ${isDark ? 'text-white/60' : isYellow ? 'text-[#001d4a]/60' : isScheduled ? 'text-[#003B94]/60' : 'text-gray-400'}`}>VS</span>
