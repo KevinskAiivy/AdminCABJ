@@ -10,9 +10,9 @@ import { formatDateDisplay } from '../../utils/dateFormat';
 // Icons mapping for visual
 const EVENT_TYPES = [
     { id: 'EVENTO', label: 'Institucional', icon: Building2 },
-    { id: 'EFEMERIDE', label: 'Efeméride', icon: Star },
+    { id: 'EFEMERIDE', label: 'Celebración', icon: Star },
     { id: 'IDOLO', label: 'Ídolo', icon: Trophy },
-    { id: 'INTERNACIONAL', label: 'Internacional', icon: Globe },
+    { id: 'INTERNACIONAL', label: 'Aniversario', icon: Globe },
     { id: 'ENCUENTRO', label: 'Encuentro', icon: Users },
     { id: 'CUMPLEAÑOS', label: 'Cumpleaños', icon: Gift }
 ];
@@ -44,6 +44,7 @@ export const Agenda = () => {
   
   const [dateError, setDateError] = useState<string | null>(null);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('ALL'); // 'ALL' = tous les types
 
   useEffect(() => {
       const load = () => setEvents(dataService.getAgendaEvents());
@@ -109,27 +110,51 @@ export const Agenda = () => {
       setShowSaveConfirm(true);
   };
 
-  // Group events by Date
+  // Group events by Date (with type filter)
   const groupedEvents = useMemo(() => {
-      const sorted = [...events].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      // Filtrer les événements selon le type sélectionné
+      const filteredEvents = selectedTypeFilter === 'ALL'
+          ? events
+          : events.filter(evt => evt.type === selectedTypeFilter);
+      
+      const sorted = [...filteredEvents].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       const groups: Record<string, AgendaEvent[]> = {};
       sorted.forEach(evt => {
           if (!groups[evt.date]) groups[evt.date] = [];
           groups[evt.date].push(evt);
       });
       return groups;
-  }, [events]);
+  }, [events, selectedTypeFilter]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 px-4 animate-boca-entrance">
         {/* Harmonized Header */}
-        <div className="liquid-glass-dark p-8 rounded-xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+        <div className="liquid-glass-dark p-8 rounded-xl shadow-xl flex flex-col gap-6 relative overflow-hidden">
             <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none"><Calendar size={300} className="text-white" /></div>
-            <div className="flex items-center gap-5 relative z-10">
-                <div className="bg-white/10 p-4 rounded-xl border border-white/20"><Calendar size={28} className="text-[#FCB131]" /></div>
-                <div><h1 className="oswald text-3xl font-black text-white uppercase tracking-tighter">Agenda Institucional</h1><p className="text-[#FCB131] font-black uppercase text-[10px] tracking-[0.4em] mt-1">Gestión de Eventos</p></div>
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+                <div className="flex items-center gap-5">
+                    <div className="bg-white/10 p-4 rounded-xl border border-white/20"><Calendar size={28} className="text-[#FCB131]" /></div>
+                    <div><h1 className="oswald text-3xl font-black text-white uppercase tracking-tighter">Agenda Institucional</h1><p className="text-[#FCB131] font-black uppercase text-[10px] tracking-[0.4em] mt-1">Gestión de Eventos</p></div>
+                </div>
+                <button onClick={handleCreate} className="bg-[#FCB131] text-[#001d4a] px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center gap-2 hover:bg-[#FFD23F] transition-all"><Plus size={16} /> Nuevo Evento</button>
             </div>
-            <button onClick={handleCreate} className="relative z-10 bg-[#FCB131] text-[#001d4a] px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center gap-2 hover:bg-[#FFD23F] transition-all"><Plus size={16} /> Nuevo Evento</button>
+            
+            {/* Type Filter */}
+            <div className="relative z-10">
+                <label className="text-[9px] font-black text-white/60 uppercase tracking-widest ml-1 mb-2 block">Filtrar por Tipo</label>
+                <select
+                    value={selectedTypeFilter}
+                    onChange={(e) => setSelectedTypeFilter(e.target.value)}
+                    className="w-full md:w-64 bg-white/10 border border-white/20 rounded-xl py-3 pl-4 pr-10 text-xs font-black text-white uppercase tracking-widest outline-none cursor-pointer hover:bg-white/20 transition-all focus:bg-white/20 focus:border-white/40"
+                >
+                    <option value="ALL" className="bg-[#001d4a] text-white">Todos</option>
+                    {EVENT_TYPES.map(type => (
+                        <option key={type.id} value={type.id} className="bg-[#001d4a] text-white">
+                            {type.label}
+                        </option>
+                    ))}
+                </select>
+            </div>
         </div>
 
         {/* Grouped Events */}
@@ -205,11 +230,11 @@ export const Agenda = () => {
 
                     <div className="space-y-1">
                         <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1">Tipo de Evento</label>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-3 gap-2">
                             {EVENT_TYPES.map(t => {
                                 const isSelected = formData.type === t.id;
                                 const Icon = t.icon;
-                                return ( <button key={t.id} onClick={() => setFormData({...formData, type: t.id as any})} className={`flex items-center gap-2 px-3 h-10 rounded-lg border transition-all ${ isSelected ? `bg-[#003B94] text-white border-[#003B94] shadow-md` : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50' }`}><Icon size={14} className={isSelected ? 'text-[#FCB131]' : 'opacity-70'} /> <span className="text-[9px] font-black uppercase tracking-widest truncate">{t.label}</span></button> );
+                                return ( <button key={t.id} onClick={() => setFormData({...formData, type: t.id as any})} className={`flex items-center gap-1.5 px-2.5 h-10 rounded-lg border transition-all ${ isSelected ? `bg-[#003B94] text-white border-[#003B94] shadow-md` : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50' }`}><Icon size={12} className={isSelected ? 'text-[#FCB131]' : 'opacity-70'} /> <span className="text-[8px] font-black uppercase tracking-widest truncate">{t.label}</span></button> );
                             })}
                         </div>
                     </div>
@@ -226,13 +251,13 @@ export const Agenda = () => {
                     </div>
                     {dateError && <div className="text-red-500 text-[9px] font-bold flex items-center gap-1"><AlertTriangle size={10} /> {dateError}</div>}
 
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 items-end">
                         <div className="space-y-1 flex-1">
                             <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1">Ubicación</label>
                             <div className="relative"><input type="text" placeholder="Ej: Brandsen 805" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 pl-8 font-bold text-xs outline-none focus:border-[#003B94] transition-all text-[#001d4a] h-10" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} /><MapPin size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /></div>
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1 text-center block">Especial</label>
+                            <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1 block">Especial</label>
                             <div onClick={() => setFormData({...formData, is_special_day: !formData.is_special_day})} className={`flex items-center justify-center px-4 rounded-xl border cursor-pointer transition-all h-10 w-14 ${formData.is_special_day ? 'bg-[#FCB131]/10 border-[#FCB131]' : 'bg-gray-50 border-gray-200'}`}><Star size={16} className={formData.is_special_day ? 'text-[#FCB131] fill-[#FCB131]' : 'text-gray-300'} /></div>
                         </div>
                     </div>

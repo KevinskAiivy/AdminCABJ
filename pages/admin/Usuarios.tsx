@@ -168,7 +168,7 @@ export const Usuarios = () => {
         </div>
 
         {isModalOpen && (
-            <div className="fixed inset-0 z-[1000] flex items-start justify-center pt-20 pb-4 px-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300 overflow-y-auto" style={{ height: '700px' }}>
+            <div className="fixed inset-0 z-[1000] flex items-start justify-center pt-2.5 pb-4 px-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300 overflow-y-auto" style={{ height: '550px' }}>
                 <div className="relative w-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-white/60 max-w-[900px] animate-in zoom-in-95 duration-300 mx-auto" style={{ maxHeight: 'calc(100vh - 5rem)' }}>
                     <div className="liquid-glass-dark p-3 text-white flex items-center justify-between shrink-0 w-[900px]" style={{ width: '900px' }}>
                         <div className="flex items-center gap-2.5">

@@ -235,7 +235,7 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
                   <h2 className="oswald text-xl md:text-2xl font-black uppercase text-white tracking-[0.2em] leading-none text-center drop-shadow-md">
                       {match.competition}
                   </h2>
-                  <span className="text-[#FCB131] oswald text-xs font-bold uppercase tracking-[0.25em] mt-1 drop-shadow-sm">
+                  <span className="text-[#FCB131] oswald text-[22px] font-bold uppercase tracking-[0.25em] mt-1 drop-shadow-sm">
                       {match.fecha_jornada || 'PRÓXIMO PARTIDO'}
                   </span>
               </div>
@@ -261,7 +261,7 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
                           />
                       )}
                   </div>
-                  <h3 className="oswald text-lg md:text-xl font-black uppercase text-white tracking-tight drop-shadow-md">Boca Juniors</h3>
+                  <h3 className="oswald text-base md:text-base font-black uppercase text-white tracking-tight drop-shadow-md">Boca Juniors</h3>
               </div>
 
               {/* Central Info */}
@@ -269,7 +269,7 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
                   
                   {/* Clock (Strictly HH:mm, no seconds) - REDUCED SIZE */}
                   <div className="flex items-baseline gap-2 animate-in zoom-in duration-700">
-                      <span className="oswald text-xl md:text-3xl font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(252,177,49,0.4)] leading-none">
+                      <span className="oswald text-[40px] md:text-[40px] font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(252,177,49,0.4)] leading-none">
                           {displayTime}
                       </span>
                   </div>
@@ -305,7 +305,7 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
                           </span>
                       )}
                   </div>
-                  <h3 className="oswald text-lg md:text-xl font-black uppercase text-white/80 tracking-tight truncate w-full max-w-[140px]" title={match.rival}>
+                  <h3 className="oswald text-lg md:text-base font-black uppercase text-white/80 tracking-tight truncate w-full max-w-[140px]" title={match.rival}>
                       {match.rival}
                   </h3>
               </div>

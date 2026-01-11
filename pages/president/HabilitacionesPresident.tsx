@@ -490,12 +490,12 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                             
                             {/* Logo Rival */}
                             <div className="flex flex-col items-center gap-0.5">
-                              <div className="w-14 h-14 flex items-center justify-center bg-white/10 rounded-lg border border-white/20">
+                              <div className="w-14 h-14 flex items-center justify-center">
                                 {rivalLogo ? (
                                   <img 
                                     src={rivalLogo} 
                                     alt={match.rival} 
-                                    className="w-full h-full object-contain p-1"
+                                    className="w-full h-full object-contain"
                                   />
                                 ) : (
                                   <span className={`text-[10px] font-black italic ${isOpen ? 'text-white/20' : isScheduled ? 'text-[#003B94]/20' : 'text-gray-300'}`}>
@@ -558,7 +558,7 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                           </div>
                           
                           {/* Bouton d'action */}
-                          {match.status !== 'CLOSED' && typeof matchId === 'number' && !isNaN(matchId) && routeIdentifier && (
+                          {match.status !== 'CLOSED' && match.status !== 'SCHEDULED' && typeof matchId === 'number' && !isNaN(matchId) && routeIdentifier && (
                             <button
                               type="button"
                               onClick={(e) => {

@@ -1123,7 +1123,7 @@ export const Habilitaciones = () => {
         </div>
 
         {selectedMatch && (
-            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" >
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ height: '200px' }}>
                 <div className="relative w-full max-w-4xl bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-white/60 max-h-[80vh] animate-in zoom-in-95 duration-200">
                     <div className="liquid-glass-dark p-5 text-white flex justify-between items-center shrink-0">
                         <div>

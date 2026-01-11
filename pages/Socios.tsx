@@ -427,20 +427,20 @@ export const Socios = ({ user }: { user?: any }) => {
       </div>
 
       <div className="bg-white p-4 rounded-xl shadow-sm border border-[#003B94]/10 flex flex-col xl:flex-row gap-4 items-center justify-between">
-        <button onClick={resetFilters} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-[#001d4a] transition-all font-black text-[8px] uppercase tracking-widest border border-transparent hover:border-gray-300 h-fit"><RotateCcw size={10} /> Limpiar Filtros</button>
+        <button onClick={resetFilters} style={{ backgroundColor: 'var(--boca-gold)' }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-500 hover:bg-gray-200 hover:text-[#001d4a] transition-all font-black text-[8px] uppercase tracking-widest border border-transparent hover:border-gray-300 h-fit"><RotateCcw size={10} /> Limpiar Filtros</button>
         <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto overflow-x-auto">
             <div className="relative min-w-[130px]">
-                <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="w-full bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Categorías</option>{SOCIO_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select>
+                <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} style={{width: '200px'}} className="bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Categorías</option>{SOCIO_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select>
                 <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
             </div>
             <div className="relative min-w-[150px]">
-                <select value={filterConsulado} onChange={(e) => setFilterConsulado(e.target.value)} className="w-full bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Consulados</option><option value="SEDE CENTRAL">Sede Central</option>{consulados.sort((a,b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
+                <select value={filterConsulado} onChange={(e) => setFilterConsulado(e.target.value)} style={{width: '200px'}} className="bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Consulados</option><option value="SEDE CENTRAL">Sede Central</option>{consulados.sort((a,b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
                 <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
             </div>
             {/* Filtre Estado de la cuota - visible uniquement pour PRESIDENTE et REFERENTE */}
             {(user?.role === 'PRESIDENTE' || user?.role === 'REFERENTE') && (
                 <div className="relative min-w-[150px]">
-                    <select value={filterCuotaStatus} onChange={(e) => setFilterCuotaStatus(e.target.value)} className="w-full bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide">
+                    <select value={filterCuotaStatus} onChange={(e) => setFilterCuotaStatus(e.target.value)} style={{width: '200px'}} className="bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide">
                         <option value="ALL">Estado Cuota</option>
                         <option value="AL DÍA">Al Día</option>
                         <option value="EN DEUDA">En Deuda</option>
@@ -450,7 +450,7 @@ export const Socios = ({ user }: { user?: any }) => {
                 </div>
             )}
             <div className="relative min-w-[130px]">
-                <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} className="w-full bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide">
+                <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} style={{width: '200px'}} className="bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide">
                     <option value="ALL">Roles</option>
                     <option value="SOCIO">Socio</option>
                     <option value="PRESIDENTE">Presidente</option>
@@ -618,7 +618,30 @@ export const Socios = ({ user }: { user?: any }) => {
                     <X onClick={() => setIsEditModalOpen(false)} className="cursor-pointer opacity-60 hover:opacity-100 p-1 hover:bg-white/10 rounded-full transition-colors absolute top-3 right-3 z-20" size={20} />
                 </div>
 
+                {/* Onglets */}
+                <div className="flex justify-center backdrop-blur-md border-b border-[#003B94]/30 px-6 pt-3 gap-2 overflow-x-auto shrink-0 shadow-[0_2px_10px_rgba(0,0,0,0.1)]">
+                    {[
+                        { id: 'INFO', label: 'Info General', icon: User },
+                        { id: 'HISTORY', label: 'Historial', icon: History }
+                    ].map(tab => (
+                        <button 
+                            key={tab.id} 
+                            onClick={() => setActiveTab(tab.id as any)} 
+                            className={`flex items-center gap-1.5 px-5 py-2.5 rounded-t-xl text-[9px] font-black uppercase tracking-widest transition-all duration-300 relative whitespace-nowrap ${
+                                activeTab === tab.id 
+                                    ? 'bg-[#003B94] backdrop-blur-sm text-[#FCB131] shadow-[0_-4px_15px_rgba(252,177,49,0.2)] border-t-2 border-x-2 border-[#FCB131]/40 border-b-0 z-10 translate-y-[1px] before:absolute before:inset-0 before:bg-gradient-to-b before:from-[#FCB131]/20 before:to-transparent before:rounded-t-xl' 
+                                    : 'bg-white/5 text-[#001d4a] hover:text-[#FCB131] hover:bg-[#003B94]/60 backdrop-blur-sm border-t-2 border-x-2 border-transparent hover:border-[#FCB131]/30'
+                            }`}
+                        >
+                            <tab.icon size={12} className={`transition-colors ${activeTab === tab.id ? 'text-[#FCB131]' : 'text-[#001d4a]'}`} /> 
+                            <span className={activeTab === tab.id ? 'text-[#FCB131]' : 'text-[#001d4a]'}>{tab.label}</span>
+                        </button>
+                    ))}
+                </div>
+
                 <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1 bg-white/50">
+                    {activeTab === 'INFO' && (
+                        <>
                     <div className="space-y-2">
                         <h3 className="text-[#003B94] font-black uppercase text-[9px] tracking-widest border-b border-[#003B94]/10 pb-1 flex items-center gap-1.5"><User size={11}/> {getGenderLabel('Datos del Socio', formData.gender)}</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -875,6 +898,42 @@ export const Socios = ({ user }: { user?: any }) => {
                             )}
                         </div>
                     </div>
+                        </>
+                    )}
+
+                    {activeTab === 'HISTORY' && (
+                        <div className="space-y-3 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="bg-white/50 p-4 rounded-xl border border-gray-200">
+                                <h3 className="text-[#003B94] font-black uppercase text-[9px] tracking-widest border-b border-[#003B94]/10 pb-2 mb-3 flex items-center gap-1.5">
+                                    <History size={11} /> Historial de Transferencias
+                                </h3>
+                                {socioTransfers.length > 0 ? (
+                                    <div className="space-y-2">
+                                        {socioTransfers.map((transfer, idx) => (
+                                            <div key={idx} className="bg-gray-50 p-3 rounded-lg border border-gray-200 flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <ArrowRightLeft size={14} className="text-[#003B94]" />
+                                                    <div>
+                                                        <div className="text-[9px] font-black text-[#001d4a] uppercase">
+                                                            {transfer.from_consulado || 'Sede Central'} → {transfer.to_consulado || 'Sede Central'}
+                                                        </div>
+                                                        <div className="text-[8px] text-gray-500 font-bold">
+                                                            {formatDateDisplay(transfer.request_date)} - {transfer.status}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8 text-gray-400">
+                                        <History size={32} className="mx-auto mb-2 opacity-50" />
+                                        <p className="text-[9px] font-bold uppercase tracking-widest">Sin transferencias registradas</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="p-3 bg-[#FCB131] border-t border-[#e5a02d] flex justify-end gap-2 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-20 relative">

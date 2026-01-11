@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GlassCard } from '../../components/GlassCard';
-import { MessageSquare, Plus, Edit2, Trash2, Search, X, Save, Send, AlertTriangle, Check, Globe, Loader2, Archive, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { MessageSquare, Plus, Edit2, Trash2, Search, X, Save, Send, AlertTriangle, Check, Globe, Loader2, Archive, RotateCcw, CheckCircle2, Star, MapPin } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { Mensaje, Consulado } from '../../types';
 import { formatDateDisplay } from '../../utils/dateFormat';
@@ -26,16 +26,51 @@ export const Mensajes = () => {
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [vigenciaWarning, setVigenciaWarning] = useState<string | null>(null);
   const [lastEditingId, setLastEditingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'all' | 'archived'>('all');
+  const [showEndDate, setShowEndDate] = useState(false);
+  const [showConsulados, setShowConsulados] = useState(false);
+
+  // Fonction pour archiver automatiquement les messages expirés
+  const autoArchiveExpiredMessages = React.useCallback(async () => {
+      const allMensajes = dataService.getMensajes();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const expiredMessages = allMensajes.filter(msg => {
+          // Un message est expiré si end_date existe et est dépassée
+          if (msg.end_date && !msg.archived) {
+              const endDate = new Date(msg.end_date);
+              endDate.setHours(0, 0, 0, 0);
+              return endDate < today;
+          }
+          return false;
+      });
+      
+      // Archiver tous les messages expirés
+      for (const msg of expiredMessages) {
+          try {
+              await dataService.updateMensaje({ ...msg, archived: true });
+          } catch (error) {
+              console.error(`Erreur lors de l'archivage du message ${msg.id}:`, error);
+          }
+      }
+  }, []);
 
   useEffect(() => {
-      const load = () => {
+      const load = async () => {
+          // Archiver automatiquement les messages expirés au chargement
+          await autoArchiveExpiredMessages();
           setMensajes(dataService.getMensajes());
           setConsulados(dataService.getConsulados());
       };
       load();
-      const unsub = dataService.subscribe(load);
+      const unsub = dataService.subscribe(async () => {
+          await autoArchiveExpiredMessages();
+          setMensajes(dataService.getMensajes());
+          setConsulados(dataService.getConsulados());
+      });
       return () => unsub();
-  }, []);
+  }, [autoArchiveExpiredMessages]);
 
   useEffect(() => {
       if (isModalOpen) {
@@ -54,12 +89,27 @@ export const Mensajes = () => {
           target_ids: ['ALL'], target_consulado_id: 'ALL', target_consulado_name: 'Todos',
           start_date: today, end_date: ''
       });
+      setShowEndDate(false); // Par défaut, ne pas afficher le champ Hasta
+      setShowConsulados(false); // Par défaut, ne pas afficher les consulados
       setIsModalOpen(true);
   };
 
   const handleEdit = (msg: Mensaje) => {
       setEditingId(msg.id);
-      setFormData({ ...msg, target_ids: msg.target_ids || (msg.target_consulado_id === 'ALL' ? ['ALL'] : [msg.target_consulado_id]) });
+      const today = new Date().toISOString().split('T')[0];
+      // Si start_date n'existe pas ou est antérieure à aujourd'hui, utiliser aujourd'hui
+      let startDate = msg.start_date || today;
+      if (startDate < today) {
+          startDate = today;
+      }
+      const targetIds = msg.target_ids || (msg.target_consulado_id === 'ALL' ? ['ALL'] : [msg.target_consulado_id]);
+      setFormData({ 
+          ...msg, 
+          start_date: startDate,
+          target_ids: targetIds
+      });
+      setShowEndDate(!!msg.end_date); // Afficher le champ si end_date existe déjà
+      setShowConsulados(!targetIds.includes('ALL') && targetIds.length > 0); // Afficher les consulados si "Todos" n'est pas sélectionné
       setIsModalOpen(true);
   };
 
@@ -68,6 +118,10 @@ export const Mensajes = () => {
       if (id === 'ALL') {
           if (current.has('ALL')) current.clear();
           else { current.clear(); current.add('ALL'); }
+          // Si on active "Todos", masquer les consulados
+          if (current.has('ALL')) {
+              setShowConsulados(false);
+          }
       } else {
           current.delete('ALL');
           if (current.has(id)) current.delete(id);
@@ -98,13 +152,26 @@ export const Mensajes = () => {
       });
   };
 
+  const handleShowConsulados = () => {
+      setShowConsulados(true);
+      // Désactiver "Todos" quand on active les consulados
+      const current = new Set(formData.target_ids || []);
+      current.delete('ALL');
+      const newTargets = Array.from(current);
+      setFormData({ 
+          ...formData, 
+          target_ids: newTargets.length > 0 ? newTargets : [],
+          target_consulado_name: newTargets.length > 0 ? 'Seleccionados' : 'Todos'
+      });
+  };
+
   const executeSave = async () => {
       if (!formData.title || !formData.body) {
           setShowSaveConfirm(false);
           return;
       }
       if (formData.end_date && formData.start_date && formData.end_date < formData.start_date) {
-          setDateError("La fecha final no peut pas être antérieure à la date initiale");
+          setDateError("La fecha final no puede ser anterior a la fecha inicial");
           setShowSaveConfirm(false);
           return;
       }
@@ -130,7 +197,7 @@ export const Mensajes = () => {
           target_consulado_name: formData.target_consulado_name || (formData.target_ids?.includes('ALL') ? 'Todos' : 'Seleccionados'),
           start_date: formData.start_date || undefined,
           end_date: formData.end_date || undefined,
-          archived: formData.archived || false,
+          archived: false, // Les nouveaux messages ne sont jamais archivés par défaut
           is_automatic: formData.is_automatic || false
       };
 
@@ -167,7 +234,7 @@ export const Mensajes = () => {
       
       // Vérifier la validité des dates
       if (formData.end_date && formData.start_date && formData.end_date < formData.start_date) {
-          setDateError("La fecha final no peut pas être antérieure à la date initiale");
+          setDateError("La fecha final no puede ser anterior a la fecha inicial");
           return;
       }
       
@@ -203,49 +270,107 @@ export const Mensajes = () => {
   const isFormValid = formData.title && formData.body && (formData.target_ids?.length || 0) > 0;
   
   const filteredConsuladosSelection = consulados.filter(c => c.name.toLowerCase().includes(targetSearch.toLowerCase()));
-  const filteredMessages = mensajes.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()));
+  
+  // Filtrer les messages selon l'onglet actif et la recherche
+  const filteredMessages = mensajes.filter(m => {
+      const matchesSearch = m.title.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesTab = activeTab === 'archived' 
+          ? m.archived === true 
+          : m.archived !== true; // Inclure les messages non archivés ou undefined
+      return matchesSearch && matchesTab;
+  });
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 px-4 animate-boca-entrance">
         {/* Harmonized Header */}
-        <div className="liquid-glass-dark p-8 rounded-xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+        <div className="liquid-glass-dark p-8 rounded-xl shadow-xl flex flex-col gap-6 relative overflow-hidden">
             <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none"><MessageSquare size={300} className="text-white" /></div>
             
-            <div className="flex items-center gap-5 relative z-10">
-                <div className="bg-white/10 p-4 rounded-xl border border-white/20"><MessageSquare size={28} className="text-[#FCB131]" /></div>
-                <div><h1 className="oswald text-3xl font-black text-white uppercase tracking-tighter">Centro de Mensajes</h1><p className="text-[#FCB131] font-black uppercase text-[10px] tracking-[0.4em] mt-1">Comunicación Oficial</p></div>
-            </div>
-
-            <div className="relative z-10 flex flex-col md:flex-row gap-3 w-full md:w-auto items-center">
-                <div className="relative group w-full md:w-64">
-                    <input type="text" placeholder="Buscar mensaje..." className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-4 outline-none text-xs font-bold text-white placeholder:text-white/40 transition-all focus:bg-white focus:text-[#001d4a]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-[#001d4a]" size={16} />
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+                <div className="flex items-center gap-5">
+                    <div className="bg-white/10 p-4 rounded-xl border border-white/20"><MessageSquare size={28} className="text-[#FCB131]" /></div>
+                    <div><h1 className="oswald text-3xl font-black text-white uppercase tracking-tighter">Centro de Mensajes</h1><p className="text-[#FCB131] font-black uppercase text-[10px] tracking-[0.4em] mt-1">Comunicación Oficial</p></div>
                 </div>
-                <button onClick={handleCreate} className="bg-[#FCB131] text-[#001d4a] px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center gap-2 hover:bg-[#FFD23F] transition-all whitespace-nowrap ml-2"><Plus size={16} /> Redactar</button>
+
+                <div className="relative z-10 flex flex-col md:flex-row gap-3 w-full md:w-auto items-center">
+                    <div className="relative group w-full md:w-64">
+                        <input type="text" placeholder="Buscar mensaje..." className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-4 outline-none text-xs font-bold text-white placeholder:text-white/40 transition-all focus:bg-white focus:text-[#001d4a]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-[#001d4a]" size={16} />
+                    </div>
+                    <button onClick={handleCreate} className="bg-[#FCB131] text-[#001d4a] px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center gap-2 hover:bg-[#FFD23F] transition-all whitespace-nowrap ml-2"><Plus size={16} /> Redactar</button>
+                </div>
+            </div>
+
+            {/* Onglets */}
+            <div className="relative z-10 flex gap-2">
+                <button
+                    onClick={() => setActiveTab('all')}
+                    className={`px-6 py-2.5 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center gap-2 ${
+                        activeTab === 'all'
+                            ? 'bg-[#FCB131] text-[#001d4a] shadow-lg'
+                            : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+                    }`}
+                >
+                    <MessageSquare size={14} />
+                    Tous ({mensajes.filter(m => !m.archived).length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('archived')}
+                    className={`px-6 py-2.5 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center gap-2 ${
+                        activeTab === 'archived'
+                            ? 'bg-[#FCB131] text-[#001d4a] shadow-lg'
+                            : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+                    }`}
+                >
+                    <Archive size={14} />
+                    Archivés ({mensajes.filter(m => m.archived).length})
+                </button>
             </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredMessages.map(msg => (
-                <GlassCard key={msg.id} className="p-5 border-l-4 border-l-[#003B94] relative group">
-                    <div className="flex justify-between items-start mb-2">
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-widest ${msg.type === 'URGENTE' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
-                            {msg.type}
-                        </span>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => handleEdit(msg)} className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"><Edit2 size={12}/></button>
-                            <button onClick={() => setConfirmAction({ type: 'DELETE', id: msg.id })} className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100"><Trash2 size={12}/></button>
+        {filteredMessages.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredMessages.map(msg => (
+                    <GlassCard key={msg.id} className={`p-5 border-l-4 relative group ${msg.archived ? 'border-l-gray-400 opacity-75' : 'border-l-[#003B94]'}`}>
+                        {msg.archived && (
+                            <div className="absolute top-2 right-2 bg-gray-200 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-gray-600 flex items-center gap-1">
+                                <Archive size={8} />
+                                Archivé
+                            </div>
+                        )}
+                        <div className="flex justify-between items-start mb-2">
+                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-widest ${msg.type === 'URGENTE' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                                {msg.type}
+                            </span>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {!msg.archived && (
+                                    <button onClick={() => handleEdit(msg)} className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"><Edit2 size={12}/></button>
+                                )}
+                                <button onClick={() => setConfirmAction({ type: 'DELETE', id: msg.id })} className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100"><Trash2 size={12}/></button>
+                            </div>
                         </div>
-                    </div>
-                    <h4 className="oswald text-lg font-black text-[#001d4a] uppercase leading-tight mb-2 truncate">{msg.title}</h4>
-                    <p className="text-[10px] text-gray-500 line-clamp-2 mb-3">{msg.body}</p>
-                    <div className="flex items-center justify-between text-[9px] font-bold text-gray-400 border-t border-gray-100 pt-2">
-                        <span className="flex items-center gap-1"><Globe size={10}/> {msg.target_consulado_name}</span>
-                        <span>{formatDateDisplay(msg.date)}</span>
-                    </div>
-                </GlassCard>
-            ))}
-        </div>
+                        <h4 className="oswald text-lg font-black text-[#001d4a] uppercase leading-tight mb-2 truncate">{msg.title}</h4>
+                        <p className="text-[10px] text-gray-500 line-clamp-2 mb-3">{msg.body}</p>
+                        <div className="flex items-center justify-between text-[9px] font-bold text-gray-400 border-t border-gray-100 pt-2">
+                            <span className="flex items-center gap-1"><Globe size={10}/> {msg.target_consulado_name}</span>
+                            <span>{formatDateDisplay(msg.date)}</span>
+                        </div>
+                        {msg.end_date && (
+                            <div className="text-[8px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
+                                Valide jusqu'au: {formatDateDisplay(msg.end_date)}
+                            </div>
+                        )}
+                    </GlassCard>
+                ))}
+            </div>
+        ) : (
+            <div className="text-center py-12">
+                <Archive size={48} className="mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500 font-bold uppercase text-sm tracking-widest">
+                    {activeTab === 'archived' ? 'Aucun message archivé' : 'Aucun message trouvé'}
+                </p>
+            </div>
+        )}
 
       {confirmAction && (
           <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" >
@@ -285,45 +410,114 @@ export const Mensajes = () => {
                             <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-4 font-bold text-sm outline-none focus:bg-white focus:border-[#003B94] transition-all text-[#001d4a]" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="Ej: Apertura de Inscripciones" autoFocus />
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1">Tipo</label>
-                                <div className="flex gap-2">
-                                    <button onClick={() => setFormData({...formData, type: 'INSTITUCIONAL'})} className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${formData.type === 'INSTITUCIONAL' ? 'bg-[#003B94] text-white border-[#003B94]' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>Normal</button>
-                                    <button onClick={() => setFormData({...formData, type: 'URGENTE'})} className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${formData.type === 'URGENTE' ? 'bg-[#FCB131] text-[#001d4a] border-[#FCB131]' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>Urgente</button>
-                                </div>
+                        <div className="space-y-1">
+                            <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1">Tipo</label>
+                            <div className="flex gap-2">
+                                <button onClick={() => setFormData({...formData, type: 'INSTITUCIONAL'})} className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${formData.type === 'INSTITUCIONAL' ? 'bg-[#003B94] text-white border-[#003B94]' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>Normal</button>
+                                <button onClick={() => setFormData({...formData, type: 'URGENTE'})} className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all flex items-center justify-center gap-1.5 ${formData.type === 'URGENTE' ? 'bg-[#FCB131] text-[#001d4a] border-[#FCB131]' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>
+                                    <Star size={14} className={formData.type === 'URGENTE' ? 'fill-current' : ''} />
+                                    Urgente
+                                </button>
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1">Vigencia (Hasta)</label>
-                                <input 
-                                    type="date" 
-                                    className={`w-full bg-gray-50 border rounded-xl py-2.5 px-3 font-bold text-xs text-[#001d4a] outline-none ${dateError || vigenciaWarning ? 'border-amber-500' : 'border-gray-200'} focus:border-[#003B94]`} 
-                                    value={formData.end_date || ''} 
-                                    min={formData.start_date || ''} 
-                                    onChange={e => {
-                                        const selectedDate = e.target.value;
-                                        setFormData({...formData, end_date: selectedDate});
-                                        
-                                        // Vérifier si la date est inférieure au lendemain
-                                        if (selectedDate) {
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest ml-1">Vigencia</label>
+                            <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-end">
+                                <div className="space-y-1">
+                                    <label className="text-[8px] font-bold text-gray-500 uppercase tracking-wider ml-1">Desde</label>
+                                    <input 
+                                        type="date" 
+                                        className={`w-full bg-gray-50 border rounded-xl py-2.5 px-3 font-bold text-xs text-[#001d4a] outline-none ${dateError ? 'border-red-500' : 'border-gray-200'} focus:border-[#003B94]`} 
+                                        value={formData.start_date || new Date().toISOString().split('T')[0]} 
+                                        min={new Date().toISOString().split('T')[0]}
+                                        max={formData.end_date || ''}
+                                        onChange={e => {
+                                            const selectedDate = e.target.value;
                                             const today = new Date();
                                             today.setHours(0, 0, 0, 0);
-                                            const tomorrow = new Date(today);
-                                            tomorrow.setDate(tomorrow.getDate() + 1);
+                                            const todayStr = today.toISOString().split('T')[0];
                                             
-                                            const selected = new Date(selectedDate);
-                                            selected.setHours(0, 0, 0, 0);
+                                            // Si la date sélectionnée est inférieure à aujourd'hui, utiliser la date du jour
+                                            const finalDate = selectedDate && selectedDate < todayStr ? todayStr : selectedDate;
                                             
-                                            if (selected < tomorrow) {
-                                                setVigenciaWarning("⚠️ La fecha de vigencia es anterior o igual a mañana. El mensaje expirará pronto.");
+                                            setFormData({...formData, start_date: finalDate});
+                                            
+                                            // Réinitialiser l'erreur si on change la date de début
+                                            if (dateError) {
+                                                setDateError(null);
+                                            }
+                                            
+                                            // Si on change start_date et qu'on a une end_date, vérifier la validité
+                                            if (finalDate && formData.end_date && finalDate > formData.end_date) {
+                                                setDateError("La fecha de inicio no puede ser posterior a la fecha final");
+                                            }
+                                        }} 
+                                    />
+                                </div>
+                                <div className="flex items-end pb-0.5">
+                                    <button 
+                                        type="button"
+                                        onClick={() => setShowEndDate(!showEndDate)}
+                                        className={`px-3 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${
+                                            showEndDate 
+                                                ? 'bg-[#003B94] text-white border-[#003B94]' 
+                                                : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                                        }`}
+                                    >
+                                        Hasta
+                                    </button>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className={`text-[8px] font-bold uppercase tracking-wider ml-1 ${showEndDate ? 'text-gray-500' : 'text-gray-300'}`}>Hasta</label>
+                                    <input 
+                                        type="date" 
+                                        disabled={!showEndDate}
+                                        className={`w-full border rounded-xl py-2.5 px-3 font-bold text-xs outline-none transition-all ${
+                                            showEndDate
+                                                ? `bg-gray-50 text-[#001d4a] ${dateError || vigenciaWarning ? 'border-amber-500' : 'border-gray-200'} focus:border-[#003B94]`
+                                                : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                        }`}
+                                        value={formData.end_date || ''} 
+                                        min={formData.start_date || ''} 
+                                        onChange={e => {
+                                            if (!showEndDate) return;
+                                            const selectedDate = e.target.value;
+                                            setFormData({...formData, end_date: selectedDate});
+                                            
+                                            // Réinitialiser l'erreur si on change la date de fin
+                                            if (dateError) {
+                                                setDateError(null);
+                                            }
+                                            
+                                            // Vérifier si la date de fin est antérieure à la date de début
+                                            if (selectedDate && formData.start_date && selectedDate < formData.start_date) {
+                                                setDateError("La fecha final no puede ser anterior a la fecha inicial");
+                                                setVigenciaWarning(null);
+                                                return;
+                                            }
+                                            
+                                            // Vérifier si la date est inférieure au lendemain
+                                            if (selectedDate) {
+                                                const today = new Date();
+                                                today.setHours(0, 0, 0, 0);
+                                                const tomorrow = new Date(today);
+                                                tomorrow.setDate(tomorrow.getDate() + 1);
+                                                
+                                                const selected = new Date(selectedDate);
+                                                selected.setHours(0, 0, 0, 0);
+                                                
+                                                if (selected < tomorrow) {
+                                                    setVigenciaWarning("⚠️ La fecha de vigencia es anterior o igual a mañana. El mensaje expirará pronto.");
+                                                } else {
+                                                    setVigenciaWarning(null);
+                                                }
                                             } else {
                                                 setVigenciaWarning(null);
                                             }
-                                        } else {
-                                            setVigenciaWarning(null);
-                                        }
-                                    }} 
-                                />
+                                        }} 
+                                    />
+                                </div>
                             </div>
                         </div>
                         {dateError && <span className="text-[8px] text-red-500 font-bold block flex items-center gap-1"><AlertTriangle size={10} /> {dateError}</span>}
@@ -344,25 +538,51 @@ export const Mensajes = () => {
                             </div>
                         </div>
                         
-                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-1">
-                            <div onClick={() => toggleTarget('ALL')} className={`p-2.5 rounded-lg border cursor-pointer flex items-center justify-between transition-all ${formData.target_ids?.includes('ALL') ? 'bg-[#003B94] border-[#003B94] text-white shadow-sm' : 'bg-white border-gray-200 text-gray-500 hover:border-[#003B94]/30'}`}>
-                                <div className="flex items-center gap-2"><Globe size={12} /><span className="text-[9px] font-black uppercase tracking-widest">Todos</span></div>
-                                {formData.target_ids?.includes('ALL') && <Check size={12} strokeWidth={3} />}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-3">
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => toggleTarget('ALL')}
+                                    className={`flex-1 aspect-square rounded-lg border transition-all flex flex-col items-center justify-center gap-1 ${
+                                        formData.target_ids?.includes('ALL') 
+                                            ? 'bg-[#003B94] border-[#003B94] text-white shadow-sm' 
+                                            : 'bg-white border-gray-200 text-gray-500 hover:border-[#003B94]/30'
+                                    }`}
+                                >
+                                    <Globe size={14} />
+                                    <span className="text-[8px] font-black uppercase tracking-widest">Todos</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleShowConsulados}
+                                    className={`flex-1 aspect-square rounded-lg border transition-all flex flex-col items-center justify-center gap-1 ${
+                                        showConsulados 
+                                            ? 'bg-[#003B94] text-white border-[#003B94] shadow-sm' 
+                                            : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50 hover:border-gray-300'
+                                    }`}
+                                >
+                                    <MapPin size={14} />
+                                    <span className="text-[8px] font-black uppercase tracking-widest">Consulados</span>
+                                </button>
                             </div>
                             
-                            {filteredConsuladosSelection.map(c => {
-                                const isSelected = formData.target_ids?.includes(c.id) && !formData.target_ids?.includes('ALL');
-                                return ( <div key={c.id} onClick={() => toggleTarget(c.id)} className={`p-2 rounded-lg border cursor-pointer flex items-center justify-between transition-all ${isSelected ? 'bg-white border-[#003B94] text-[#003B94] shadow-sm ring-1 ring-[#003B94]/20' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'}`}> <span className="text-[9px] font-bold uppercase truncate max-w-[180px]">{c.name}</span> {isSelected && <Check size={10} strokeWidth={3} />} </div> );
-                            })}
+                            {showConsulados && (
+                                <div className="space-y-1">
+                                    {filteredConsuladosSelection.map(c => {
+                                        const isSelected = formData.target_ids?.includes(c.id) && !formData.target_ids?.includes('ALL');
+                                        return ( <div key={c.id} onClick={() => toggleTarget(c.id)} className={`p-2 rounded-lg border cursor-pointer flex items-center justify-between transition-all ${isSelected ? 'bg-white border-[#003B94] text-[#003B94] shadow-sm ring-1 ring-[#003B94]/20' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'}`}> <span className="text-[9px] font-bold uppercase truncate max-w-[180px]">{c.name}</span> {isSelected && <Check size={10} strokeWidth={3} />} </div> );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
 
-                <div className="p-4 bg-[#FCB131] border-t border-[#e5a02d] flex justify-between items-center shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-20 relative">
-                    <span className="text-[9px] font-bold text-[#001d4a]/50 uppercase tracking-widest hidden md:block">* Campos obligatorios</span>
+                <div className="p-4 bg-gradient-to-r from-[#001d4a] via-[#003B94] to-[#001d4a] border-t border-[#003B94]/30 flex justify-between items-center shrink-0 shadow-[0_-10px_40px_rgba(0,29,74,0.3)] z-20 relative">
+                    <span className="text-[9px] font-bold text-white/60 uppercase tracking-widest hidden md:block">* Campos obligatorios</span>
                     <div className="flex gap-3 w-full md:w-auto justify-end">
-                        <button onClick={() => setIsModalOpen(false)} disabled={isSending} className="px-5 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest text-[#001d4a] bg-white border border-white/50 hover:bg-white/90 transition-colors shadow-sm">Cancelar</button>
-                        <button onClick={requestSave} disabled={!isFormValid || !!dateError || isSending} className="bg-[#003B94] text-white px-6 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-xl flex items-center justify-center gap-2 hover:bg-[#001d4a] transition-all transform hover:translate-y-[-2px] disabled:opacity-50 disabled:transform-none disabled:cursor-not-allowed">
+                        <button onClick={() => setIsModalOpen(false)} disabled={isSending} className="px-5 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest text-white bg-white/10 border border-white/20 hover:bg-white/20 transition-colors shadow-sm">Cancelar</button>
+                        <button onClick={requestSave} disabled={!isFormValid || !!dateError || isSending} className="bg-[#FCB131] text-[#001d4a] px-6 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-xl flex items-center justify-center gap-2 hover:bg-[#FFD23F] transition-all transform hover:translate-y-[-2px] disabled:opacity-50 disabled:transform-none disabled:cursor-not-allowed">
                             {isSending ? <Loader2 size={14} className="animate-spin" /> : showSuccess ? <Check size={14} /> : <Send size={14} />}
                             {isSending ? 'Enviando...' : showSuccess ? 'Enviado' : editingId ? 'Actualizar' : 'Publicar'}
                         </button>

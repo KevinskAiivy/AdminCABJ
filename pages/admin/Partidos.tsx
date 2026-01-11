@@ -530,7 +530,7 @@ export const Partidos = () => {
        </div>
 
       {editingMatch && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ height: '550px', width: '1280px' }}>
           <div className="relative w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
             <div className="liquid-glass-dark p-3 flex items-center justify-between text-white">
                <div className="flex items-center gap-2">

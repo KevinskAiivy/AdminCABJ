@@ -144,8 +144,6 @@ export const Consulados = () => {
   const [isDragging2, setIsDragging2] = useState(false);
   const dragStart2 = useRef({ x: 0, y: 0 });
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   // ... (useEffects for loading data and drag logic remain the same) ...
   useEffect(() => {
       setConsulados(dataService.getConsulados());
@@ -798,35 +796,93 @@ export const Consulados = () => {
                                 <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Teléfono</label><input type="tel" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" value={editingConsulado.phone || ''} onChange={e => setEditingConsulado({...editingConsulado, phone: e.target.value})} /></div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-100">
-                                <div className="space-y-1">
-                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Logo (Redondo)</label>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-gray-100 rounded-full overflow-hidden border border-gray-200 flex items-center justify-center shrink-0">{editingConsulado.logo ? <img src={editingConsulado.logo} className="w-full h-full object-cover" /> : <ImageIcon size={16} className="text-gray-400" />}</div>
-                                        <div className="flex gap-2">
-                                            <label className="bg-white border border-gray-200 text-[#001d4a] px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest cursor-pointer hover:bg-gray-50 flex items-center gap-1">
-                                                <Upload size={10} /> Subir
-                                                <input type="file" className="hidden" onChange={e => handleFileUpload(e, 'logo')} />
-                                            </label>
-                                            {editingConsulado.logo && (
-                                                <button onClick={() => handleRemoveImage('logo')} className="bg-red-50 border border-red-100 text-red-500 px-2 py-1.5 rounded-lg hover:bg-red-100 transition-colors" title="Eliminar Logo"><Trash2 size={12} /></button>
+                            {/* Photo de Profil et Bannière */}
+                            <div className="space-y-4 pt-4 border-t-2 border-gray-200 mt-4">
+                                {/* Photo de Profil */}
+                                <div className="space-y-2 bg-blue-50/30 p-4 rounded-lg border border-blue-200">
+                                    <label className="text-[10px] font-black text-[#003B94] uppercase tracking-widest flex items-center gap-2 mb-2">
+                                        <ImageIcon size={14} className="text-[#003B94]" />
+                                        Photo de Profil
+                                    </label>
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-24 h-24 bg-gray-100 rounded-full overflow-hidden border-2 border-gray-200 flex items-center justify-center shrink-0 shadow-sm">
+                                            {editingConsulado.logo ? (
+                                                <img src={editingConsulado.logo} className="w-full h-full object-cover" alt="Photo de profil" />
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center p-4">
+                                                    <ImageIcon size={24} className="text-gray-400 mb-1" />
+                                                    <span className="text-[7px] font-bold text-gray-400 uppercase text-center">Sin foto</span>
+                                                </div>
                                             )}
+                                        </div>
+                                        <div className="flex-1 flex flex-col gap-2">
+                                            <div className="flex gap-2 flex-wrap">
+                                                <label className="bg-[#003B94] text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 shadow-md">
+                                                    <Upload size={12} /> {editingConsulado.logo ? 'Cambiar' : 'Subir'} Foto
+                                                    <input 
+                                                        type="file" 
+                                                        accept="image/*" 
+                                                        className="hidden" 
+                                                        onChange={e => handleFileUpload(e, 'logo')}
+                                                    />
+                                                </label>
+                                                {editingConsulado.logo && (
+                                                    <button 
+                                                        onClick={() => handleRemoveImage('logo')} 
+                                                        className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2 shadow-sm"
+                                                        title="Eliminar foto de perfil"
+                                                    >
+                                                        <Trash2 size={12} /> Eliminar
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <p className="text-[8px] text-gray-500 font-bold leading-relaxed">
+                                                Formato recomendado: JPG o PNG. Tamaño máximo: {dataService.getAppSettings().maxUploadSize || 5}MB. La imagen se mostrará de forma circular.
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="space-y-1">
-                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Banner (Horizontal)</label>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-16 h-10 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 flex items-center justify-center shrink-0">{editingConsulado.banner ? <img src={editingConsulado.banner} className="w-full h-full object-cover" /> : <ImageIcon size={16} className="text-gray-400" />}</div>
-                                        <div className="flex gap-2">
-                                            <label className="bg-white border border-gray-200 text-[#001d4a] px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest cursor-pointer hover:bg-gray-50 flex items-center gap-1">
-                                                <Upload size={10} /> Subir
-                                                <input type="file" className="hidden" onChange={e => handleFileUpload(e, 'banner')} />
-                                            </label>
-                                            {editingConsulado.banner && (
-                                                <button onClick={() => handleRemoveImage('banner')} className="bg-red-50 border border-red-100 text-red-500 px-2 py-1.5 rounded-lg hover:bg-red-100 transition-colors" title="Eliminar Banner"><Trash2 size={12} /></button>
+
+                                {/* Bannière */}
+                                <div className="space-y-2 bg-blue-50/30 p-4 rounded-lg border border-blue-200">
+                                    <label className="text-[10px] font-black text-[#003B94] uppercase tracking-widest flex items-center gap-2 mb-2">
+                                        <ImageIcon size={14} className="text-[#003B94]" />
+                                        Bannière
+                                    </label>
+                                    <div className="flex flex-col gap-3">
+                                        <div className="w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden border-2 border-gray-200 flex items-center justify-center shadow-sm">
+                                            {editingConsulado.banner ? (
+                                                <img src={editingConsulado.banner} className="w-full h-full object-cover" alt="Bannière" />
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center p-6">
+                                                    <ImageIcon size={32} className="text-gray-400 mb-2" />
+                                                    <span className="text-[8px] font-bold text-gray-400 uppercase text-center">Sin bannière</span>
+                                                </div>
                                             )}
                                         </div>
+                                        <div className="flex gap-2">
+                                            <label className="bg-[#003B94] text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 shadow-md">
+                                                <Upload size={12} /> {editingConsulado.banner ? 'Cambiar' : 'Subir'} Bannière
+                                                <input 
+                                                    type="file" 
+                                                    accept="image/*" 
+                                                    className="hidden" 
+                                                    onChange={e => handleFileUpload(e, 'banner')}
+                                                />
+                                            </label>
+                                            {editingConsulado.banner && (
+                                                <button 
+                                                    onClick={() => handleRemoveImage('banner')} 
+                                                    className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2 shadow-sm"
+                                                    title="Eliminar bannière"
+                                                >
+                                                    <Trash2 size={12} /> Eliminar
+                                                </button>
+                                            )}
+                                        </div>
+                                        <p className="text-[8px] text-gray-500 font-bold leading-relaxed">
+                                            Formato recomendado: JPG o PNG en formato horizontal (16:9). Tamaño máximo: {dataService.getAppSettings().maxUploadSize || 5}MB.
+                                        </p>
                                     </div>
                                 </div>
                             </div>

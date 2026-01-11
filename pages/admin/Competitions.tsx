@@ -203,7 +203,7 @@ export const Competitions = () => {
         </div>
 
         {isModalOpen && (
-            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" >
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ height: '500px' }}>
                 <div className="relative w-full max-w-lg bg-white rounded-[1.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
                     <div className="liquid-glass-dark p-4 text-white flex items-center justify-between shrink-0">
                         <div className="flex items-center gap-3"><Trophy size={18} className="text-[#FCB131]" /><h2 className="oswald text-lg font-black uppercase tracking-tight">{editingId ? 'Editar' : 'Nueva'} Competición</h2></div>
