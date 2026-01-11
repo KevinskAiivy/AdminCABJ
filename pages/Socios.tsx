@@ -473,7 +473,7 @@ export const Socios = ({ user }: { user?: any }) => {
             
             if (isPresident) {
                 variant = 'gold';
-                containerClass = "border-2 border-[#001d4a] shadow-[0_8px_32px_rgba(252,177,49,0.4)] bg-gradient-to-br from-[#FFD700] via-[#FFC125] to-[#FFA500] backdrop-blur-xl";
+                containerClass = "border-2 border-[#001d4a] shadow-[0_8px_32px_rgba(252,177,49,0.4),0_0_40px_rgba(255,215,0,0.3),inset_0_0_20px_rgba(255,255,255,0.4)] bg-gradient-to-br from-[#FFD700] via-[#FFC125] to-[#FFA500] backdrop-blur-xl";
             } else if (isReferente) {
                 variant = 'dark';
                 containerClass = "border-2 border-[#FCB131] shadow-[0_0_20px_rgba(252,177,49,0.6),0_8px_32px_rgba(0,29,74,0.5)]";
@@ -495,8 +495,8 @@ export const Socios = ({ user }: { user?: any }) => {
                 className={`flex flex-col group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_-5px_rgba(0,29,74,0.2)] ${containerClass} p-0`}
                 variant={variant}
             >
-                {/* Action buttons - toujours visibles en haut à droite */}
-                <div className="absolute top-3 right-3 z-10 flex gap-2 opacity-100">
+                {/* Action buttons - visibles uniquement au survol */}
+                <div className="absolute top-3 right-3 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <button 
                         onClick={(e) => { 
                             e.stopPropagation(); 
@@ -529,43 +529,47 @@ export const Socios = ({ user }: { user?: any }) => {
                 </div>
 
                 <div className="p-5 pb-3 flex items-start gap-4 relative">
-                    <div className={`flex-1 min-w-0 ${isPresident ? 'pr-20' : 'pr-16'}`}>
+                    <div className={`flex-1 min-w-0 ${isPresident ? 'pr-16' : 'pr-16'}`}>
                         <div className="flex items-center gap-2 mb-1">
-                            <h4 className={`oswald text-lg tracking-tight leading-none truncate ${isPresident || isReferente ? 'text-white' : 'text-[#001d4a]'}`}>
+                            <h4 className={`oswald text-lg tracking-tight leading-none truncate ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-[#001d4a]'}`}>
                                 <span className="font-black uppercase">{socio.last_name.toUpperCase()}</span> <span className="font-normal capitalize">{socio.first_name.toLowerCase()}</span>
                             </h4>
                             {/* Pastille pour les présidents - à droite du nom */}
                             {isPresident && (
-                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#001d4a] to-[#003B94] flex items-center justify-center shadow-[0_4px_12px_rgba(252,177,49,0.4)] border-2 border-[#FCB131] z-10 animate-pulse flex-shrink-0">
-                                    <Star size={20} className="text-[#FCB131] fill-[#FCB131]" strokeWidth={2.5} />
+                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#001d4a] to-[#003B94] flex items-center justify-center shadow-[0_4px_12px_rgba(252,177,49,0.4),0_0_20px_rgba(252,177,49,0.3)] border-2 border-[#FCB131] z-10 animate-pulse flex-shrink-0">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 0 2px rgba(252, 177, 49, 0.8))' }}>
+                                        <path d="M12 0.5L14.5 8.5L22.5 8.5L16 13.5L18.5 21.5L12 16L5.5 21.5L8 13.5L1.5 8.5L9.5 8.5L12 0.5Z" fill="#FCB131" stroke="#FCB131" strokeWidth="0.3" strokeLinejoin="miter" vectorEffect="non-scaling-stroke" />
+                                    </svg>
                                 </div>
                             )}
                         </div>
                         <div className="flex items-center gap-2 mb-2">
-                            <span className={`text-[9px] font-bold uppercase tracking-wider ${isPresident || isReferente ? 'text-white/80' : 'text-gray-500'}`}>N° Socio:</span>
-                            <span className={`text-[10px] font-black ${isPresident || isReferente ? 'text-white' : 'text-[#001d4a]'}`}>{socio.numero_socio || socio.dni || 'N/A'}</span>
+                            <span className={`text-[9px] font-bold uppercase tracking-wider ${isPresident ? 'text-[#001d4a]/80' : isReferente ? 'text-white/80' : 'text-gray-500'}`}>N° Socio:</span>
+                            <span className={`text-[10px] font-black ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-[#001d4a]'}`}>{socio.numero_socio || socio.dni || 'N/A'}</span>
                         </div>
                         <div className="flex flex-wrap gap-2 items-center mt-2">
                             <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest backdrop-blur-sm border shadow-sm ${
-                                isPresident || isReferente 
+                                isPresident 
+                                    ? 'bg-[#001d4a]/10 border-[#001d4a]/30 text-[#001d4a]'
+                                    : isReferente 
                                     ? 'bg-white/20 border-white/30 text-white' 
                                     : 'bg-white/60 border-white/30 text-gray-700'
                             }`}>{getGenderRoleLabel(socio.role || 'SOCIO', socio.gender)}</span>
                             {/* Pastille de statut */}
-                            <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest ${computedStatus.color} ${isPresident || isReferente ? 'bg-opacity-20 border border-white/30' : ''}`}>
+                            <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest ${computedStatus.color} ${isPresident ? 'bg-opacity-20 border border-[#001d4a]/30' : isReferente ? 'bg-opacity-20 border border-white/30' : ''}`}>
                                 {computedStatus.label}
                             </span>
                         </div>
                     </div>
                 </div>
                 <div className="px-5 py-3 space-y-3">
-                    <div className={`flex items-center gap-2 ${isPresident || isReferente ? 'text-white/90 bg-white/10' : 'text-[#001d4a]/80 bg-white/30'} backdrop-blur-sm rounded-lg px-3 py-2 border border-white/20`}>
+                    <div className={`flex items-center gap-2 ${isPresident ? 'text-[#001d4a] bg-[#001d4a]/5' : isReferente ? 'text-white/90 bg-white/10' : 'text-[#001d4a]/80 bg-white/30'} backdrop-blur-sm rounded-lg px-3 py-2 border ${isPresident ? 'border-[#001d4a]/20' : 'border-white/20'}`}>
                         <MapPin size={14} className={isPresident ? "text-[#001d4a]" : isReferente ? "text-[#FCB131]" : "text-[#FCB131]"} />
-                        <span className={`text-[10px] font-black uppercase tracking-widest truncate ${isPresident || isReferente ? 'text-white' : ''}`}>{socio.consulado || 'SEDE CENTRAL'}</span>
+                        <span className={`text-[10px] font-black uppercase tracking-widest truncate ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : ''}`}>{socio.consulado || 'SEDE CENTRAL'}</span>
                     </div>
-                    <div className={`text-[9px] font-bold flex items-center justify-between border-t border-white/20 pt-2 ${isPresident || isReferente ? 'text-white bg-white/10' : 'text-[#001d4a] bg-white/20'} backdrop-blur-sm rounded-lg px-3 py-2`}>
-                        <span className={`uppercase opacity-70 ${isPresident || isReferente ? 'text-white/70' : ''}`}>Ultimo Pago:</span>
-                        <span className={`font-black ${isPresident || isReferente ? 'text-white' : 'text-[#003B94]'}`}>{formatLastPaymentDate(socio.last_month_paid)}</span>
+                    <div className={`text-[9px] font-bold flex items-center justify-between border-t ${isPresident ? 'border-[#001d4a]/20' : 'border-white/20'} pt-2 ${isPresident ? 'text-[#001d4a] bg-[#001d4a]/5' : isReferente ? 'text-white bg-white/10' : 'text-[#001d4a] bg-white/20'} backdrop-blur-sm rounded-lg px-3 py-2`}>
+                        <span className={`uppercase opacity-70 ${isPresident ? 'text-[#001d4a]/70' : isReferente ? 'text-white/70' : ''}`}>Ultimo Pago:</span>
+                        <span className={`font-black ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-[#003B94]'}`}>{formatLastPaymentDate(socio.last_month_paid)}</span>
                     </div>
                 </div>
             </GlassCard>

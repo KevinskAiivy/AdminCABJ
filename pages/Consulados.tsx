@@ -195,7 +195,7 @@ export const Consulados = () => {
           return sConsulado === targetName;
       }).map(s => ({
           value: s.name,
-          label: `${s.last_name.toUpperCase()}, ${s.first_name} (${s.id})`
+          label: `${s.last_name.toUpperCase()}, ${s.first_name} (${s.numero_socio || s.dni || s.id})`
       })).sort((a, b) => a.label.localeCompare(b.label));
   }, [allSocios, editingConsulado.name]);
 
