@@ -224,7 +224,7 @@ export const Consulados = () => {
       setShowSaveConfirm(true);
   };
 
-  const executeSave = () => {
+  const executeSave = async () => {
       // SEDE CENTRAL est un consulado virtuel, ne peut pas être sauvegardé dans la base de données
       const isSedeCentral = editingConsulado.id === 'sede-central-virtual' || 
                            (editingConsulado.name && editingConsulado.name.toUpperCase() === 'SEDE CENTRAL');
@@ -269,20 +269,126 @@ export const Consulados = () => {
       };
       
       // Utiliser le service pour sauvegarder (qui utilisera le mapping amélioré)
-      if (consulados.some(c => c.id === payload.id)) {
-          dataService.updateConsulado(payload).catch(err => {
+      const isUpdate = consulados.some(c => c.id === payload.id);
+      const oldConsulado = isUpdate ? consulados.find(c => c.id === payload.id) : null;
+      
+      if (isUpdate) {
+          await dataService.updateConsulado(payload).catch(err => {
               console.error('Erreur lors de la mise à jour du consulado:', err);
               alert('Erreur lors de la sauvegarde. Veuillez réessayer.');
           });
       } else {
-          dataService.addConsulado(payload).catch(err => {
+          await dataService.addConsulado(payload).catch(err => {
               console.error('Erreur lors de l\'ajout du consulado:', err);
               alert('Erreur lors de la sauvegarde. Veuillez réessayer.');
           });
       }
       
-      // Rafraîchir les données
-      setConsulados(dataService.getConsulados());
+      // Mettre à jour les rôles des socios
+      try {
+          // Recharger les consulados après la sauvegarde pour avoir la liste à jour
+          const updatedConsulados = dataService.getConsulados();
+          
+          // Si c'est une mise à jour, retirer les rôles des anciens président/referente
+          if (oldConsulado) {
+              // Retirer le rôle PRESIDENTE de l'ancien président s'il est différent du nouveau
+              if (oldConsulado.president && oldConsulado.president !== payload.president) {
+                  const oldPresidentSocio = allSocios.find(s => 
+                      s.name === oldConsulado.president || 
+                      `${s.first_name} ${s.last_name}` === oldConsulado.president
+                  );
+                  if (oldPresidentSocio && oldPresidentSocio.role === 'PRESIDENTE') {
+                      // Vérifier si ce socio n'est pas président d'un autre consulado
+                      const isPresidentElsewhere = updatedConsulados.some(c => 
+                          c.id !== payload.id && 
+                          (c.president === oldConsulado.president || 
+                           c.president === oldPresidentSocio.name ||
+                           c.president === `${oldPresidentSocio.first_name} ${oldPresidentSocio.last_name}`)
+                      );
+                      if (!isPresidentElsewhere) {
+                          const updatedSocio = { ...oldPresidentSocio, role: 'SOCIO' as const };
+                          await dataService.updateSocio(updatedSocio);
+                      }
+                  }
+              }
+              
+              // Retirer le rôle REFERENTE de l'ancien referente s'il est différent du nouveau
+              if (oldConsulado.referente && oldConsulado.referente !== payload.referente) {
+                  const oldReferenteSocio = allSocios.find(s => 
+                      s.name === oldConsulado.referente || 
+                      `${s.first_name} ${s.last_name}` === oldConsulado.referente
+                  );
+                  if (oldReferenteSocio && oldReferenteSocio.role === 'REFERENTE') {
+                      // Vérifier si ce socio n'est pas referente d'un autre consulado
+                      const isReferenteElsewhere = updatedConsulados.some(c => 
+                          c.id !== payload.id && 
+                          (c.referente === oldConsulado.referente || 
+                           c.referente === oldReferenteSocio.name ||
+                           c.referente === `${oldReferenteSocio.first_name} ${oldReferenteSocio.last_name}`)
+                      );
+                      if (!isReferenteElsewhere) {
+                          const updatedSocio = { ...oldReferenteSocio, role: 'SOCIO' as const };
+                          await dataService.updateSocio(updatedSocio);
+                      }
+                  }
+              }
+          }
+          
+          // Recharger les socios avant d'assigner les nouveaux rôles
+          const updatedSocios = dataService.getSocios();
+          
+          // Assigner le rôle PRESIDENTE au nouveau président
+          if (payload.president) {
+              const newPresidentSocio = updatedSocios.find(s => 
+                  s.name === payload.president || 
+                  `${s.first_name} ${s.last_name}` === payload.president
+              );
+              if (newPresidentSocio && newPresidentSocio.role !== 'PRESIDENTE') {
+                  // Si le socio était referente, on le retire de son ancien consulado
+                  if (newPresidentSocio.role === 'REFERENTE') {
+                      const oldReferenteConsulado = updatedConsulados.find(c => 
+                          c.id !== payload.id &&
+                          (c.referente === newPresidentSocio.name || 
+                           c.referente === `${newPresidentSocio.first_name} ${newPresidentSocio.last_name}`)
+                      );
+                      if (oldReferenteConsulado) {
+                          const updatedConsuladoData = { ...oldReferenteConsulado, referente: '' };
+                          await dataService.updateConsulado(updatedConsuladoData);
+                      }
+                  }
+                  const updatedSocio = { ...newPresidentSocio, role: 'PRESIDENTE' as const };
+                  await dataService.updateSocio(updatedSocio);
+              }
+          }
+          
+          // Assigner le rôle REFERENTE au nouveau referente
+          if (payload.referente) {
+              const newReferenteSocio = updatedSocios.find(s => 
+                  s.name === payload.referente || 
+                  `${s.first_name} ${s.last_name}` === payload.referente
+              );
+              if (newReferenteSocio && newReferenteSocio.role !== 'REFERENTE') {
+                  // Si le socio était président, on ne peut pas le rétrograder automatiquement
+                  // On met seulement à jour s'il n'est pas président
+                  if (newReferenteSocio.role !== 'PRESIDENTE') {
+                      const updatedSocio = { ...newReferenteSocio, role: 'REFERENTE' as const };
+                      await dataService.updateSocio(updatedSocio);
+                  }
+              }
+          }
+          
+          // Recharger les données
+          setAllSocios(dataService.getSocios());
+          setConsulados(dataService.getConsulados());
+      } catch (error) {
+          console.error('Erreur lors de la mise à jour des rôles des socios:', error);
+          // Continuer quand même car le consulado a été sauvegardé
+      }
+      
+      // Rafraîchir les données (au cas où il n'y aurait pas eu de mise à jour de rôles)
+      if (!oldConsulado || (oldConsulado.president === payload.president && oldConsulado.referente === payload.referente)) {
+          setConsulados(dataService.getConsulados());
+      }
       setShowSaveConfirm(false);
       setIsEditModalOpen(false);
   };

@@ -155,7 +155,11 @@ export const Socios = ({ user }: { user?: any }) => {
         (filterConsulado === 'SEDE CENTRAL' || filterConsulado?.toUpperCase() === 'SEDE CENTRAL' 
           ? (!s.consulado || s.consulado?.toUpperCase() === 'SEDE CENTRAL' || s.consulado?.toUpperCase() === 'SEDE CENTRAL')
           : s.consulado === filterConsulado || s.consulado?.toUpperCase() === filterConsulado?.toUpperCase());
-      const matchesRole = filterRole === 'ALL' || (filterRole === '' ? !s.role || s.role === '' : s.role === filterRole);
+      const matchesRole = filterRole === 'ALL' 
+        ? true 
+        : filterRole === '' 
+          ? !s.role || s.role === '' || s.role === null || s.role === undefined
+          : (s.role && s.role.toUpperCase().trim() === filterRole.toUpperCase().trim());
       const matchesCuotaStatus = filterCuotaStatus === 'ALL' || dynamicStatus === filterCuotaStatus;
 
       return matchesSearch && matchesCategory && matchesConsulado && matchesRole && matchesCuotaStatus;
@@ -459,7 +463,7 @@ export const Socios = ({ user }: { user?: any }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 min-h-[500px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {currentItems.map((socio) => {
             const isPresident = socio.role === 'PRESIDENTE';
             const isReferente = socio.role === 'REFERENTE';
@@ -469,10 +473,10 @@ export const Socios = ({ user }: { user?: any }) => {
             
             if (isPresident) {
                 variant = 'gold';
-                containerClass = "border-[#FCB131]/40 shadow-[0_8px_32px_rgba(252,177,49,0.4)] bg-gradient-to-br from-[#FFD700]/95 via-[#FFC125]/90 to-[#FFA500]/95 backdrop-blur-xl";
+                containerClass = "border-2 border-[#001d4a] shadow-[0_8px_32px_rgba(252,177,49,0.4)] bg-gradient-to-br from-[#FFD700] via-[#FFC125] to-[#FFA500] backdrop-blur-xl";
             } else if (isReferente) {
                 variant = 'dark';
-                containerClass = "border-[#FCB131]/30 shadow-[0_8px_32px_rgba(0,29,74,0.5)] bg-gradient-to-br from-[#001d4a]/95 via-[#003B94]/90 to-[#001d4a]/95 backdrop-blur-xl";
+                containerClass = "border-2 border-[#FCB131] shadow-[0_0_20px_rgba(252,177,49,0.6),0_8px_32px_rgba(0,29,74,0.5)]";
             } else if (computedStatus.label === 'EN DEUDA') {
                 variant = 'light';
                 containerClass = "border-amber-300/40 shadow-[0_4px_16px_rgba(245,158,11,0.1)]";
@@ -525,26 +529,20 @@ export const Socios = ({ user }: { user?: any }) => {
                 </div>
 
                 <div className="p-5 pb-3 flex items-start gap-4 relative">
-                    {/* Pastille pour les présidents */}
-                    {isPresident && (
-                        <div className="absolute top-3 left-3 w-14 h-14 rounded-full bg-gradient-to-br from-[#001d4a] to-[#003B94] flex items-center justify-center shadow-[0_4px_12px_rgba(252,177,49,0.4)] border-2 border-[#FCB131] z-10 animate-pulse">
-                            <Star size={24} className="text-[#FCB131] fill-[#FCB131]" strokeWidth={2.5} />
-                        </div>
-                    )}
-                    {/* Pastille pour les referentes */}
-                    {isReferente && !isPresident && (
-                        <div className="absolute top-3 left-3 w-14 h-14 rounded-full bg-gradient-to-br from-[#001d4a] to-[#003B94] flex items-center justify-center shadow-[0_4px_12px_rgba(252,177,49,0.3)] border-2 border-[#FCB131] z-10">
-                            <BadgeCheck size={24} className="text-[#FCB131] fill-[#FCB131]" strokeWidth={2.5} />
-                        </div>
-                    )}
-                    <div className={`flex-1 min-w-0 ${isPresident || isReferente ? 'pl-20' : 'pr-16'}`}>
+                    <div className={`flex-1 min-w-0 ${isPresident ? 'pr-20' : 'pr-16'}`}>
                         <div className="flex items-center gap-2 mb-1">
                             <h4 className={`oswald text-lg tracking-tight leading-none truncate ${isPresident || isReferente ? 'text-white' : 'text-[#001d4a]'}`}>
                                 <span className="font-black uppercase">{socio.last_name.toUpperCase()}</span> <span className="font-normal capitalize">{socio.first_name.toLowerCase()}</span>
                             </h4>
+                            {/* Pastille pour les présidents - à droite du nom */}
+                            {isPresident && (
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#001d4a] to-[#003B94] flex items-center justify-center shadow-[0_4px_12px_rgba(252,177,49,0.4)] border-2 border-[#FCB131] z-10 animate-pulse flex-shrink-0">
+                                    <Star size={20} className="text-[#FCB131] fill-[#FCB131]" strokeWidth={2.5} />
+                                </div>
+                            )}
                         </div>
                         <div className="flex items-center gap-2 mb-2">
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-gray-500">N° Socio:</span>
+                            <span className={`text-[9px] font-bold uppercase tracking-wider ${isPresident || isReferente ? 'text-white/80' : 'text-gray-500'}`}>N° Socio:</span>
                             <span className={`text-[10px] font-black ${isPresident || isReferente ? 'text-white' : 'text-[#001d4a]'}`}>{socio.numero_socio || socio.dni || 'N/A'}</span>
                         </div>
                         <div className="flex flex-wrap gap-2 items-center mt-2">
