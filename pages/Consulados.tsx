@@ -123,6 +123,7 @@ export const Consulados = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingConsulado, setEditingConsulado] = useState<Partial<Consulado>>({});
   const [activeTab, setActiveTab] = useState<'INFO' | 'SOCIAL' | 'LOCATION' | 'BOARD'>('INFO');
+  const [mapUrl, setMapUrl] = useState<string>('');
   
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingConsulado, setDeletingConsulado] = useState<Consulado | null>(null);
@@ -144,11 +145,29 @@ export const Consulados = () => {
       const unsubscribe = dataService.subscribe(loadData);
       return () => unsubscribe();
   }, []);
-  
+
   useEffect(() => {
       setConsulados(dataService.getConsulados());
       setAllSocios(dataService.getSocios());
-  }, [isEditModalOpen]); 
+  }, [isEditModalOpen]);
+
+  // Mettre à jour l'URL de la carte Google Maps en temps réel
+  useEffect(() => {
+      const addressParts = [
+          editingConsulado.address || '',
+          editingConsulado.city || '',
+          editingConsulado.country || ''
+      ].filter(part => part.trim() !== '');
+      
+      const fullAddress = addressParts.join(', ');
+      if (fullAddress.trim()) {
+          const encodedAddress = encodeURIComponent(fullAddress);
+          // Utiliser l'embed standard de Google Maps qui ne nécessite pas de clé API
+          setMapUrl(`https://maps.google.com/maps?q=${encodedAddress}&output=embed&zoom=15`);
+      } else {
+          setMapUrl('');
+      }
+  }, [editingConsulado.address, editingConsulado.city, editingConsulado.country]);
 
   const estimateTimezone = (city: string, country: string) => {
       const foundCity = WORLD_CITIES.find(c => c.city.toLowerCase() === city.toLowerCase());
@@ -648,7 +667,47 @@ export const Consulados = () => {
                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">País</label><div className="relative"><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94] appearance-none" value={editingConsulado.country} onChange={e => handleLocationChange('country', e.target.value)}><option value="">Seleccionar País...</option>{COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}</select><Globe size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" /></div></div>
                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Ciudad</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" value={editingConsulado.city} onChange={e => handleLocationChange('city', e.target.value)} /></div>
                         </div>
-                        <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Dirección Completa</label><div className="relative"><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 pl-8 pr-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" value={editingConsulado.address || ''} onChange={e => setEditingConsulado({...editingConsulado, address: e.target.value})} placeholder="Calle, Número, Barrio..." /><MapPin size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /></div></div>
+                        <div className="space-y-1">
+                            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Dirección Completa</label>
+                            <div className="relative">
+                                <input 
+                                    type="text" 
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 pl-8 pr-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" 
+                                    value={editingConsulado.address || ''} 
+                                    onChange={e => setEditingConsulado({...editingConsulado, address: e.target.value})} 
+                                    placeholder="Calle, Número, Barrio..." 
+                                />
+                                <MapPin size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            </div>
+                        </div>
+                        <div className="h-64 w-full rounded-xl overflow-hidden border border-[#003B94]/10 bg-gray-100 relative shadow-lg">
+                            <div className="absolute top-2 right-2 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-gray-200 z-10 shadow-md">
+                                <span className="text-[8px] font-black uppercase text-[#001d4a] flex items-center gap-1.5">
+                                    <Globe size={10} className="text-[#003B94]" /> 
+                                    <span className="text-[#003B94]">Live Preview</span>
+                                </span>
+                            </div>
+                            {mapUrl ? (
+                                <iframe 
+                                    key={`${editingConsulado.address}-${editingConsulado.city}-${editingConsulado.country}`}
+                                    width="100%" 
+                                    height="100%" 
+                                    style={{ border: 0 }} 
+                                    loading="lazy" 
+                                    allowFullScreen 
+                                    referrerPolicy="no-referrer-when-downgrade"
+                                    src={mapUrl}
+                                    className="w-full h-full"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                                    <div className="text-center">
+                                        <MapPin size={32} className="text-gray-300 mx-auto mb-2" />
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ingrese una dirección para ver el mapa</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div> )}
                     {activeTab === 'BOARD' && ( <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                         <div className="bg-[#001d4a] p-4 rounded-xl shadow-lg border border-[#003B94]">

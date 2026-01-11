@@ -118,6 +118,36 @@ export const App: React.FC = () => {
             if (settings) {
                 if (settings.primaryColor) document.documentElement.style.setProperty('--boca-blue', settings.primaryColor);
                 if (settings.secondaryColor) document.documentElement.style.setProperty('--boca-gold', settings.secondaryColor);
+                
+                // Mettre à jour le favicon si configuré
+                if (settings.faviconUrl && settings.faviconUrl.length > 50) {
+                    const faviconLink = document.querySelector('#favicon-link') as HTMLLinkElement;
+                    if (faviconLink) {
+                        // Déterminer le type de fichier depuis l'URL
+                        const faviconUrl = settings.faviconUrl;
+                        let mimeType = 'image/png';
+                        if (faviconUrl.includes('data:image/svg')) mimeType = 'image/svg+xml';
+                        else if (faviconUrl.includes('data:image/x-icon') || faviconUrl.includes('.ico')) mimeType = 'image/x-icon';
+                        else if (faviconUrl.includes('data:image/jpeg') || faviconUrl.includes('.jpg') || faviconUrl.includes('.jpeg')) mimeType = 'image/jpeg';
+                        
+                        faviconLink.href = faviconUrl;
+                        faviconLink.type = mimeType;
+                        
+                        // Mettre à jour aussi apple-touch-icon
+                        const appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement;
+                        if (appleTouchIcon) {
+                            appleTouchIcon.href = faviconUrl;
+                        }
+                    } else {
+                        // Créer le lien favicon s'il n'existe pas
+                        const link = document.createElement('link');
+                        link.id = 'favicon-link';
+                        link.rel = 'icon';
+                        link.type = 'image/png';
+                        link.href = settings.faviconUrl;
+                        document.head.appendChild(link);
+                    }
+                }
             }
 
             // 2. Always initialize data service (même sans utilisateur pour que le login fonctionne)
@@ -154,6 +184,48 @@ export const App: React.FC = () => {
         }
     };
     initApp();
+  }, []);
+
+  // Mettre à jour le favicon quand les settings changent
+  useEffect(() => {
+    const updateFavicon = () => {
+      const settings = dataService.getAppSettings();
+      if (settings.faviconUrl && settings.faviconUrl.length > 50) {
+        const faviconLink = document.querySelector('#favicon-link') as HTMLLinkElement;
+        if (faviconLink) {
+          // Déterminer le type de fichier depuis l'URL
+          const faviconUrl = settings.faviconUrl;
+          let mimeType = 'image/png';
+          if (faviconUrl.includes('data:image/svg')) mimeType = 'image/svg+xml';
+          else if (faviconUrl.includes('data:image/x-icon') || faviconUrl.includes('.ico')) mimeType = 'image/x-icon';
+          else if (faviconUrl.includes('data:image/jpeg') || faviconUrl.includes('.jpg') || faviconUrl.includes('.jpeg')) mimeType = 'image/jpeg';
+          
+          faviconLink.href = faviconUrl;
+          faviconLink.type = mimeType;
+          
+          // Mettre à jour aussi apple-touch-icon
+          const appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement;
+          if (appleTouchIcon) {
+            appleTouchIcon.href = faviconUrl;
+          }
+        } else {
+          // Créer le lien favicon s'il n'existe pas
+          const link = document.createElement('link');
+          link.id = 'favicon-link';
+          link.rel = 'icon';
+          link.type = 'image/png';
+          link.href = settings.faviconUrl;
+          document.head.appendChild(link);
+        }
+      }
+    };
+    
+    // Mettre à jour immédiatement
+    updateFavicon();
+    
+    // Écouter les changements de settings
+    const unsubscribe = dataService.subscribe(updateFavicon);
+    return () => unsubscribe();
   }, []);
 
   // Persist Session

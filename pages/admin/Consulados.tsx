@@ -122,6 +122,7 @@ export const Consulados = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingConsulado, setEditingConsulado] = useState<Partial<Consulado>>({});
   const [activeTab, setActiveTab] = useState<'INFO' | 'SOCIAL' | 'LOCATION' | 'BOARD'>('INFO');
+  const [mapUrl, setMapUrl] = useState<string>('');
   
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingConsulado, setDeletingConsulado] = useState<Consulado | null>(null);
@@ -158,6 +159,24 @@ export const Consulados = () => {
   useEffect(() => {
       if (isDeleteModalOpen) setPosition2({ x: 0, y: 0 });
   }, [isDeleteModalOpen]);
+
+  // Mettre à jour l'URL de la carte Google Maps en temps réel
+  useEffect(() => {
+      const addressParts = [
+          editingConsulado.address || '',
+          editingConsulado.city || '',
+          editingConsulado.country || ''
+      ].filter(part => part.trim() !== '');
+      
+      const fullAddress = addressParts.join(', ');
+      if (fullAddress.trim()) {
+          const encodedAddress = encodeURIComponent(fullAddress);
+          // Utiliser l'embed standard de Google Maps qui ne nécessite pas de clé API
+          setMapUrl(`https://maps.google.com/maps?q=${encodedAddress}&output=embed&zoom=15`);
+      } else {
+          setMapUrl('');
+      }
+  }, [editingConsulado.address, editingConsulado.city, editingConsulado.country]);
 
   useEffect(() => {
       const handleMouseMove = (e: MouseEvent) => {
@@ -824,9 +843,33 @@ export const Consulados = () => {
                                 <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Dirección Completa</label>
                                 <div className="relative"><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 pl-8 pr-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" value={editingConsulado.address || ''} onChange={e => setEditingConsulado({...editingConsulado, address: e.target.value})} placeholder="Calle, Número, Barrio..." /><MapPin size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /></div>
                             </div>
-                            <div className="h-48 w-full rounded-xl overflow-hidden border border-[#003B94]/10 bg-gray-100 relative">
-                                <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-200 z-10 shadow-sm"><span className="text-[8px] font-black uppercase text-[#001d4a] flex items-center gap-1"><Globe size={10} /> Live Preview</span></div>
-                                <iframe width="100%" height="100%" style={{ border: 0 }} loading="lazy" allowFullScreen src={`https://maps.google.com/maps?q=${encodeURIComponent(`${editingConsulado.address || ''} ${editingConsulado.city || ''} ${editingConsulado.country || ''}`)}&output=embed`} className="w-full h-full opacity-90"></iframe>
+                            <div className="h-64 w-full rounded-xl overflow-hidden border border-[#003B94]/10 bg-gray-100 relative shadow-lg">
+                                <div className="absolute top-2 right-2 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-gray-200 z-10 shadow-md">
+                                    <span className="text-[8px] font-black uppercase text-[#001d4a] flex items-center gap-1.5">
+                                        <Globe size={10} className="text-[#003B94]" /> 
+                                        <span className="text-[#003B94]">Live Preview</span>
+                                    </span>
+                                </div>
+                                {mapUrl ? (
+                                    <iframe 
+                                        key={`${editingConsulado.address}-${editingConsulado.city}-${editingConsulado.country}`}
+                                        width="100%" 
+                                        height="100%" 
+                                        style={{ border: 0 }} 
+                                        loading="lazy" 
+                                        allowFullScreen 
+                                        referrerPolicy="no-referrer-when-downgrade"
+                                        src={mapUrl}
+                                        className="w-full h-full"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                                        <div className="text-center">
+                                            <MapPin size={32} className="text-gray-300 mx-auto mb-2" />
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ingrese una dirección para ver el mapa</p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
