@@ -397,9 +397,13 @@ export const Socios = ({ user }: { user?: any }) => {
     
     try {
         // Si un fichier photo a été sélectionné, l'uploader d'abord
-        let photoUrl = formData.foto || undefined;
+        // Si formData.foto est une chaîne vide, cela signifie qu'on veut supprimer la photo
+        let photoUrl: string | undefined;
         
-        if (selectedPhotoFile) {
+        if (formData.foto === '') {
+            // Photo supprimée explicitement
+            photoUrl = undefined;
+        } else if (selectedPhotoFile) {
             // Générer un nom de fichier unique : dni_timestamp.extension
             const dni = formData.dni || 'socio';
             const timestamp = Date.now();
@@ -428,6 +432,9 @@ export const Socios = ({ user }: { user?: any }) => {
             }
             
             photoUrl = urlData.publicUrl;
+        } else {
+            // Pas de nouveau fichier : garder l'URL existante si elle existe
+            photoUrl = formData.foto && formData.foto !== '' ? formData.foto : undefined;
         }
         
         const finalStatus = calculateSocioStatus(formData.last_month_paid || '');
@@ -894,50 +901,6 @@ export const Socios = ({ user }: { user?: any }) => {
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <h3 className="text-[#003B94] font-black uppercase text-[9px] tracking-widest border-b border-[#003B94]/10 pb-1 flex items-center gap-1.5"><ImageIcon size={11}/> Foto del Socio</h3>
-                        <div className="flex items-center gap-4">
-                            <div className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 hover:border-[#003B94]/30 transition-all h-32 w-32 group relative overflow-hidden">
-                                <div className="w-20 h-20 mb-2 relative flex items-center justify-center rounded-lg overflow-hidden">
-                                    {formData.foto ? (
-                                        <img src={formData.foto} alt="Foto del socio" className="w-full h-full object-cover rounded-lg drop-shadow-md" />
-                                    ) : (
-                                        <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 font-bold text-[8px]">Sin foto</div>
-                                    )}
-                                </div>
-                                <button 
-                                    onClick={() => photoInputRef.current?.click()}
-                                    className="bg-white border border-gray-200 text-[#001d4a] px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-[#001d4a] hover:text-white transition-all flex items-center gap-2"
-                                >
-                                    <Upload size={10} /> {formData.foto ? 'Cambiar' : 'Subir'}
-                                </button>
-                                <input 
-                                    type="file" 
-                                    ref={photoInputRef} 
-                                    className="hidden" 
-                                    accept="image/*" 
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                            setSelectedPhotoFile(file);
-                                            // Afficher un aperçu local
-                                            const reader = new FileReader();
-                                            reader.onloadend = () => {
-                                                setFormData({...formData, foto: reader.result as string});
-                                            };
-                                            reader.readAsDataURL(file);
-                                        }
-                                    }} 
-                                />
-                            </div>
-                            <div className="flex-1">
-                                <p className="text-[8px] text-gray-500 mb-2">Sube una foto del socio. El archivo se guardará en Supabase Storage.</p>
-                                {selectedPhotoFile && (
-                                    <p className="text-[8px] text-gray-600 font-bold">Archivo seleccionado: {selectedPhotoFile.name}</p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
 
                     <div className="space-y-2">
                         <h3 className="text-[#003B94] font-black uppercase text-[9px] tracking-widest border-b border-[#003B94]/10 pb-1 flex items-center gap-1.5"><Mail size={11}/> Contacto</h3>

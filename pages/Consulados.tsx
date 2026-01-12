@@ -8,6 +8,7 @@ import { dataService } from '../services/dataService';
 import { Consulado, Socio } from '../types';
 import { COUNTRIES, TIMEZONES, WORLD_CITIES } from '../constants';
 import { getGenderRoleLabel } from '../utils/genderLabels';
+import { supabase } from '../lib/supabase';
 
 // ... CustomSelect component remains unchanged ...
 interface Option {
@@ -130,6 +131,11 @@ export const Consulados = () => {
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
   
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  
+  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
+  const [selectedBannerFile, setSelectedBannerFile] = useState<File | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
       const loadData = () => {
@@ -226,6 +232,10 @@ export const Consulados = () => {
           address: '', logo: '', banner: '',
           president: '', vice_president: '', secretary: '', treasurer: '', referente: '', vocal: ''
       });
+      setSelectedLogoFile(null);
+      setSelectedBannerFile(null);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+      if (bannerInputRef.current) bannerInputRef.current.value = '';
       setActiveTab('INFO');
       setIsEditModalOpen(true);
       setShowSaveConfirm(false);
@@ -233,6 +243,10 @@ export const Consulados = () => {
 
   const handleEdit = (consulado: Consulado) => {
       setEditingConsulado({ ...consulado });
+      setSelectedLogoFile(null);
+      setSelectedBannerFile(null);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+      if (bannerInputRef.current) bannerInputRef.current.value = '';
       setActiveTab('INFO');
       setIsEditModalOpen(true);
       setShowSaveConfirm(false);
@@ -241,6 +255,48 @@ export const Consulados = () => {
   const handleSave = () => {
       if (!editingConsulado.name) return;
       setShowSaveConfirm(true);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'logo' | 'banner') => {
+      const file = e.target.files?.[0];
+      if (file) {
+          // Dynamic limit from settings
+          const limitMB = dataService.getAppSettings().maxUploadSize || 5;
+          const limitBytes = limitMB * 1024 * 1024;
+
+          if (file.size > limitBytes) {
+              alert(`La imagen es demasiado pesada (Máx ${limitMB}MB). Por favor, comprímala antes de subir.`);
+              e.target.value = '';
+              return;
+          }
+
+          // Stocker le fichier pour l'upload vers Supabase Storage
+          if (field === 'logo') {
+              setSelectedLogoFile(file);
+          } else {
+              setSelectedBannerFile(file);
+          }
+
+          // Afficher un aperçu local
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              if (event.target?.result) {
+                  setEditingConsulado(prev => ({ ...prev, [field]: event.target!.result as string }));
+              }
+          };
+          reader.readAsDataURL(file);
+      }
+  };
+
+  const handleRemoveImage = (field: 'logo' | 'banner') => {
+      setEditingConsulado(prev => ({ ...prev, [field]: '' }));
+      if (field === 'logo') {
+          setSelectedLogoFile(null);
+          if (logoInputRef.current) logoInputRef.current.value = '';
+      } else {
+          setSelectedBannerFile(null);
+          if (bannerInputRef.current) bannerInputRef.current.value = '';
+      }
   };
 
   const executeSave = async () => {
@@ -252,6 +308,73 @@ export const Consulados = () => {
           // Ne pas sauvegarder SEDE CENTRAL dans la base de données
           setShowSaveConfirm(false);
           setIsEditModalOpen(false);
+          return;
+      }
+      
+      // Upload des images vers Supabase Storage si des fichiers ont été sélectionnés
+      let logoUrl = editingConsulado.logo || '';
+      let bannerUrl = editingConsulado.banner || '';
+      
+      try {
+          // Upload du logo si un fichier a été sélectionné
+          if (selectedLogoFile) {
+              const consuladoId = editingConsulado.id || crypto.randomUUID();
+              const timestamp = Date.now();
+              const fileExtension = selectedLogoFile.name.split('.').pop() || 'jpg';
+              const fileName = `consulado_${consuladoId}_logo_${timestamp}.${fileExtension}`;
+
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                  .from('logo')
+                  .upload(fileName, selectedLogoFile, {
+                      cacheControl: '3600',
+                      upsert: false
+                  });
+
+              if (uploadError) {
+                  throw new Error(`Error al subir el logo: ${uploadError.message}`);
+              }
+
+              const { data: urlData } = supabase.storage
+                  .from('logo')
+                  .getPublicUrl(fileName);
+
+              if (!urlData?.publicUrl) {
+                  throw new Error('No se pudo obtener la URL pública del logo');
+              }
+
+              logoUrl = urlData.publicUrl;
+          }
+
+          // Upload de la bannière si un fichier a été sélectionné
+          if (selectedBannerFile) {
+              const consuladoId = editingConsulado.id || crypto.randomUUID();
+              const timestamp = Date.now();
+              const fileExtension = selectedBannerFile.name.split('.').pop() || 'jpg';
+              const fileName = `consulado_${consuladoId}_banner_${timestamp}.${fileExtension}`;
+
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                  .from('logo')
+                  .upload(fileName, selectedBannerFile, {
+                      cacheControl: '3600',
+                      upsert: false
+                  });
+
+              if (uploadError) {
+                  throw new Error(`Error al subir la bannière: ${uploadError.message}`);
+              }
+
+              const { data: urlData } = supabase.storage
+                  .from('logo')
+                  .getPublicUrl(fileName);
+
+              if (!urlData?.publicUrl) {
+                  throw new Error('No se pudo obtener la URL pública de la bannière');
+              }
+
+              bannerUrl = urlData.publicUrl;
+          }
+      } catch (error) {
+          alert(error instanceof Error ? error.message : 'Error al subir las imágenes');
           return;
       }
       
@@ -274,8 +397,8 @@ export const Consulados = () => {
           foundation_year: (editingConsulado.foundation_year || '').trim(),
           address: (editingConsulado.address || '').trim(),
           timezone: (editingConsulado.timezone || 'UTC-03:00 (Buenos Aires)').trim(),
-          banner: (editingConsulado.banner || '').trim(),
-          logo: (editingConsulado.logo || '').trim(),
+          banner: bannerUrl.trim(),
+          logo: logoUrl.trim(),
           is_official: editingConsulado.is_official === true,
           email: editingConsulado.email?.trim() || undefined,
           phone: editingConsulado.phone?.trim() || undefined,
@@ -290,6 +413,12 @@ export const Consulados = () => {
       // Utiliser le service pour sauvegarder (qui utilisera le mapping amélioré)
       const isUpdate = consulados.some(c => c.id === payload.id);
       const oldConsulado = isUpdate ? consulados.find(c => c.id === payload.id) : null;
+      
+      // Réinitialiser les fichiers après sauvegarde réussie
+      setSelectedLogoFile(null);
+      setSelectedBannerFile(null);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+      if (bannerInputRef.current) bannerInputRef.current.value = '';
       
       if (isUpdate) {
           await dataService.updateConsulado(payload).catch(err => {
@@ -425,33 +554,6 @@ export const Consulados = () => {
           setIsDeleteModalOpen(false);
           setDeletingConsulado(null);
       }
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'logo' | 'banner') => {
-      const file = e.target.files?.[0];
-      if (file) {
-          const limitMB = dataService.getAppSettings().maxUploadSize || 5; 
-          const limitBytes = limitMB * 1024 * 1024;
-
-          if (file.size > limitBytes) {
-              alert(`La imagen es demasiado pesada (Máx ${limitMB}MB). Por favor, comprímala antes de subir.`);
-              e.target.value = '';
-              return;
-          }
-
-          const reader = new FileReader();
-          reader.onload = (event) => {
-              if (event.target?.result) {
-                  setEditingConsulado(prev => ({ ...prev, [field]: event.target!.result as string }));
-              }
-          };
-          reader.readAsDataURL(file);
-      }
-      e.target.value = '';
-  };
-
-  const handleRemoveImage = (field: 'logo' | 'banner') => {
-      setEditingConsulado(prev => ({ ...prev, [field]: '' }));
   };
 
   return (
@@ -656,6 +758,95 @@ export const Consulados = () => {
                                     placeholder="DD/MM/AAAA" 
                                     maxLength={10} 
                                 />
+                            </div>
+                        </div>
+                        
+                        {/* Logo et Bannière */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+                            {/* Logo */}
+                            <div className="space-y-1 md:col-span-1">
+                                <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                                    <ImageIcon size={10} className="text-[#003B94]" />
+                                    Logo del Consulado (URL)
+                                </label>
+                                <input 
+                                    type="text" 
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" 
+                                    value={editingConsulado.logo || ''} 
+                                    onChange={e => setEditingConsulado({...editingConsulado, logo: e.target.value})} 
+                                    placeholder="https://example.com/logo.png"
+                                />
+                                <div className="flex items-center gap-3 mt-2">
+                                    <div className="w-16 h-16 bg-white rounded-full overflow-hidden border-2 border-gray-200 flex items-center justify-center shrink-0">
+                                        {editingConsulado.logo ? (
+                                            <img src={editingConsulado.logo} className="w-full h-full object-cover" alt="Logo" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                        ) : (
+                                            <ImageIcon size={20} className="text-gray-400" />
+                                        )}
+                                    </div>
+                                    <div className="flex-1 flex gap-2">
+                                        <label className="bg-[#003B94] text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 justify-center flex-1">
+                                            <Upload size={10} /> Subir desde archivo
+                                            <input 
+                                                type="file" 
+                                                ref={logoInputRef}
+                                                accept="image/*" 
+                                                className="hidden" 
+                                                onChange={e => handleFileUpload(e, 'logo')}
+                                            />
+                                        </label>
+                                        {editingConsulado.logo && (
+                                            <button 
+                                                onClick={() => handleRemoveImage('logo')} 
+                                                className="bg-red-50 border border-red-300 text-red-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2"
+                                            >
+                                                <Trash2 size={10} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Bannière */}
+                            <div className="space-y-1 md:col-span-1">
+                                <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                                    <ImageIcon size={10} className="text-[#003B94]" />
+                                    Bannière del Consulado (URL)
+                                </label>
+                                <input 
+                                    type="text" 
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" 
+                                    value={editingConsulado.banner || ''} 
+                                    onChange={e => setEditingConsulado({...editingConsulado, banner: e.target.value})} 
+                                    placeholder="https://example.com/banner.jpg"
+                                />
+                                <div className="w-full h-20 bg-white rounded-lg overflow-hidden border-2 border-gray-200 flex items-center justify-center mb-2 mt-2">
+                                    {editingConsulado.banner ? (
+                                        <img src={editingConsulado.banner} className="w-full h-full object-cover" alt="Bannière" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                    ) : (
+                                        <ImageIcon size={24} className="text-gray-400" />
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    <label className="bg-[#003B94] text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 justify-center flex-1">
+                                        <Upload size={10} /> Subir desde archivo
+                                        <input 
+                                            type="file" 
+                                            ref={bannerInputRef}
+                                            accept="image/*" 
+                                            className="hidden" 
+                                            onChange={e => handleFileUpload(e, 'banner')}
+                                        />
+                                    </label>
+                                    {editingConsulado.banner && (
+                                        <button 
+                                            onClick={() => handleRemoveImage('banner')} 
+                                            className="bg-red-50 border border-red-300 text-red-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2"
+                                        >
+                                            <Trash2 size={10} />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div> )}

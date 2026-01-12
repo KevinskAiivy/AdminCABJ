@@ -6,6 +6,14 @@ export default defineConfig({
     server: {
         port: 5173,
         host: 'localhost',
+        watch: {
+            usePolling: true,
+            interval: 1000,
+            ignored: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/.vite/**'],
+        },
+        hmr: {
+            overlay: true,
+        },
     },
     plugins: [react()],
     envPrefix: 'VITE_', // Ne charger que les variables préfixées par VITE_
