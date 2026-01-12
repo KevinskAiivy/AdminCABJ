@@ -336,10 +336,10 @@ export const Database = () => {
 
   const getStatusColor = useCallback((status: string) => {
     switch (status) {
-      case 'OK': return 'text-green-600 bg-green-50 border-green-200';
-      case 'ERROR': return 'text-red-600 bg-red-50 border-red-200';
-      case 'EMPTY': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+      case 'OK': return 'text-green-700 bg-green-500/20 backdrop-blur-sm border border-green-400/30 shadow-sm';
+      case 'ERROR': return 'text-red-700 bg-red-500/20 backdrop-blur-sm border border-red-400/30 shadow-sm';
+      case 'EMPTY': return 'text-yellow-700 bg-yellow-500/20 backdrop-blur-sm border border-yellow-400/30 shadow-sm';
+      default: return 'text-gray-700 bg-gray-500/20 backdrop-blur-sm border border-gray-400/30 shadow-sm';
     }
   }, []);
 
@@ -1004,26 +1004,51 @@ export const Database = () => {
       {activeTab === 'overview' && (
         <>
           {/* Statistics Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mx-4">
-            {tableDetails.map((table, index) => (
-              <GlassCard key={table.name} className="p-4 bg-white border border-[#003B94]/10 hover:shadow-lg transition-all cursor-pointer" onClick={() => setActiveTab('tables')}>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className={`p-2 rounded-lg ${getColorClasses(table.color)}`}>
-                    {table.icon}
+          <div className="space-y-4 mx-4">
+            {/* Ligne 1 : 5 pastilles */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {tableDetails.slice(0, 5).map((table, index) => (
+                <GlassCard key={table.name} className="p-1.5 bg-white border border-[#003B94]/10 hover:shadow-lg transition-all cursor-pointer" onClick={() => setActiveTab('tables')}>
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <div className={`p-0.5 rounded ${getColorClasses(table.color)}`}>
+                      {table.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[6px] font-black text-gray-400 uppercase tracking-widest truncate">{TABLE_CONFIG.find(c => c.name === table.name)?.label || table.name}</p>
+                      <p className="text-sm font-black text-[#001d4a]">{table.count.toLocaleString()}</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest truncate">{TABLE_CONFIG.find(c => c.name === table.name)?.label || table.name}</p>
-                    <p className="text-xl font-black text-[#001d4a]">{table.count.toLocaleString()}</p>
+                  <div className="flex items-center justify-between mt-0.5">
+                    <span className={`text-[6px] font-black px-1 py-0.5 rounded ${getStatusColor(table.status)}`}>
+                      {table.status === 'OK' ? 'OK' : table.status === 'ERROR' ? 'ERROR' : 'VACÍA'}
+                    </span>
+                    <span className="text-[6px] text-gray-400">{table.lastUpdate}</span>
                   </div>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <span className={`text-[7px] font-black px-2 py-0.5 rounded ${getStatusColor(table.status)}`}>
-                    {table.status === 'OK' ? 'OK' : table.status === 'ERROR' ? 'ERROR' : 'VACÍA'}
-                  </span>
-                  <span className="text-[7px] text-gray-400">{table.lastUpdate}</span>
-                </div>
-              </GlassCard>
-            ))}
+                </GlassCard>
+              ))}
+            </div>
+            {/* Ligne 2 : 4 pastilles */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {tableDetails.slice(5, 9).map((table, index) => (
+                <GlassCard key={table.name} className="p-1.5 bg-white border border-[#003B94]/10 hover:shadow-lg transition-all cursor-pointer" onClick={() => setActiveTab('tables')}>
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <div className={`p-0.5 rounded ${getColorClasses(table.color)}`}>
+                      {table.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[6px] font-black text-gray-400 uppercase tracking-widest truncate">{TABLE_CONFIG.find(c => c.name === table.name)?.label || table.name}</p>
+                      <p className="text-sm font-black text-[#001d4a]">{table.count.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-0.5">
+                    <span className={`text-[6px] font-black px-1 py-0.5 rounded ${getStatusColor(table.status)}`}>
+                      {table.status === 'OK' ? 'OK' : table.status === 'ERROR' ? 'ERROR' : 'VACÍA'}
+                    </span>
+                    <span className="text-[6px] text-gray-400">{table.lastUpdate}</span>
+                  </div>
+                </GlassCard>
+              ))}
+            </div>
           </div>
 
           {/* Summary Card */}
@@ -1062,7 +1087,7 @@ export const Database = () => {
                   {integrityResults.map((result) => (
                     <div
                       key={result.table}
-                      className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${getStatusColor(result.status)}`}
+                      className={`p-4 rounded-xl flex items-center justify-between transition-all ${getStatusColor(result.status)}`}
                     >
                       <div className="flex-1 min-w-0">
                         <p className="text-[10px] font-black uppercase tracking-widest mb-1 truncate">{result.table}</p>

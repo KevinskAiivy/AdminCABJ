@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { GlassCard } from '../components/GlassCard';
-import { Calendar, Activity, Star, Trophy, X, MapPin, Gift, Building2, Users, Globe, Cake } from 'lucide-react';
+import { Calendar, Activity, Star, Trophy, X, MapPin, Gift, Building2, Users, Globe, Cake, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import { AgendaEvent, Match, Socio } from '../types';
 import { NextMatchCard } from '../components/NextMatchCard';
@@ -27,28 +27,41 @@ export const Dashboard = () => {
   const [allBirthdays, setAllBirthdays] = useState<Socio[]>([]);
   const [nextMatch, setNextMatch] = useState<any>(null);
   const [selectedDay, setSelectedDay] = useState<DaySummary | null>(null);
+  const [weekOffset, setWeekOffset] = useState<number>(0);
+
+  // Calculate week start (Monday) based on weekOffset
+  const getWeekStart = useCallback((offset: number) => {
+    const today = new Date();
+    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const daysToMonday = currentDay === 0 ? -6 : 1 - currentDay; // Monday = 0
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + daysToMonday + (offset * 7));
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+  }, []);
 
   useEffect(() => {
     const loadDashboardData = () => {
         // 1. Load Weekly Agenda
         const allEvents = dataService.getAgendaEvents();
-        const today = new Date();
-        const nextWeek = new Date(today);
-        nextWeek.setDate(today.getDate() + 7);
+        const weekStartDate = getWeekStart(weekOffset);
+        const weekEndDate = new Date(weekStartDate);
+        weekEndDate.setDate(weekStartDate.getDate() + 6);
         
         const relevantEvents = allEvents.filter(e => {
             const evtDate = new Date(e.date);
-            return evtDate >= today && evtDate <= nextWeek;
+            evtDate.setHours(0, 0, 0, 0);
+            return evtDate >= weekStartDate && evtDate <= weekEndDate;
         }).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         
         setWeeklyEvents(relevantEvents);
         
-        // 2. Load All Socios Birthdays for the next 7 days (Admin sees all socios)
+        // 2. Load All Socios Birthdays for the selected week
         const allSocios = dataService.getSocios();
-        const todayStr = today.toISOString().split('T')[0];
-        const nextWeekStr = nextWeek.toISOString().split('T')[0];
+        const weekStartStr = weekStartDate.toISOString().split('T')[0];
+        const weekEndStr = weekEndDate.toISOString().split('T')[0];
         
-        // Filter socios with birth_date in the next 7 days
+        // Filter socios with birth_date in the selected week
         const upcomingBirthdays = allSocios.filter(socio => {
             if (!socio.birth_date || socio.birth_date.trim() === '') return false;
             
@@ -75,15 +88,15 @@ export const Dashboard = () => {
                 return false;
             }
             
-            // Check if this birthday falls in the next 7 days
-            const currentYear = today.getFullYear();
+            // Check if this birthday falls in the selected week
+            const currentYear = weekStartDate.getFullYear();
             const birthdayThisYear = new Date(currentYear, birthMonth - 1, birthDay);
             const birthdayNextYear = new Date(currentYear + 1, birthMonth - 1, birthDay);
             
             // Adjust if birthday has already passed this year
-            const birthdayDate = birthdayThisYear < today ? birthdayNextYear : birthdayThisYear;
+            const birthdayDate = birthdayThisYear < weekStartDate ? birthdayNextYear : birthdayThisYear;
             
-            return birthdayDate >= today && birthdayDate <= nextWeek;
+            return birthdayDate >= weekStartDate && birthdayDate <= weekEndDate;
         });
         
         setAllBirthdays(upcomingBirthdays);
@@ -132,13 +145,26 @@ export const Dashboard = () => {
     loadDashboardData();
     const unsubscribe = dataService.subscribe(loadDashboardData);
     return () => unsubscribe();
-  }, []);
+  }, [weekOffset, getWeekStart]);
+
+  const weekStart = getWeekStart(weekOffset);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
 
   const next7Days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
     return d;
   });
+
+  // Format dates for display
+  const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const currentMonth = monthNames[weekStart.getMonth()];
+  const weekRange = `semana del ${weekStart.getDate()} al ${weekEnd.getDate()}`;
+
+  const handlePrevWeek = () => setWeekOffset(prev => prev - 1);
+  const handleNextWeek = () => setWeekOffset(prev => prev + 1);
+  const handleTodayWeek = () => setWeekOffset(0);
 
   const getEventCounts = (events: AgendaEvent[], birthdays: Socio[] = []) => {
       const counts: Record<string, number> = {};
@@ -241,12 +267,42 @@ export const Dashboard = () => {
           <div className="flex items-center gap-3 px-2">
               <Calendar size={18} className="text-[#003B94]" />
               <h3 className="oswald text-xl font-black text-[#001d4a] uppercase tracking-tight">Agenda Semanal</h3>
+              <span className="text-[#001d4a]/40">-</span>
+              <span className="oswald text-xl font-black text-[#001d4a] uppercase tracking-tight">{currentMonth}</span>
+              <span className="text-[#001d4a]/40">-</span>
+              <span className="text-sm font-bold text-gray-500 uppercase tracking-wide">{weekRange}</span>
+              <div className="flex items-center gap-2 ml-auto">
+                      <button 
+                          onClick={handlePrevWeek}
+                          className="p-2 rounded-lg bg-white border border-[#003B94]/20 text-[#003B94] hover:bg-[#003B94] hover:text-white transition-all"
+                          title="Semana anterior"
+                      >
+                          <ChevronLeft size={16} />
+                      </button>
+                      <button 
+                          onClick={handleTodayWeek}
+                          className="px-3 py-2 rounded-lg bg-white border border-[#003B94]/20 text-[#003B94] hover:bg-[#003B94] hover:text-white transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"
+                          title="Semana en cours"
+                      >
+                          <RotateCcw size={12} /> Hoy
+                      </button>
+                      <button 
+                          onClick={handleNextWeek}
+                          className="p-2 rounded-lg bg-white border border-[#003B94]/20 text-[#003B94] hover:bg-[#003B94] hover:text-white transition-all"
+                          title="Semana siguiente"
+                      >
+                          <ChevronRight size={16} />
+                      </button>
+              </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
               {next7Days.map((date, idx) => {
                   const { dayEvents, dayBirthdays } = getEventsForDate(date);
                   const counts = getEventCounts(dayEvents, dayBirthdays);
-                  const isToday = idx === 0;
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  date.setHours(0, 0, 0, 0);
+                  const isToday = date.getTime() === today.getTime();
                   const hasEvents = dayEvents.length > 0 || dayBirthdays.length > 0;
                   
                   return (

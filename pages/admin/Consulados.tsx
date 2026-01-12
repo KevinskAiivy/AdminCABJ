@@ -688,7 +688,7 @@ export const Consulados = () => {
             const memberCount = allSocios.filter(s => s.consulado === consulado.name).length;
             return (
             <div key={consulado.id} className="relative group">
-                <GlassCard className={`p-0 overflow-hidden h-full flex flex-col rounded-[2.5rem] border transition-all duration-500 hover:-translate-y-2 backdrop-blur-xl ${consulado.is_official ? 'bg-gradient-to-br from-[#FCB131] via-[#FFD23F] to-[#E6A800] border-[#001d4a]/20 shadow-[0_20px_50px_-10px_rgba(252,177,49,0.3)]' : 'bg-gradient-to-br from-white/90 via-white/70 to-white/40 border-white/60 shadow-[0_15px_40px_-5px_rgba(0,59,148,0.15)]'}`}>
+                <GlassCard className={`p-0 overflow-hidden h-full flex flex-col rounded-xl border transition-all duration-500 hover:-translate-y-2 backdrop-blur-xl ${consulado.is_official ? 'bg-gradient-to-br from-[#FCB131] via-[#FFD23F] to-[#E6A800] border-[#001d4a]/20 shadow-[0_20px_50px_-10px_rgba(252,177,49,0.3)]' : 'bg-gradient-to-br from-white/90 via-white/70 to-white/40 border-white/60 shadow-[0_15px_40px_-5px_rgba(0,59,148,0.15)]'}`}>
                     <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent pointer-events-none z-10"></div>
                     <div className="h-36 relative shrink-0 overflow-hidden">
                         {consulado.banner ? (<img src={consulado.banner} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />) : (<div className="w-full h-full bg-gradient-to-br from-[#003B94] via-[#001d4a] to-black"></div>)}
@@ -794,95 +794,74 @@ export const Consulados = () => {
                                 <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">Zona Horaria <span className="text-[#003B94] opacity-50">(Auto)</span></label><div className="relative"><select className="w-full bg-blue-50/50 border border-blue-100 rounded-lg py-2 px-3 font-bold text-xs text-[#003B94] outline-none focus:border-[#003B94] appearance-none" value={editingConsulado.timezone} onChange={e => setEditingConsulado({...editingConsulado, timezone: e.target.value})}><option value="">Seleccionar Zona...</option>{TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}</select><Clock size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94] pointer-events-none" /></div></div>
                                 <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Email Contacto</label><input type="email" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" value={editingConsulado.email || ''} onChange={e => setEditingConsulado({...editingConsulado, email: e.target.value})} /></div>
                                 <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Teléfono</label><input type="tel" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" value={editingConsulado.phone || ''} onChange={e => setEditingConsulado({...editingConsulado, phone: e.target.value})} /></div>
-                            </div>
-
-                            {/* Photo de Profil et Bannière */}
-                            <div className="space-y-4 pt-4 border-t-2 border-gray-200 mt-4">
-                                {/* Photo de Profil */}
-                                <div className="space-y-2 bg-blue-50/30 p-4 rounded-lg border border-blue-200">
-                                    <label className="text-[10px] font-black text-[#003B94] uppercase tracking-widest flex items-center gap-2 mb-2">
-                                        <ImageIcon size={14} className="text-[#003B94]" />
-                                        Photo de Profil
+                                
+                                {/* Logo */}
+                                <div className="space-y-1 md:col-span-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                                        <ImageIcon size={10} className="text-[#003B94]" />
+                                        Logo del Consulado
                                     </label>
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-24 h-24 bg-gray-100 rounded-full overflow-hidden border-2 border-gray-200 flex items-center justify-center shrink-0 shadow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-16 h-16 bg-white rounded-full overflow-hidden border-2 border-gray-200 flex items-center justify-center shrink-0">
                                             {editingConsulado.logo ? (
-                                                <img src={editingConsulado.logo} className="w-full h-full object-cover" alt="Photo de profil" />
+                                                <img src={editingConsulado.logo} className="w-full h-full object-cover" alt="Logo" />
                                             ) : (
-                                                <div className="flex flex-col items-center justify-center p-4">
-                                                    <ImageIcon size={24} className="text-gray-400 mb-1" />
-                                                    <span className="text-[7px] font-bold text-gray-400 uppercase text-center">Sin foto</span>
-                                                </div>
+                                                <ImageIcon size={20} className="text-gray-400" />
                                             )}
                                         </div>
                                         <div className="flex-1 flex flex-col gap-2">
-                                            <div className="flex gap-2 flex-wrap">
-                                                <label className="bg-[#003B94] text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 shadow-md">
-                                                    <Upload size={12} /> {editingConsulado.logo ? 'Cambiar' : 'Subir'} Foto
-                                                    <input 
-                                                        type="file" 
-                                                        accept="image/*" 
-                                                        className="hidden" 
-                                                        onChange={e => handleFileUpload(e, 'logo')}
-                                                    />
-                                                </label>
-                                                {editingConsulado.logo && (
-                                                    <button 
-                                                        onClick={() => handleRemoveImage('logo')} 
-                                                        className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2 shadow-sm"
-                                                        title="Eliminar foto de perfil"
-                                                    >
-                                                        <Trash2 size={12} /> Eliminar
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <p className="text-[8px] text-gray-500 font-bold leading-relaxed">
-                                                Formato recomendado: JPG o PNG. Tamaño máximo: {dataService.getAppSettings().maxUploadSize || 5}MB. La imagen se mostrará de forma circular.
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Bannière */}
-                                <div className="space-y-2 bg-blue-50/30 p-4 rounded-lg border border-blue-200">
-                                    <label className="text-[10px] font-black text-[#003B94] uppercase tracking-widest flex items-center gap-2 mb-2">
-                                        <ImageIcon size={14} className="text-[#003B94]" />
-                                        Bannière
-                                    </label>
-                                    <div className="flex flex-col gap-3">
-                                        <div className="w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden border-2 border-gray-200 flex items-center justify-center shadow-sm">
-                                            {editingConsulado.banner ? (
-                                                <img src={editingConsulado.banner} className="w-full h-full object-cover" alt="Bannière" />
-                                            ) : (
-                                                <div className="flex flex-col items-center justify-center p-6">
-                                                    <ImageIcon size={32} className="text-gray-400 mb-2" />
-                                                    <span className="text-[8px] font-bold text-gray-400 uppercase text-center">Sin bannière</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <label className="bg-[#003B94] text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 shadow-md">
-                                                <Upload size={12} /> {editingConsulado.banner ? 'Cambiar' : 'Subir'} Bannière
+                                            <label className="bg-[#003B94] text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 justify-center">
+                                                <Upload size={10} /> {editingConsulado.logo ? 'Cambiar' : 'Subir'} Logo
                                                 <input 
                                                     type="file" 
                                                     accept="image/*" 
                                                     className="hidden" 
-                                                    onChange={e => handleFileUpload(e, 'banner')}
+                                                    onChange={e => handleFileUpload(e, 'logo')}
                                                 />
                                             </label>
-                                            {editingConsulado.banner && (
+                                            {editingConsulado.logo && (
                                                 <button 
-                                                    onClick={() => handleRemoveImage('banner')} 
-                                                    className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2 shadow-sm"
-                                                    title="Eliminar bannière"
+                                                    onClick={() => handleRemoveImage('logo')} 
+                                                    className="bg-red-50 border border-red-300 text-red-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2 justify-center"
                                                 >
-                                                    <Trash2 size={12} /> Eliminar
+                                                    <Trash2 size={10} /> Eliminar
                                                 </button>
                                             )}
                                         </div>
-                                        <p className="text-[8px] text-gray-500 font-bold leading-relaxed">
-                                            Formato recomendado: JPG o PNG en formato horizontal (16:9). Tamaño máximo: {dataService.getAppSettings().maxUploadSize || 5}MB.
-                                        </p>
+                                    </div>
+                                </div>
+                                
+                                {/* Bannière */}
+                                <div className="space-y-1 md:col-span-1">
+                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                                        <ImageIcon size={10} className="text-[#003B94]" />
+                                        Bannière del Consulado
+                                    </label>
+                                    <div className="w-full h-20 bg-white rounded-lg overflow-hidden border-2 border-gray-200 flex items-center justify-center mb-2">
+                                        {editingConsulado.banner ? (
+                                            <img src={editingConsulado.banner} className="w-full h-full object-cover" alt="Bannière" />
+                                        ) : (
+                                            <ImageIcon size={24} className="text-gray-400" />
+                                        )}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <label className="bg-[#003B94] text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 justify-center flex-1">
+                                            <Upload size={10} /> {editingConsulado.banner ? 'Cambiar' : 'Subir'} Bannière
+                                            <input 
+                                                type="file" 
+                                                accept="image/*" 
+                                                className="hidden" 
+                                                onChange={e => handleFileUpload(e, 'banner')}
+                                            />
+                                        </label>
+                                        {editingConsulado.banner && (
+                                            <button 
+                                                onClick={() => handleRemoveImage('banner')} 
+                                                className="bg-red-50 border border-red-300 text-red-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2"
+                                            >
+                                                <Trash2 size={10} />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>

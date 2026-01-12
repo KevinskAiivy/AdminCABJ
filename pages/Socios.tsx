@@ -395,39 +395,55 @@ export const Socios = ({ user }: { user?: any }) => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 px-4 animate-boca-entrance">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <div className="lg:col-span-4 bg-[#003B94] p-6 rounded-xl border border-white/20 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+      <div className="bg-[#003B94] p-6 rounded-xl border border-white/20 shadow-xl relative overflow-hidden">
             <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none"><User size={300} className="text-white" /></div>
-            <div className="flex items-center gap-5 relative z-10">
-                <div className="bg-white/10 p-3 rounded-xl border border-white/20"><User size={24} className="text-[#FCB131]" /></div>
-                <div><h1 className="oswald text-2xl font-black text-white uppercase tracking-tighter">Padrón de Socios</h1><p className="text-[#FCB131] font-black uppercase text-[9px] tracking-[0.4em] mt-1">Gestión Centralizada</p></div>
+            <div className="relative z-10 space-y-4">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="flex items-center gap-5">
+                        <div className="bg-white/10 p-3 rounded-xl border border-white/20"><User size={24} className="text-[#FCB131]" /></div>
+                        <div><h1 className="oswald text-2xl font-black text-white uppercase tracking-tighter">Padrón de Socios</h1><p className="text-[#FCB131] font-black uppercase text-[9px] tracking-[0.4em] mt-1">Gestión Centralizada</p></div>
+                    </div>
+                    <div className="flex gap-3">
+                        <button onClick={() => setIsExportModalOpen(true)} className="bg-white/10 text-white px-4 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest hover:bg-white/20 transition-all flex items-center gap-2 border border-white/10"><Download size={14} /> Exportar</button>
+                        <button onClick={handleCreate} className="bg-[#FCB131] text-[#001d4a] px-5 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg flex items-center gap-2 hover:bg-[#FFD23F] transition-all"><UserPlus size={14} /> Nuevo Socio</button>
+                    </div>
+                </div>
+                
+                <div className="flex flex-wrap gap-4 pt-4 border-t border-white/20">
+                    <div className="flex flex-col items-center gap-1.5">
+                        <div className="w-16 h-16 flex flex-col items-center justify-center">
+                            <div className="p-1.5 rounded bg-white/20 text-white mb-1"><Users size={14}/></div>
+                            <span className="text-sm font-black text-white oswald leading-none">{stats.total}</span>
+                        </div>
+                        <span className="text-[8px] text-white/80 font-bold uppercase tracking-wider whitespace-nowrap">Total Socios</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1.5">
+                        <div className="w-16 h-16 flex flex-col items-center justify-center">
+                            <div className="p-1.5 rounded bg-white/20 text-white mb-1"><CheckCircle2 size={14}/></div>
+                            <span className="text-sm font-black text-white oswald leading-none">{stats.alDia}</span>
+                        </div>
+                        <span className="text-[8px] text-white/80 font-bold uppercase tracking-wider whitespace-nowrap">Al Día</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1.5">
+                        <div className="w-16 h-16 flex flex-col items-center justify-center">
+                            <div className="p-1.5 rounded bg-white/20 text-white mb-1"><AlertTriangle size={14}/></div>
+                            <span className="text-sm font-black text-white oswald leading-none">{stats.morosos}</span>
+                        </div>
+                        <span className="text-[8px] text-white/80 font-bold uppercase tracking-wider whitespace-nowrap">En Deuda</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1.5">
+                        <div className="w-16 h-16 flex flex-col items-center justify-center">
+                            <div className="p-1.5 rounded bg-white/20 text-white mb-1"><UserX size={14}/></div>
+                            <span className="text-sm font-black text-white oswald leading-none">{stats.deBaja}</span>
+                        </div>
+                        <span className="text-[8px] text-white/80 font-bold uppercase tracking-wider whitespace-nowrap">De Baja</span>
+                    </div>
+                </div>
             </div>
-            <div className="flex gap-3 relative z-10">
-                <button onClick={() => setIsExportModalOpen(true)} className="bg-white/10 text-white px-4 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest hover:bg-white/20 transition-all flex items-center gap-2 border border-white/10"><Download size={14} /> Exportar</button>
-                <button onClick={handleCreate} className="bg-[#FCB131] text-[#001d4a] px-5 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg flex items-center gap-2 hover:bg-[#FFD23F] transition-all"><UserPlus size={14} /> Nuevo Socio</button>
-            </div>
-        </div>
-        
-        <GlassCard className="p-3 flex items-center gap-3 bg-white border-[#003B94]/10 h-20">
-            <div className="p-2 rounded-lg bg-blue-50 text-[#003B94]"><Users size={16}/></div>
-            <div><span className="block text-xl font-black text-[#001d4a] oswald leading-none">{stats.total}</span><span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Total Socios</span></div>
-        </GlassCard>
-        <GlassCard className="p-3 flex items-center gap-3 bg-white border-[#003B94]/10 h-20">
-            <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600"><CheckCircle2 size={16}/></div>
-            <div><span className="block text-xl font-black text-[#001d4a] oswald leading-none">{stats.alDia}</span><span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Al Día</span></div>
-        </GlassCard>
-        <GlassCard className="p-3 flex items-center gap-3 bg-white border-[#003B94]/10 h-20">
-            <div className="p-2 rounded-lg bg-amber-50 text-amber-600"><AlertTriangle size={16}/></div>
-            <div><span className="block text-xl font-black text-[#001d4a] oswald leading-none">{stats.morosos}</span><span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">En Deuda</span></div>
-        </GlassCard>
-        <GlassCard className="p-3 flex items-center gap-3 bg-white border-[#003B94]/10 h-20">
-            <div className="p-2 rounded-lg bg-red-50 text-red-600"><UserX size={16}/></div>
-            <div><span className="block text-xl font-black text-[#001d4a] oswald leading-none">{stats.deBaja}</span><span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">De Baja</span></div>
-        </GlassCard>
       </div>
 
       <div className="bg-white p-4 rounded-xl shadow-sm border border-[#003B94]/10 flex flex-col xl:flex-row gap-4 items-center justify-between">
-        <button onClick={resetFilters} style={{ backgroundColor: 'var(--boca-gold)' }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-500 hover:bg-gray-200 hover:text-[#001d4a] transition-all font-black text-[8px] uppercase tracking-widest border border-transparent hover:border-gray-300 h-fit"><RotateCcw size={10} /> Limpiar Filtros</button>
+        <button onClick={resetFilters} style={{ backgroundColor: 'var(--boca-gold)' }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[#001d4a] hover:bg-gray-200 hover:text-[#001d4a] transition-all font-black text-[8px] uppercase tracking-widest border border-transparent hover:border-gray-300 h-fit"><RotateCcw size={10} /> Limpiar Filtros</button>
         <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto overflow-x-auto">
             <div className="relative min-w-[130px]">
                 <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} style={{width: '200px'}} className="bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Categorías</option>{SOCIO_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select>

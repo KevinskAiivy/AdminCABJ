@@ -34,18 +34,18 @@ interface NextMatchCardProps {
     userCountryCode?: string; // e.g., "ES"
 }
 
-// Fonction pour formater la date au format jj-mm-aaaa
+// Fonction pour formater la date au format jj.mm.aaaa
 const formatDateDisplay = (dateStr: string) => {
-    if (!dateStr) return '--/--/----';
+    if (!dateStr) return '--.--.----';
     if (dateStr.includes('-')) {
         const [y, m, d] = dateStr.split('-');
-        // Format jj-mm-aaaa
-        return `${d.padStart(2, '0')}-${m.padStart(2, '0')}-${y}`;
+        // Format jj.mm.aaaa
+        return `${d.padStart(2, '0')}.${m.padStart(2, '0')}.${y}`;
     }
     if (dateStr.includes('/')) {
         const [d, m, y] = dateStr.split('/');
-        // Format jj-mm-aaaa
-        return `${d.padStart(2, '0')}-${m.padStart(2, '0')}-${y}`;
+        // Format jj.mm.aaaa
+        return `${d.padStart(2, '0')}.${m.padStart(2, '0')}.${y}`;
     }
     return dateStr;
 };
@@ -195,7 +195,7 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
   if (!match) return null;
 
   return (
-    <div className="relative w-full min-h-[380px] md:min-h-[420px] flex flex-col bg-[#00040a] rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.6)] border border-white/5 overflow-hidden group transition-all hover:border-white/10">
+    <div className="relative w-full flex flex-col bg-[#00040a] rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.6)] border border-white/5 overflow-hidden group transition-all hover:border-white/10">
           
       {/* Background Ambience */}
       <div className="absolute inset-0 overflow-hidden">
@@ -207,37 +207,40 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
       <div className="absolute -top-24 left-1/4 w-96 h-96 bg-[#003B94]/40 rounded-full blur-[120px] animate-pulse pointer-events-none"></div>
       <div className="absolute -bottom-24 right-1/4 w-96 h-96 bg-[#FCB131]/10 rounded-full blur-[120px] animate-bounce duration-[15s] pointer-events-none"></div>
 
-      <div className="relative z-10 flex flex-col items-center justify-between h-full py-8 px-4 gap-6">
+      <div className="relative z-10 flex flex-col items-center py-8 px-4 gap-6">
           
           {/* 1. COMPETITION HEADER */}
           <div className="flex flex-col items-center gap-2 w-full">
-              {/* Dynamic Competition Logo */}
-              <div className="relative h-16 flex items-center justify-center">
-                  {compLogo ? (
-                      (compLogo.startsWith('data:') || compLogo.startsWith('http') || compLogo.length > 5) ? (
-                          <img 
-                            src={compLogo} 
-                            alt={match.competition} 
-                            className="h-full w-auto object-contain drop-shadow-[0_0_15px_rgba(252,177,49,0.4)] relative z-10 filter brightness-110"
-                          />
+              {/* Logo and Competition Name on Same Line */}
+              <div className="flex items-center justify-center gap-4">
+                  {/* Dynamic Competition Logo */}
+                  <div className="relative h-20 flex items-center justify-center shrink-0">
+                      {compLogo ? (
+                          (compLogo.startsWith('data:') || compLogo.startsWith('http') || compLogo.length > 5) ? (
+                              <img 
+                                src={compLogo} 
+                                alt={match.competition} 
+                                className="h-full w-auto object-contain drop-shadow-[0_0_15px_rgba(252,177,49,0.4)] relative z-10 filter brightness-110"
+                              />
+                          ) : (
+                              // Fallback Text Code
+                              <div className="h-16 w-16 bg-[#001d4a] rounded-xl border border-[#FCB131] flex items-center justify-center shadow-lg">
+                                  <span className="oswald text-2xl font-black text-[#FCB131] tracking-tighter">{compLogo}</span>
+                              </div>
+                          )
                       ) : (
-                          // Fallback Text Code
-                          <div className="h-12 w-12 bg-[#001d4a] rounded-xl border border-[#FCB131] flex items-center justify-center shadow-lg">
-                              <span className="oswald text-xl font-black text-[#FCB131] tracking-tighter">{compLogo}</span>
-                          </div>
-                      )
-                  ) : (
-                      <Trophy className="text-[#FCB131] drop-shadow-lg" size={32} />
-                  )}
-              </div>
+                          <Trophy className="text-[#FCB131] drop-shadow-lg" size={40} />
+                      )}
+                  </div>
 
-              <div className="flex flex-col items-center">
-                  <h2 className="oswald text-xl md:text-2xl font-black uppercase text-white tracking-[0.2em] leading-none text-center drop-shadow-md">
-                      {match.competition}
-                  </h2>
-                  <span className="text-[#FCB131] oswald text-[22px] font-bold uppercase tracking-[0.25em] mt-1 drop-shadow-sm">
-                      {match.fecha_jornada || 'PRÓXIMO PARTIDO'}
-                  </span>
+                  <div className="flex flex-col items-start">
+                      <h2 className="oswald text-xl md:text-2xl font-black uppercase text-white tracking-[0.2em] leading-none drop-shadow-md">
+                          {match.competition}
+                      </h2>
+                      <span className="text-[#FCB131] oswald text-lg font-bold uppercase tracking-[0.25em] mt-1 drop-shadow-sm">
+                          {match.fecha_jornada || 'PRÓXIMO PARTIDO'}{match.venue ? ` - ${match.venue}` : ''}
+                      </span>
+                  </div>
               </div>
           </div>
 
@@ -245,7 +248,7 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
           <div className="w-full flex items-center justify-center gap-4 md:gap-16 flex-1">
               
               {/* Boca Logic */}
-              <div className="flex-1 flex flex-col items-center gap-2 text-center group/team">
+              <div className="flex-1 flex flex-col items-center justify-start gap-2 text-center group/team -mt-24">
                   <div className="relative drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] group-hover/team:scale-110 transition-transform duration-500 flex items-center justify-center">
                       {settings.matchLogoUrl ? (
                           <img 
@@ -269,8 +272,10 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
                   
                   {/* Clock (Strictly HH:mm, no seconds) - REDUCED SIZE */}
                   <div className="flex items-baseline gap-2 animate-in zoom-in duration-700">
-                      <span className="oswald text-[40px] md:text-[40px] font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(252,177,49,0.4)] leading-none">
-                          {displayTime}
+                      <span className="oswald text-[28px] md:text-[28px] font-black tracking-tighter drop-shadow-[0_0_20px_rgba(252,177,49,0.4)] leading-none">
+                          <span className="text-white">{formatDateDisplay(match.date)}</span>
+                          <span className="text-white mx-2">-</span>
+                          <span className="text-[#FCB131]">{displayTime}</span>
                       </span>
                   </div>
 
@@ -287,7 +292,7 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
               </div>
 
               {/* Rival Logic */}
-              <div className="flex-1 flex flex-col items-center gap-2 text-center group/team">
+              <div className="flex-1 flex flex-col items-center justify-start gap-2 text-center group/team -mt-24">
                   <div className="relative flex items-center justify-center drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] group-hover/team:scale-110 transition-transform duration-500">
                       {rivalLogo ? (
                           <img 
@@ -311,20 +316,6 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
               </div>
           </div>
 
-          {/* 3. FOOTER INFO */}
-          <div className="w-full flex justify-center mt-2">
-              <div className="flex items-center gap-6 px-6 py-2 rounded-full border border-white/5 bg-white/5 backdrop-blur-sm">
-                  <div className="flex items-center gap-2 text-white/60">
-                    <Calendar size={12} className="text-[#FCB131]" />
-                    <span className="text-[9px] font-black uppercase tracking-[0.15em]">{formatDateDisplay(match.date)}</span>
-                  </div>
-                  <div className="w-px h-3 bg-white/10"></div>
-                  <div className="flex items-center gap-2 text-white/60">
-                    <MapPin size={12} className="text-[#FCB131]" />
-                    <span className="text-[9px] font-black uppercase tracking-[0.15em]">{match.venue}</span>
-                  </div>
-              </div>
-          </div>
       </div>
     </div>
   );
