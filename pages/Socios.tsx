@@ -1,12 +1,12 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { GlassCard } from '../components/GlassCard';
 import { 
   Search, UserPlus, Edit2, Trash2, MapPin, 
   ChevronLeft, ChevronRight, X, Save, CheckCircle2, 
   AlertTriangle, User, History, Trophy, ArrowRightLeft, Phone, Mail, BadgeCheck,
-  ArrowRight, Check, Building2, Filter, Download, Users, Star, Lock, Unlock, Instagram, Facebook, RotateCcw, Loader2, UserX, FileText, Printer, XCircle
+  ArrowRight, Check, Building2, Filter, Download, Users, Star, Lock, Unlock, Instagram, Facebook, RotateCcw, Loader2, UserX, FileText, Printer, XCircle, Upload, Image as ImageIcon
 } from 'lucide-react';
 import { Socio, TransferRequest } from '../types';
 import { dataService } from '../services/dataService';
@@ -16,6 +16,7 @@ import { getGenderRoleLabel, getGenderLabel as getGenderLabelUtil } from '../uti
 import { formatDateDisplay, formatDateToDB, formatDateFromDB } from '../utils/dateFormat';
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { supabase } from '../lib/supabase';
 
 export const Socios = ({ user }: { user?: any }) => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -59,6 +60,8 @@ export const Socios = ({ user }: { user?: any }) => {
   const [viewSocio, setViewSocio] = useState<Socio | null>(null);
   const [formData, setFormData] = useState<Partial<Socio>>({});
   const [socioTransfers, setSocioTransfers] = useState<TransferRequest[]>([]);
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   
   // --- SPECIAL LOGIC STATES ---
   const [pendingConsulado, setPendingConsulado] = useState<string | null>(null);
@@ -288,6 +291,10 @@ export const Socios = ({ user }: { user?: any }) => {
     });
     setPendingConsulado(null); setConsuladoSelection(''); setPendingIdChange(null);
     setIsIdLocked(true); setTempId(newTempId); setIdStatus('IDLE');
+    setSelectedPhotoFile(null); // Réinitialiser le fichier photo lors de la création
+    if (photoInputRef.current) {
+        photoInputRef.current.value = '';
+    }
     setSocioTransfers([]); setActiveTab('INFO'); setIsEditModalOpen(true); setShowSaveConfirm(false);
   };
 
@@ -312,6 +319,10 @@ export const Socios = ({ user }: { user?: any }) => {
     setPendingIdChange(null); setIsIdLocked(true); setTempId(socio.numero_socio || socio.id);
     setIdStatus('IDLE'); setSocioTransfers(dataService.getSocioTransfers(socio.id));
     setIsConsuladoLocked(true);
+    setSelectedPhotoFile(null); // Réinitialiser le fichier photo lors de l'édition
+    if (photoInputRef.current) {
+        photoInputRef.current.value = '';
+    }
     setActiveTab('INFO'); setIsEditModalOpen(true); setShowSaveConfirm(false);
   };
 
@@ -326,51 +337,87 @@ export const Socios = ({ user }: { user?: any }) => {
 
   const executeSave = async () => {
     setIsSaving(true);
-    const finalStatus = calculateSocioStatus(formData.last_month_paid || '');
     
-    // Convertir toutes les dates du format affichage (DD/MM/YYYY) vers format DB (YYYY-MM-DD)
-    const dbPaymentDate = formatDateToDB(formData.last_month_paid || '');
-    const dbBirthDate = formatDateToDB(formData.birth_date || '');
-    const dbJoinDate = formatDateToDB(formData.join_date || '');
-    const dbExpirationDate = formatDateToDB(formData.expiration_date || '');
-    
-    let finalRole = formData.role;
-    if (pendingConsulado) finalRole = 'SOCIO';
-    let finalId = selectedSocio ? selectedSocio.id : tempId;
-    let finalNumeroSocio = tempId || formData.numero_socio || (selectedSocio ? selectedSocio.numero_socio : '') || finalId || '';
-    
-    // Si un changement de numéro de socio est en attente, utiliser le nouveau numéro
-    if (pendingIdChange) {
-        finalId = pendingIdChange.new;
-        finalNumeroSocio = pendingIdChange.new;
-    }
-
-    const finalData: Socio = {
-        id: finalId || tempId || crypto.randomUUID().slice(-10),
-        first_name: formData.first_name || '',
-        last_name: formData.last_name || '',
-        name: `${formData.first_name || ''} ${formData.last_name || ''}`.trim(),
-        // numero_socio : utiliser finalNumeroSocio qui prend en compte pendingIdChange
-        numero_socio: finalNumeroSocio,
-        dni: formData.dni || '',
-        category: formData.category || 'ADHERENTE',
-        status: finalStatus.label as any || 'AL DÍA',
-        email: formData.email || '',
-        phone: formData.phone || '', // Format international avec indicatif
-        gender: (formData.gender === 'M' || formData.gender === 'F' || formData.gender === 'X') ? formData.gender : 'M',
-        nationality: formData.nationality || undefined,
-        birth_date: dbBirthDate || null,
-        join_date: dbJoinDate || null,
-        last_month_paid: dbPaymentDate || null,
-        consulado: pendingConsulado !== null ? pendingConsulado : (formData.consulado || undefined),
-        role: finalRole || 'SOCIO',
-        avatar_color: formData.avatar_color || 'bg-blue-500',
-        expiration_date: dbExpirationDate || null,
-        twitter: formData.twitter || undefined,
-        youtube: formData.youtube || undefined
-    };
-
     try {
+        // Si un fichier photo a été sélectionné, l'uploader d'abord
+        let photoUrl = formData.foto || undefined;
+        
+        if (selectedPhotoFile) {
+            // Générer un nom de fichier unique : dni_timestamp.extension
+            const dni = formData.dni || 'socio';
+            const timestamp = Date.now();
+            const fileExtension = selectedPhotoFile.name.split('.').pop() || 'jpg';
+            const fileName = `${dni}_${timestamp}.${fileExtension}`;
+            
+            // Upload du fichier dans Supabase Storage
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('logo')
+                .upload(fileName, selectedPhotoFile, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
+            
+            if (uploadError) {
+                throw new Error(`Error al subir la foto: ${uploadError.message}`);
+            }
+            
+            // Récupérer l'URL publique de l'image
+            const { data: urlData } = supabase.storage
+                .from('logo')
+                .getPublicUrl(fileName);
+            
+            if (!urlData?.publicUrl) {
+                throw new Error('No se pudo obtener la URL pública de la imagen');
+            }
+            
+            photoUrl = urlData.publicUrl;
+        }
+        
+        const finalStatus = calculateSocioStatus(formData.last_month_paid || '');
+        
+        // Convertir toutes les dates du format affichage (DD/MM/YYYY) vers format DB (YYYY-MM-DD)
+        const dbPaymentDate = formatDateToDB(formData.last_month_paid || '');
+        const dbBirthDate = formatDateToDB(formData.birth_date || '');
+        const dbJoinDate = formatDateToDB(formData.join_date || '');
+        const dbExpirationDate = formatDateToDB(formData.expiration_date || '');
+        
+        let finalRole = formData.role;
+        if (pendingConsulado) finalRole = 'SOCIO';
+        let finalId = selectedSocio ? selectedSocio.id : tempId;
+        let finalNumeroSocio = tempId || formData.numero_socio || (selectedSocio ? selectedSocio.numero_socio : '') || finalId || '';
+        
+        // Si un changement de numéro de socio est en attente, utiliser le nouveau numéro
+        if (pendingIdChange) {
+            finalId = pendingIdChange.new;
+            finalNumeroSocio = pendingIdChange.new;
+        }
+
+        const finalData: Socio = {
+            id: finalId || tempId || crypto.randomUUID().slice(-10),
+            first_name: formData.first_name || '',
+            last_name: formData.last_name || '',
+            name: `${formData.first_name || ''} ${formData.last_name || ''}`.trim(),
+            // numero_socio : utiliser finalNumeroSocio qui prend en compte pendingIdChange
+            numero_socio: finalNumeroSocio,
+            dni: formData.dni || '',
+            category: formData.category || 'ADHERENTE',
+            status: finalStatus.label as any || 'AL DÍA',
+            email: formData.email || '',
+            phone: formData.phone || '', // Format international avec indicatif
+            gender: (formData.gender === 'M' || formData.gender === 'F' || formData.gender === 'X') ? formData.gender : 'M',
+            nationality: formData.nationality || undefined,
+            birth_date: dbBirthDate || null,
+            join_date: dbJoinDate || null,
+            last_month_paid: dbPaymentDate || null,
+            consulado: pendingConsulado !== null ? pendingConsulado : (formData.consulado || undefined),
+            role: finalRole || 'SOCIO',
+            avatar_color: formData.avatar_color || 'bg-blue-500',
+            expiration_date: dbExpirationDate || null,
+            twitter: formData.twitter || undefined,
+            youtube: formData.youtube || undefined,
+            foto: photoUrl
+        };
+
         if (selectedSocio) {
             if (pendingIdChange) {
                 // Pour changement d'ID, on doit d'abord vérifier que le nouvel ID n'existe pas
@@ -378,6 +425,7 @@ export const Socios = ({ user }: { user?: any }) => {
                 const existingWithNewId = socios.find(s => s.id === pendingIdChange.new || s.numero_socio === pendingIdChange.new);
                 if (existingWithNewId && existingWithNewId.id !== selectedSocio.id) {
                     alert(`Error: Ya existe un socio con el número ${pendingIdChange.new}`);
+                    setIsSaving(false);
                     return;
                 }
                 
@@ -402,8 +450,16 @@ export const Socios = ({ user }: { user?: any }) => {
         } else {
             await dataService.addSocio(finalData);
         }
+        
+        // Réinitialiser le fichier sélectionné après sauvegarde réussie
+        setSelectedPhotoFile(null);
+        if (photoInputRef.current) {
+            photoInputRef.current.value = '';
+        }
+        
         setSocios(dataService.getSocios());
-        setIsEditModalOpen(false); setShowSaveConfirm(false);
+        setIsEditModalOpen(false); 
+        setShowSaveConfirm(false);
     } catch (e: any) { 
         alert(`Error al guardar: ${e.message || 'Error desconocido'}`); 
     } finally { 
@@ -765,6 +821,51 @@ export const Socios = ({ user }: { user?: any }) => {
                                         return null;
                                     })()}
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <h3 className="text-[#003B94] font-black uppercase text-[9px] tracking-widest border-b border-[#003B94]/10 pb-1 flex items-center gap-1.5"><ImageIcon size={11}/> Foto del Socio</h3>
+                        <div className="flex items-center gap-4">
+                            <div className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 hover:border-[#003B94]/30 transition-all h-32 w-32 group relative overflow-hidden">
+                                <div className="w-20 h-20 mb-2 relative flex items-center justify-center rounded-lg overflow-hidden">
+                                    {formData.foto ? (
+                                        <img src={formData.foto} alt="Foto del socio" className="w-full h-full object-cover rounded-lg drop-shadow-md" />
+                                    ) : (
+                                        <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 font-bold text-[8px]">Sin foto</div>
+                                    )}
+                                </div>
+                                <button 
+                                    onClick={() => photoInputRef.current?.click()}
+                                    className="bg-white border border-gray-200 text-[#001d4a] px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-[#001d4a] hover:text-white transition-all flex items-center gap-2"
+                                >
+                                    <Upload size={10} /> {formData.foto ? 'Cambiar' : 'Subir'}
+                                </button>
+                                <input 
+                                    type="file" 
+                                    ref={photoInputRef} 
+                                    className="hidden" 
+                                    accept="image/*" 
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            setSelectedPhotoFile(file);
+                                            // Afficher un aperçu local
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => {
+                                                setFormData({...formData, foto: reader.result as string});
+                                            };
+                                            reader.readAsDataURL(file);
+                                        }
+                                    }} 
+                                />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-[8px] text-gray-500 mb-2">Sube una foto del socio. El archivo se guardará en Supabase Storage.</p>
+                                {selectedPhotoFile && (
+                                    <p className="text-[8px] text-gray-600 font-bold">Archivo seleccionado: {selectedPhotoFile.name}</p>
+                                )}
                             </div>
                         </div>
                     </div>

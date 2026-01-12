@@ -50,7 +50,8 @@ const normalizeSocio = (db: any): Socio => ({
     avatar_color: db.avatar_color || 'bg-blue-500',
     expiration_date: db.expiration_date || '',
     twitter: db.twitter || undefined,
-    youtube: db.youtube || undefined
+    youtube: db.youtube || undefined,
+    foto: db.foto || undefined
 });
 
 // Pour compatibilité, garder les noms mais utiliser directement les données snake_case

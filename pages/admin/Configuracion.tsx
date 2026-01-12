@@ -134,16 +134,16 @@ export const Configuracion = () => {
                           </div>
 
                           {/* Logos Section */}
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-4 border-t border-gray-100">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
                               
                               {[
                                 { label: 'Logo Menú General', ref: logoInputRef, field: 'logoUrl', icon: ImageIcon, description: 'Logo visible dans la barre de navigation' },
                                 { label: 'Logo Login', ref: loginLogoInputRef, field: 'loginLogoUrl', icon: LogIn, description: 'Logo visible sur la page de connexion (utilise le logo du menu si non défini)' },
-                                { label: 'Escudo Deportivo', ref: matchLogoInputRef, field: 'matchLogoUrl', icon: Shield },
-                                { label: 'Favicon', ref: faviconInputRef, field: 'faviconUrl', icon: MousePointer2 },
-                                { label: 'Logo Carga', ref: transitionLogoInputRef, field: 'transitionLogoUrl', icon: Loader2 }
+                                { label: 'Escudo Deportivo', ref: matchLogoInputRef, field: 'matchLogoUrl', icon: Shield, description: 'Logo utilisé dans les matchs' },
+                                { label: 'Favicon', ref: faviconInputRef, field: 'faviconUrl', icon: MousePointer2, description: 'Icône de l\'onglet du navigateur' },
+                                { label: 'Logo Carga', ref: transitionLogoInputRef, field: 'transitionLogoUrl', icon: Loader2, description: 'Logo affiché pendant le chargement' }
                               ].map((item: any) => (
-                                <div key={item.field} className="space-y-2">
+                                <div key={item.field} className="space-y-3">
                                     <div>
                                         <label className="text-[9px] font-black text-[#003B94]/60 uppercase tracking-widest flex items-center gap-2">
                                             <item.icon size={12}/> {item.label}
@@ -167,6 +167,19 @@ export const Configuracion = () => {
                                             <Upload size={10} /> Subir
                                         </button>
                                         <input type="file" ref={item.ref} className="hidden" accept="image/*" onChange={(e) => handleLogoUpload(e, item.field)} />
+                                    </div>
+                                    <div className="space-y-2 pt-2 border-t border-gray-100">
+                                        <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                                            <ImageIcon size={10} className="text-[#003B94]"/> URL (Alternativa)
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            value={settings[item.field as keyof AppSettings] as string || ''} 
+                                            onChange={(e) => handleChange(item.field, e.target.value)}
+                                            placeholder="https://example.com/logo.png"
+                                            className="w-full bg-white border-2 border-gray-200 rounded-lg py-2.5 px-3 font-bold text-[11px] text-[#001d4a] outline-none focus:border-[#003B94] transition-all"
+                                        />
+                                        <p className="text-[8px] text-gray-400 italic">O ingrese una URL de imagen directamente</p>
                                     </div>
                                 </div>
                               ))}

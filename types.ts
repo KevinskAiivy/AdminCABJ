@@ -21,6 +21,7 @@ export interface Socio {
   avatar_color: string;
   consulado?: string;
   role?: string;
+  foto?: string; // URL de la photo du socio stockée dans Supabase Storage
 }
 
 export interface Consulado {
