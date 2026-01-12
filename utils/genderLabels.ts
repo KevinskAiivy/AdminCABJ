@@ -37,10 +37,12 @@ export const getGenderRoleLabel = (role: string, gender: 'M' | 'F' | 'X' = 'M'):
  * @returns Le label genré
  */
 export const getGenderLabel = (label: string, gender: 'M' | 'F' | 'X' = 'M'): string => {
-    if (label === 'Socio') return gender === 'F' ? 'Socia' : gender === 'X' ? 'Socia' : 'Socio';
+    if (label === 'Socio') return gender === 'F' ? 'Socia' : gender === 'X' ? 'Socix' : 'Socio';
     if (label === 'Nacido') return gender === 'F' ? 'Nacida' : gender === 'X' ? 'Nacidx' : 'Nacido';
-    if (label === 'Datos del Socio') return gender === 'F' ? 'Datos de la Socia' : gender === 'X' ? 'Datos del Socia' : 'Datos del Socio';
+    if (label === 'Datos del Socio') return gender === 'F' ? 'Datos Socia' : gender === 'X' ? 'Datos Socix' : 'Datos Socio';
     if (label === 'Presidente') return gender === 'F' ? 'Presidenta' : gender === 'X' ? 'Presidentx' : 'Presidente';
     if (label === 'Referente') return gender === 'F' ? 'Referenta' : gender === 'X' ? 'Referentx' : 'Referente';
+    if (label === 'N° Socio' || label === 'N° Socio:') return gender === 'F' ? 'N° Socia:' : gender === 'X' ? 'N° Socix:' : 'N° Socio:';
+    if (label === 'Numéro de Socio') return gender === 'F' ? 'Numéro Socia' : gender === 'X' ? 'Numéro Socix' : 'Numéro Socio';
     return label;
 };

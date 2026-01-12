@@ -54,6 +54,40 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
       return () => unsubscribe();
   }, [consulado_id, currentConsulado]);
 
+  const calculateAge = (dateStr?: string) => {
+      if (!dateStr) return null;
+      let d: number, m: number, y: number;
+      
+      // Support multiple formats: jj-mm-aaaa, DD/MM/YYYY, YYYY-MM-DD
+      if (dateStr.includes('-')) {
+          const parts = dateStr.split('-');
+          if (parts[0].length === 4) {
+              // Format YYYY-MM-DD (from DB)
+              [y, m, d] = parts.map(Number);
+          } else {
+              // Format jj-mm-aaaa
+              [d, m, y] = parts.map(Number);
+          }
+      } else if (dateStr.includes('/')) {
+          // Format DD/MM/YYYY
+          [d, m, y] = dateStr.split('/').map(Number);
+      } else {
+          return null;
+      }
+      
+      if (!y || !m || !d) return null;
+      const birth = new Date(y, m - 1, d);
+      if (isNaN(birth.getTime())) return null;
+      
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+          age--;
+      }
+      return age >= 0 ? age : null;
+  };
+
   const calculateSocioStatus = (paymentStr: string) => {
     if (!paymentStr) return { label: 'EN DEUDA', color: 'text-amber-600 bg-amber-50', dot: 'bg-amber-500' };
     
@@ -456,22 +490,35 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                 const computedStatus = calculateSocioStatus(socio.last_month_paid || '');
                 let containerClass = "";
                 let variant: 'light' | 'gold' | 'dark' = 'light';
-                
+
                 if (isPresident) {
                     variant = 'gold';
                     containerClass = "border-[#FCB131]/40 shadow-[0_8px_32px_rgba(252,177,49,0.4)] bg-gradient-to-br from-[#FFD700]/95 via-[#FFC125]/90 to-[#FFA500]/95 backdrop-blur-xl";
                 } else if (isReferente) {
                     variant = 'dark';
                     containerClass = "border-[#FCB131]/30 shadow-[0_8px_32px_rgba(0,29,74,0.5)] bg-gradient-to-br from-[#001d4a]/95 via-[#003B94]/90 to-[#001d4a]/95 backdrop-blur-xl";
-                } else if (computedStatus.label === 'EN DEUDA') {
-                    variant = 'light';
-                    containerClass = "border-amber-300/40 shadow-[0_4px_16px_rgba(245,158,11,0.1)]";
-                } else if (computedStatus.label === 'DE BAJA') {
-                    variant = 'light';
-                    containerClass = "border-red-300/40 shadow-[0_4px_16px_rgba(239,68,68,0.1)]";
                 } else {
+                    // Bordure selon le genre pour les socios normaux (bleu par défaut si non défini)
+                    let genderBorderClass = "";
+                    if (socio.gender === 'M') {
+                        genderBorderClass = "border-l-4 border-r-4 border-[#003B94]";
+                    } else if (socio.gender === 'F') {
+                        genderBorderClass = "border-l-4 border-r-4 border-[#FCB131]";
+                    } else if (socio.gender === 'X') {
+                        genderBorderClass = "border-l-4 border-r-4 border-white";
+                    } else {
+                        // Genre non défini : bordure bleue par défaut
+                        genderBorderClass = "border-l-4 border-r-4 border-[#003B94]";
+                    }
+                    
                     variant = 'light';
-                    containerClass = "";
+                    if (computedStatus.label === 'EN DEUDA') {
+                        containerClass = `${genderBorderClass} shadow-[0_4px_16px_rgba(245,158,11,0.1)]`;
+                    } else if (computedStatus.label === 'DE BAJA') {
+                        containerClass = `${genderBorderClass} shadow-[0_4px_16px_rgba(239,68,68,0.1)]`;
+                    } else {
+                        containerClass = genderBorderClass;
+                    }
                 }
 
                 return (
@@ -532,7 +579,7 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                                 <span className="font-black uppercase">{socio.last_name.toUpperCase()}</span> <span className="font-normal capitalize">{socio.first_name.toLowerCase()}</span>
                             </h4>
                             {/* Pastilles : Numéro de socio, Catégorie, Rôle */}
-                            <div className="flex items-center gap-1.5 flex-wrap">
+                            <div className="flex items-center gap-1.5 flex-wrap mt-2">
                                 {/* Numéro de socio */}
                                 <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-lg ${
                                     isPresident || isReferente 
@@ -623,7 +670,7 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                             </div>
                             <div>
                                 <h2 className="oswald text-xl font-black uppercase tracking-tight leading-none mb-0.5">Editar {getGenderLabel('Socio', formData.gender || 'M')}</h2>
-                                <p className="text-[#FCB131] text-[8px] font-bold uppercase tracking-widest">N° Socio: {selectedSocio.numero_socio || selectedSocio.id}</p>
+                                <p className="text-[#FCB131] text-[8px] font-bold uppercase tracking-widest">{getGenderLabel('N° Socio:', formData.gender || 'M')} {selectedSocio.numero_socio || selectedSocio.id}</p>
                             </div>
                         </div>
                         <X onClick={() => { 
@@ -649,17 +696,30 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                                 <div className="space-y-0.5"><label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">DNI / Pasaporte</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a]" value={formData.dni || ''} onChange={e => setFormData({...formData, dni: e.target.value})}/></div>
                                 <div className="space-y-0.5">
                                     <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Fecha de Nacimiento</label>
-                                    <input 
-                                        type="text" 
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest" 
-                                        placeholder="jj-mm-aaaa" 
-                                        value={formatDateFromDB(formData.birth_date || '')}
-                                        onChange={e => {
-                                            const formatted = formatDateInput(e.target.value);
-                                            setFormData({...formData, birth_date: formatted});
-                                        }}
-                                        maxLength={10}
-                                    />
+                                    <div className="relative">
+                                        <input 
+                                            type="text" 
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 pr-16 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest" 
+                                            placeholder="jj-mm-aaaa" 
+                                            value={formatDateFromDB(formData.birth_date || '')}
+                                            onChange={e => {
+                                                const formatted = formatDateInput(e.target.value);
+                                                setFormData({...formData, birth_date: formatted});
+                                            }}
+                                            maxLength={10}
+                                        />
+                                        {(() => {
+                                            const age = calculateAge(formData.birth_date || '');
+                                            if (age !== null && age !== undefined) {
+                                                return (
+                                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-widest bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 shadow-sm text-blue-700">
+                                                        {age} años
+                                                    </span>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -714,28 +774,35 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                                     />
                                 </div>
                                 <div className="space-y-0.5">
-                                    <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                                        Último Pago
+                                    <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Último Pago</label>
+                                    <div className="relative">
+                                        <input 
+                                            type="text" 
+                                            className="w-full bg-white border border-gray-200 rounded-lg py-1.5 px-2.5 pr-20 font-bold text-xs outline-none text-[#001d4a] tracking-widest" 
+                                            placeholder="jj-mm-aaaa" 
+                                            value={formatDateFromDB(formData.last_month_paid || '')}
+                                            onChange={e => {
+                                                const formatted = formatDateInput(e.target.value);
+                                                setFormData({...formData, last_month_paid: formatted});
+                                            }}
+                                            maxLength={10}
+                                        />
                                         {(() => {
                                             const status = calculateSocioStatus(formData.last_month_paid || '');
+                                            // Convertir les couleurs en style glass
+                                            const glassColors: Record<string, string> = {
+                                                'text-emerald-600 bg-emerald-50': 'text-emerald-700 bg-emerald-500/20 backdrop-blur-sm border border-emerald-400/30 shadow-sm',
+                                                'text-amber-600 bg-amber-50': 'text-amber-700 bg-amber-500/20 backdrop-blur-sm border border-amber-400/30 shadow-sm',
+                                                'text-red-600 bg-red-50': 'text-red-700 bg-red-500/20 backdrop-blur-sm border border-red-400/30 shadow-sm'
+                                            };
+                                            const glassColor = glassColors[status.color] || status.color;
                                             return (
-                                                <span className={`px-1.5 py-0.5 rounded-full text-[6px] font-black uppercase tracking-widest ${status.color}`}>
+                                                <span className={`absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-widest backdrop-blur-sm border shadow-sm ${glassColor}`}>
                                                     {status.label}
                                                 </span>
                                             );
                                         })()}
-                                    </label>
-                                    <input 
-                                        type="text" 
-                                        className="w-full bg-white border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none text-[#001d4a] tracking-widest" 
-                                        placeholder="jj-mm-aaaa" 
-                                        value={formatDateFromDB(formData.last_month_paid || '')}
-                                        onChange={e => {
-                                            const formatted = formatDateInput(e.target.value);
-                                            setFormData({...formData, last_month_paid: formatted});
-                                        }}
-                                        maxLength={10}
-                                    />
+                                    </div>
                                 </div>
                             </div>
                         </div>

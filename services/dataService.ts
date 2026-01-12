@@ -993,27 +993,67 @@ class DataService {
       return this.socios; 
   }
 
-  async addSocio(s: Socio) { 
+  async addSocio(s: Socio) {
+      // Vérifier qu'il n'y a pas déjà un socio avec le même ID ou numero_socio
+      const existingById = this.socios.find(x => x.id === s.id);
+      const existingByNumero = s.numero_socio ? this.socios.find(x => x.numero_socio === s.numero_socio && x.id !== s.id) : null;
+      
+      if (existingById) {
+          throw new Error(`Un socio avec l'ID ${s.id} existe déjà`);
+      }
+      if (existingByNumero) {
+          throw new Error(`Un socio avec le numéro ${s.numero_socio} existe déjà`);
+      }
+      
       const payload = mapSocioToDB(s);
-      this.socios.unshift(s); 
-      this.notify(); 
+      // Insérer d'abord dans la DB, puis mettre à jour le cache
       const { error } = await supabase.from('socios').insert([payload]);
-      if (error) throw new Error(error.message);
+      if (error) {
+          throw new Error(error.message);
+      }
+      
+      // Si l'insertion réussit, mettre à jour le cache
+      this.socios.unshift(s);
+      this.notify();
   }
 
-  async updateSocio(s: Socio) { 
+  async updateSocio(s: Socio) {
+      // Vérifier que le socio existe
+      const existing = this.socios.find(x => x.id === s.id);
+      if (!existing) {
+          throw new Error(`Le socio avec l'ID ${s.id} n'existe pas`);
+      }
+      
+      // Vérifier qu'il n'y a pas de conflit avec un autre numero_socio
+      if (s.numero_socio) {
+          const existingByNumero = this.socios.find(x => x.numero_socio === s.numero_socio && x.id !== s.id);
+          if (existingByNumero) {
+              throw new Error(`Un autre socio avec le numéro ${s.numero_socio} existe déjà`);
+          }
+      }
+      
       const payload = mapSocioToDB(s);
-      this.socios = this.socios.map(x => x.id === s.id ? s : x); 
-      this.notify(); 
+      // Mettre à jour d'abord dans la DB, puis le cache
       const { error } = await supabase.from('socios').update(payload).eq('id', s.id);
-      if (error) throw new Error(error.message);
+      if (error) {
+          throw new Error(error.message);
+      }
+      
+      // Si la mise à jour réussit, mettre à jour le cache
+      this.socios = this.socios.map(x => x.id === s.id ? s : x);
+      this.notify();
   }
 
-  async deleteSocio(id: string) { 
-      this.socios = this.socios.filter(x => x.id !== id); 
-      this.notify(); 
+  async deleteSocio(id: string) {
+      // Supprimer d'abord dans la DB, puis le cache
       const { error } = await supabase.from('socios').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      if (error) {
+          throw new Error(error.message);
+      }
+      
+      // Si la suppression réussit, mettre à jour le cache
+      this.socios = this.socios.filter(x => x.id !== id);
+      this.notify();
   }
 
   // --- AUTH LOGIC ---

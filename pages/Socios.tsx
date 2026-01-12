@@ -89,14 +89,22 @@ export const Socios = ({ user }: { user?: any }) => {
       let paymentDate: Date | null = null;
       
       if (paymentStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          // Format DB: YYYY-MM-DD
           const [y, m, d] = paymentStr.split('-').map(Number);
           paymentDate = new Date(y, m - 1, d);
       } 
+      else if (paymentStr.match(/^\d{2}-\d{2}-\d{4}$/)) {
+          // Format jj-mm-aaaa: DD-MM-YYYY
+          const [d, m, y] = paymentStr.split('-').map(Number);
+          paymentDate = new Date(y, m - 1, d);
+      }
       else if (paymentStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+          // Format DD/MM/YYYY
           const [d, m, y] = paymentStr.split('/').map(Number);
           paymentDate = new Date(y, m - 1, d);
       }
       else if (paymentStr.length === 7 && paymentStr.includes('/')) {
+          // Format MM/YYYY
           const [m, y] = paymentStr.split('/').map(Number);
           paymentDate = new Date(y, m - 1, 1);
       }
@@ -120,17 +128,37 @@ export const Socios = ({ user }: { user?: any }) => {
   };
 
   const calculateAge = (dateStr?: string) => {
-      if (!dateStr) return 0;
-      const [d, m, y] = dateStr.split('/').map(Number);
-      if (!y) return 0;
+      if (!dateStr) return null;
+      let d: number, m: number, y: number;
+      
+      // Support multiple formats: jj-mm-aaaa, DD/MM/YYYY, YYYY-MM-DD
+      if (dateStr.includes('-')) {
+          const parts = dateStr.split('-');
+          if (parts[0].length === 4) {
+              // Format YYYY-MM-DD (from DB)
+              [y, m, d] = parts.map(Number);
+          } else {
+              // Format jj-mm-aaaa
+              [d, m, y] = parts.map(Number);
+          }
+      } else if (dateStr.includes('/')) {
+          // Format DD/MM/YYYY
+          [d, m, y] = dateStr.split('/').map(Number);
+      } else {
+          return null;
+      }
+      
+      if (!y || !m || !d) return null;
       const birth = new Date(y, m - 1, d);
+      if (isNaN(birth.getTime())) return null;
+      
       const today = new Date();
       let age = today.getFullYear() - birth.getFullYear();
       const monthDiff = today.getMonth() - birth.getMonth();
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
           age--;
       }
-      return age;
+      return age >= 0 ? age : null;
   };
 
   const stats = useMemo(() => {
@@ -345,8 +373,29 @@ export const Socios = ({ user }: { user?: any }) => {
     try {
         if (selectedSocio) {
             if (pendingIdChange) {
-                await dataService.deleteSocio(selectedSocio.id);
-                await dataService.addSocio(finalData);
+                // Pour changement d'ID, on doit d'abord vérifier que le nouvel ID n'existe pas
+                const socios = dataService.getSocios();
+                const existingWithNewId = socios.find(s => s.id === pendingIdChange.new || s.numero_socio === pendingIdChange.new);
+                if (existingWithNewId && existingWithNewId.id !== selectedSocio.id) {
+                    alert(`Error: Ya existe un socio con el número ${pendingIdChange.new}`);
+                    return;
+                }
+                
+                // Supprimer l'ancien puis ajouter le nouveau
+                // Si l'ajout échoue, on essaie de restaurer l'ancien
+                const oldSocio = { ...selectedSocio };
+                try {
+                    await dataService.deleteSocio(selectedSocio.id);
+                    await dataService.addSocio(finalData);
+                } catch (deleteError: any) {
+                    // Si la suppression a réussi mais l'ajout échoue, essayer de restaurer
+                    try {
+                        await dataService.addSocio(oldSocio);
+                    } catch (restoreError) {
+                        console.error('Error al restaurar socio después de fallo:', restoreError);
+                    }
+                    throw deleteError;
+                }
             } else {
                 await dataService.updateSocio(finalData);
             }
@@ -496,15 +545,28 @@ export const Socios = ({ user }: { user?: any }) => {
             } else if (isReferente) {
                 variant = 'dark';
                 containerClass = "border-2 border-[#FCB131] shadow-[0_0_20px_rgba(252,177,49,0.6),0_8px_32px_rgba(0,29,74,0.5)]";
-            } else if (computedStatus.label === 'EN DEUDA') {
-                variant = 'light';
-                containerClass = "border-amber-300/40 shadow-[0_4px_16px_rgba(245,158,11,0.1)]";
-            } else if (computedStatus.label === 'DE BAJA') {
-                variant = 'light';
-                containerClass = "border-red-300/40 shadow-[0_4px_16px_rgba(239,68,68,0.1)]";
             } else {
+                // Bordure selon le genre pour les socios normaux (bleu par défaut si non défini)
+                let genderBorderClass = "";
+                if (socio.gender === 'M') {
+                    genderBorderClass = "border-l-4 border-r-4 border-[#003B94]";
+                } else if (socio.gender === 'F') {
+                    genderBorderClass = "border-l-4 border-r-4 border-[#FCB131]";
+                } else if (socio.gender === 'X') {
+                    genderBorderClass = "border-l-4 border-r-4 border-white";
+                } else {
+                    // Genre non défini : bordure bleue par défaut
+                    genderBorderClass = "border-l-4 border-r-4 border-[#003B94]";
+                }
+                
                 variant = 'light';
-                containerClass = "";
+                if (computedStatus.label === 'EN DEUDA') {
+                    containerClass = `${genderBorderClass} shadow-[0_4px_16px_rgba(245,158,11,0.1)]`;
+                } else if (computedStatus.label === 'DE BAJA') {
+                    containerClass = `${genderBorderClass} shadow-[0_4px_16px_rgba(239,68,68,0.1)]`;
+                } else {
+                    containerClass = genderBorderClass;
+                }
             }
 
             return (
@@ -562,11 +624,11 @@ export const Socios = ({ user }: { user?: any }) => {
                                 </div>
                             )}
                         </div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className={`text-[9px] font-bold uppercase tracking-wider ${isPresident ? 'text-[#001d4a]/80' : isReferente ? 'text-white/80' : 'text-gray-500'}`}>N° Socio:</span>
+                        <div className="flex items-center gap-2 mb-2 mt-2">
+                            <span className={`text-[9px] font-bold uppercase tracking-wider ${isPresident ? 'text-[#001d4a]/80' : isReferente ? 'text-white/80' : 'text-gray-500'}`}>{getGenderLabel('N° Socio:', socio.gender)}</span>
                             <span className={`text-[10px] font-black ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-[#001d4a]'}`}>{socio.numero_socio || socio.dni || 'N/A'}</span>
                         </div>
-                        <div className="flex flex-wrap gap-2 items-center mt-2">
+                        <div className="flex flex-wrap gap-2 items-center mt-3">
                             <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest backdrop-blur-sm border shadow-sm ${
                                 isPresident 
                                     ? 'bg-[#001d4a]/10 border-[#001d4a]/30 text-[#001d4a]'
@@ -620,7 +682,7 @@ export const Socios = ({ user }: { user?: any }) => {
 
       {isEditModalOpen && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" >
-             <div className="relative w-full max-w-4xl bg-white/95 backdrop-blur-xl rounded-xl shadow-[0_50px_100px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col border border-white/60 max-h-[90vh] animate-in zoom-in-95 duration-300">
+             <div className="relative w-full max-w-[700px] bg-white/95 backdrop-blur-xl rounded-xl shadow-[0_50px_100px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col border border-white/60 max-h-[90vh] animate-in zoom-in-95 duration-300">
                 <div className="relative bg-gradient-to-r from-[#003B94] to-[#001d4a] p-3 text-white shrink-0 overflow-hidden">
                     <div className="flex items-center gap-3 relative z-10">
                         <div className="w-10 h-10 rounded-lg bg-white/10 border border-white/20 shadow-inner flex items-center justify-center text-lg font-black text-[#FCB131]">
@@ -628,7 +690,7 @@ export const Socios = ({ user }: { user?: any }) => {
                         </div>
                         <div>
                             <h2 className="oswald text-xl font-black uppercase tracking-tight leading-none mb-0.5">{selectedSocio ? `Editar ${getGenderLabel('Socio', formData.gender)}` : `Nuevo ${getGenderLabel('Socio', formData.gender)}`}</h2>
-                            <div className="flex items-center gap-2"><p className="text-[#FCB131] text-[8px] font-bold uppercase tracking-widest">{selectedSocio ? `N° Socio: ${selectedSocio.numero_socio || selectedSocio.id}` : 'Alta en Proceso'}</p></div>
+                            <div className="flex items-center gap-2"><p className="text-[#FCB131] text-[8px] font-bold uppercase tracking-widest">{selectedSocio ? `${getGenderLabel('N° Socio:', formData.gender)} ${selectedSocio.numero_socio || selectedSocio.id}` : 'Alta en Proceso'}</p></div>
                         </div>
                     </div>
                     <X onClick={() => setIsEditModalOpen(false)} className="cursor-pointer opacity-60 hover:opacity-100 p-1 hover:bg-white/10 rounded-full transition-colors absolute top-3 right-3 z-20" size={20} />
@@ -679,17 +741,30 @@ export const Socios = ({ user }: { user?: any }) => {
                             </div>
                             <div className="space-y-0.5">
                                 <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Fecha de Nacimiento</label>
-                                <input 
-                                    type="text" 
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest" 
-                                    placeholder="jj-mm-aaaa" 
-                                    value={formatDateFromDB(formData.birth_date || '')}
-                                    onChange={e => {
-                                        const formatted = formatDateInput(e.target.value);
-                                        setFormData({...formData, birth_date: formatted});
-                                    }}
-                                    maxLength={10}
-                                />
+                                <div className="relative">
+                                    <input 
+                                        type="text" 
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 pr-16 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest" 
+                                        placeholder="jj-mm-aaaa" 
+                                        value={formatDateFromDB(formData.birth_date || '')}
+                                        onChange={e => {
+                                            const formatted = formatDateInput(e.target.value);
+                                            setFormData({...formData, birth_date: formatted});
+                                        }}
+                                        maxLength={10}
+                                    />
+                                    {(() => {
+                                        const age = calculateAge(formData.birth_date || '');
+                                        if (age !== null && age !== undefined) {
+                                            return (
+                                                <span className="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-widest bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 shadow-sm text-blue-700">
+                                                    {age} años
+                                                </span>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -753,35 +828,42 @@ export const Socios = ({ user }: { user?: any }) => {
                                 />
                             </div>
                             <div className="space-y-0.5">
-                                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                                    Último Pago
-                                    {(() => {
+                                <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Último Pago</label>
+                                <div className="relative">
+                                    <input 
+                                        type="text" 
+                                        className="w-full bg-white border border-gray-200 rounded-lg py-1.5 px-2.5 pr-20 font-bold text-xs outline-none text-[#001d4a] tracking-widest" 
+                                        placeholder="jj-mm-aaaa" 
+                                        value={formatDateFromDB(formData.last_month_paid || '')}
+                                        onChange={e => {
+                                            const formatted = formatDateInput(e.target.value);
+                                            setFormData({...formData, last_month_paid: formatted});
+                                        }}
+                                        maxLength={10}
+                                    />
+                                        {(() => {
                                         const status = calculateSocioStatus(formData.last_month_paid || '');
+                                        // Convertir les couleurs en style glass
+                                        const glassColors: Record<string, string> = {
+                                            'text-emerald-600 bg-emerald-50': 'text-emerald-700 bg-emerald-500/20 backdrop-blur-sm border border-emerald-400/30 shadow-sm',
+                                            'text-amber-600 bg-amber-50': 'text-amber-700 bg-amber-500/20 backdrop-blur-sm border border-amber-400/30 shadow-sm',
+                                            'text-red-600 bg-red-50': 'text-red-700 bg-red-500/20 backdrop-blur-sm border border-red-400/30 shadow-sm'
+                                        };
+                                        const glassColor = glassColors[status.color] || status.color;
                                         return (
-                                            <span className={`px-1.5 py-0.5 rounded-full text-[6px] font-black uppercase tracking-widest ${status.color}`}>
+                                            <span className={`absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-widest backdrop-blur-sm border shadow-sm ${glassColor}`}>
                                                 {status.label}
                                             </span>
                                         );
                                     })()}
-                                </label>
-                                <input 
-                                    type="text" 
-                                    className="w-full bg-white border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none text-[#001d4a] tracking-widest" 
-                                    placeholder="jj-mm-aaaa" 
-                                    value={formatDateFromDB(formData.last_month_paid || '')}
-                                    onChange={e => {
-                                        const formatted = formatDateInput(e.target.value);
-                                        setFormData({...formData, last_month_paid: formatted});
-                                    }}
-                                    maxLength={10}
-                                />
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#001d4a] p-3 rounded-lg border border-[#FCB131]/30 shadow-lg relative overflow-hidden">
                         <div className="space-y-1 relative z-10">
-                            <label className="text-[8px] font-black text-[#FCB131] uppercase tracking-widest flex items-center gap-1"><BadgeCheck size={9} /> Numéro de Socio</label>
+                            <label className="text-[8px] font-black text-[#FCB131] uppercase tracking-widest flex items-center gap-1"><BadgeCheck size={9} /> {getGenderLabel('Numéro de Socio', formData.gender)}</label>
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
                                     <input 
@@ -977,7 +1059,7 @@ export const Socios = ({ user }: { user?: any }) => {
         <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-[#001d4a]/40 backdrop-blur-sm animate-in fade-in" >
             <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-sm text-center animate-in zoom-in-95">
                 <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4"><AlertTriangle size={32}/></div>
-                <h3 className="oswald text-xl font-bold text-red-600 mb-2">Eliminar Socio</h3>
+                <h3 className="oswald text-xl font-bold text-red-600 mb-2">Eliminar {getGenderLabel('Socio', selectedSocio.gender)}</h3>
                 <p className="text-sm text-gray-500">¿Estás seguro de eliminar a <strong>{selectedSocio.name}</strong>?</p>
                 <div className="flex gap-3 mt-6">
                     <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-2 rounded-lg bg-gray-100 font-bold text-xs text-gray-600">Cancelar</button>

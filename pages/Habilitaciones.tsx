@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { GlassCard } from '../components/GlassCard';
-import { Ticket, Clock, CheckCircle2, XCircle, Calendar, MapPin, X, UserCheck, UserX, Filter, Timer, Archive, Home, Plane, FileText } from 'lucide-react';
+import { Ticket, CheckCircle2, XCircle, Calendar, MapPin, X, UserCheck, UserX, Filter, Timer, Archive, Home, Plane, FileText } from 'lucide-react';
 import { Match, Solicitud, Socio, Team } from '../types';
 import { dataService } from '../services/dataService';
 import { BocaLogoSVG } from '../constants';
@@ -945,13 +945,9 @@ export const Habilitaciones = () => {
               <p className="text-[#FCB131] text-[10px] font-black uppercase tracking-[0.4em] mt-1">Control de Acceso al Estadio</p>
             </div>
           </div>
-          <div className="bg-white/10 px-4 py-2 rounded-xl text-white text-[10px] font-black uppercase tracking-widest border border-white/10 flex items-center gap-2">
-            <Clock size={14} className="text-[#FCB131]" />
-            {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
             {processedMatches.map(match => {
                 const isDark = match.status === 'OPEN' || (match.is_home && match.status !== 'SCHEDULED');
                 const isYellow = match.status === 'CLOSED' && !match.is_home;
@@ -970,7 +966,7 @@ export const Habilitaciones = () => {
                 );
                 
                 return (
-                <GlassCard key={match.id} className={`p-3 border flex flex-col relative overflow-hidden ${getContainerStyle(match.status, match.is_home)}`}>
+                <GlassCard key={match.id} className={`p-3 border flex flex-col relative overflow-hidden w-1/2 mx-auto ${getContainerStyle(match.status, match.is_home)}`}>
                     
                     <div className={`absolute top-0 right-0 p-1.5 rounded-bl-xl ${isDark ? 'bg-white/10' : isYellow ? 'bg-[#001d4a]/10' : isScheduled ? 'bg-blue-100' : 'bg-gray-100'}`}>
                         {match.is_home ? <Home size={10} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} /> : <Plane size={10} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} />}
