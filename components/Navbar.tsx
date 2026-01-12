@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, MapPin, Ticket, Settings, ChevronDown, LogOut, MessageSquare, Database, Calendar, Sword, Shield, Lock, Eye, EyeOff, Bell, ArrowRightLeft, AlertCircle, Mail, CheckCircle2, X } from 'lucide-react';
+import { LayoutDashboard, Users, MapPin, Ticket, Settings, ChevronDown, LogOut, MessageSquare, Database, Calendar, Sword, Shield, Lock, Bell, ArrowRightLeft, AlertCircle, Mail, CheckCircle2, X } from 'lucide-react';
 import { BocaLogoSVG } from '../constants';
 import { UserSession, AppNotification } from '../types';
 import { dataService } from '../services/dataService';
@@ -45,10 +45,13 @@ export const Navbar = ({
   const [isViewSelectorOpen, setIsViewSelectorOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const [isViewConfirmOpen, setIsViewConfirmOpen] = useState(false);
+  const [pendingViewAction, setPendingViewAction] = useState<'activate' | 'deactivate' | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const viewSelectorRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  const viewSelectorTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isSuperAdmin = user.role === 'SUPERADMIN';
   const consulados = dataService.getConsulados();
   
@@ -111,6 +114,65 @@ export const Navbar = ({
     setIsViewSelectorOpen(false);
     setIsNotificationsOpen(false);
   }, [location]);
+
+  // Auto-close view selector after 5 seconds when simulated view is active
+  useEffect(() => {
+    if (simulatedView?.active && viewSelectorRef.current) {
+      // Clear any existing timer
+      if (viewSelectorTimerRef.current) {
+        clearTimeout(viewSelectorTimerRef.current);
+      }
+      
+      // Set timer to close after 5 seconds
+      viewSelectorTimerRef.current = setTimeout(() => {
+        // Only close if the menu is not being hovered
+        const menuElement = viewSelectorRef.current?.querySelector('div[class*="absolute top-full"]');
+        if (menuElement && !menuElement.matches(':hover')) {
+          setIsViewSelectorOpen(false);
+        }
+      }, 5000); // 5 secondes
+
+      return () => {
+        if (viewSelectorTimerRef.current) {
+          clearTimeout(viewSelectorTimerRef.current);
+        }
+      };
+    }
+  }, [simulatedView?.active]);
+
+  // Reset timer on mouse enter/leave of view selector
+  useEffect(() => {
+    const menuElement = viewSelectorRef.current?.querySelector('div[class*="absolute top-full"]');
+    
+    if (!menuElement) return;
+
+    const handleMouseEnter = () => {
+      // Reset timer when mouse enters
+      if (viewSelectorTimerRef.current) {
+        clearTimeout(viewSelectorTimerRef.current);
+      }
+    };
+
+    const handleMouseLeave = () => {
+      // Start timer when mouse leaves
+      if (viewSelectorTimerRef.current) {
+        clearTimeout(viewSelectorTimerRef.current);
+      }
+      if (simulatedView?.active) {
+        viewSelectorTimerRef.current = setTimeout(() => {
+          setIsViewSelectorOpen(false);
+        }, 5000);
+      }
+    };
+
+    menuElement.addEventListener('mouseenter', handleMouseEnter);
+    menuElement.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      menuElement.removeEventListener('mouseenter', handleMouseEnter);
+      menuElement.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, [simulatedView?.active]);
   
   const handleMarkAsRead = async (notificationId: string) => {
     try {
@@ -138,23 +200,88 @@ export const Navbar = ({
     if (!onSimulatedViewChange) return;
     
     if (simulatedView?.active) {
+      // Si la vue simulée est active, ouvrir/fermer le menu directement (sans confirmation)
+      setIsViewSelectorOpen(!isViewSelectorOpen);
+      // Reset timer
+      if (viewSelectorTimerRef.current) {
+        clearTimeout(viewSelectorTimerRef.current);
+      }
+      if (!isViewSelectorOpen) {
+        // Si on ouvre le menu, définir un timer pour le fermer
+        viewSelectorTimerRef.current = setTimeout(() => {
+          setIsViewSelectorOpen(false);
+        }, 5000);
+      }
+    } else {
+      // Si la vue simulée n'est pas active, demander confirmation avant d'activer
+      console.log('Demande de confirmation pour activer la vue simulée');
+      setPendingViewAction('activate');
+      setIsViewConfirmOpen(true);
+      console.log('isViewConfirmOpen devrait être true maintenant');
+    }
+  };
+
+  const confirmViewChange = () => {
+    if (!onSimulatedViewChange || !pendingViewAction) return;
+    
+    if (pendingViewAction === 'deactivate') {
       // Désactiver la vue simulée
       onSimulatedViewChange({ active: false });
+      setIsViewSelectorOpen(false);
+      // Clear timer when disabling simulated view
+      if (viewSelectorTimerRef.current) {
+        clearTimeout(viewSelectorTimerRef.current);
+      }
       navigate('/dashboard');
     } else {
-      // Activer la vue simulée avec le premier consulado disponible
+      // Activer la vue simulée - ouvrir le menu pour sélectionner un consulado
       const firstConsulado = consulados.length > 0 ? consulados[0].id : undefined;
       onSimulatedViewChange({ active: true, consulado_id: firstConsulado });
-      navigate('/dashboard');
+      setIsViewSelectorOpen(true); // Ouvrir le menu après confirmation
+      // Définir un timer pour fermer le menu après 5 secondes
+      if (viewSelectorTimerRef.current) {
+        clearTimeout(viewSelectorTimerRef.current);
+      }
+      viewSelectorTimerRef.current = setTimeout(() => {
+        setIsViewSelectorOpen(false);
+      }, 5000);
+      // Ne pas naviguer immédiatement, attendre la sélection d'un consulado
     }
+    
+    setIsViewConfirmOpen(false);
+    setPendingViewAction(null);
   };
 
   const handleSelectConsulado = (consuladoId: string) => {
     if (!onSimulatedViewChange) return;
-    onSimulatedViewChange({ active: true, consulado_id: consuladoId });
+    
+    // Fermer le menu immédiatement avant toute action
     setIsViewSelectorOpen(false);
+    // Clear timer immédiatement
+    if (viewSelectorTimerRef.current) {
+      clearTimeout(viewSelectorTimerRef.current);
+      viewSelectorTimerRef.current = null;
+    }
+    
+    if (consuladoId === 'return-admin') {
+      // Retour à la vue admin - demander confirmation
+      setPendingViewAction('deactivate');
+      setIsViewConfirmOpen(true);
+      return;
+    }
+    
+    // Changer de consulado
+    onSimulatedViewChange({ active: true, consulado_id: consuladoId });
     navigate('/dashboard');
   };
+
+  // Debug log
+  useEffect(() => {
+    console.log('isViewConfirmOpen changed:', isViewConfirmOpen, 'pendingViewAction:', pendingViewAction);
+    if (isViewConfirmOpen) {
+      console.log('Modal should be visible NOW!');
+    }
+  }, [isViewConfirmOpen, pendingViewAction]);
 
   return (
     <div className="fixed top-0 left-0 right-0 z-[100] px-4 pt-4">
@@ -182,7 +309,7 @@ export const Navbar = ({
           <div className="leading-tight hidden lg:block">
             <h1 className="text-white font-black text-sm oswald tracking-tighter uppercase">Consulados CABJ</h1>
             <p className="text-[#FCB131] text-[9px] font-black uppercase tracking-[0.2em]">
-              {simulatedView?.active ? 'PRESIDENTE (Vista Simulada)' : user.role}
+              {user.role}
             </p>
           </div>
         </div>
@@ -392,54 +519,10 @@ export const Navbar = ({
             )}
           </div>
           
-          {/* Vue Simulée pour SUPERADMIN */}
-          {isSuperAdmin && onSimulatedViewChange && (
-            <div className="relative" ref={viewSelectorRef}>
-              <button
-                onClick={handleToggleSimulatedView}
-                className={`p-2.5 rounded-xl transition-all border group ${
-                  simulatedView?.active
-                    ? 'bg-[#FCB131] text-[#001d4a] border-[#FCB131] shadow-[0_0_15px_rgba(252,177,49,0.4)]'
-                    : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white'
-                }`}
-                title={simulatedView?.active ? "Désactiver la vue simulée" : "Voir comme un président"}
-              >
-                {simulatedView?.active ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-              
-              {/* Sélecteur de consulado (visible quand la vue simulée est active) */}
-              {simulatedView?.active && (
-                <div className="absolute top-full right-0 mt-2 w-64 bg-[#001d4a] border border-[#FCB131]/30 rounded-2xl p-2 shadow-[0_30px_80px_rgba(0,0,0,0.8)] backdrop-blur-2xl z-50">
-                  <div className="px-3 py-2 bg-[#FCB131]/10 border-b border-white/5">
-                    <span className="text-[8px] font-black uppercase tracking-widest text-[#FCB131]">
-                      Seleccionar Consulado
-                    </span>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto space-y-1 mt-2">
-                    {consulados.map(consulado => (
-                      <button
-                        key={consulado.id}
-                        onClick={() => handleSelectConsulado(consulado.id)}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
-                          simulatedView.consulado_id === consulado.id
-                            ? 'bg-[#FCB131] text-[#001d4a]'
-                            : 'text-white/70 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        {consulado.name}
-                        {consulado.city && ` - ${consulado.city}`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          
           <div className="hidden sm:flex flex-col items-end leading-none">
             <span className="text-white text-[9px] font-black uppercase tracking-widest">{user.name}</span>
             <span className="text-[#FCB131] text-[8px] font-black uppercase animate-pulse">
-              {simulatedView?.active ? 'PRESIDENTE' : user.role}
+              {user.role}
             </span>
           </div>
           <button 
@@ -491,6 +574,7 @@ export const Navbar = ({
           </div>
         </div>
       )}
+
     </div>
   );
 };
