@@ -967,8 +967,18 @@ export const Habilitaciones = () => {
                 
                 return (
                 <GlassCard key={match.id} className={`p-3 border flex flex-col relative overflow-hidden w-1/2 mx-auto ${getContainerStyle(match.status, match.is_home)}`}>
-                    
-                    <div className={`absolute top-0 right-0 p-1.5 rounded-bl-xl ${isDark ? 'bg-white/10' : isYellow ? 'bg-[#001d4a]/10' : isScheduled ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                    {/* Image de fond avec opacité configurable */}
+                    {settings.habilitacionesBackgroundImage && (
+                        <div 
+                            className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+                            style={{
+                                backgroundImage: `url(${settings.habilitacionesBackgroundImage})`,
+                                opacity: (settings.habilitacionesBackgroundOpacity ?? 20) / 100
+                            }}
+                        />
+                    )}
+                    <div className="relative z-10 flex flex-col h-full">
+                    <div className={`absolute top-0 right-0 p-1.5 rounded-bl-xl z-20 ${isDark ? 'bg-white/10' : isYellow ? 'bg-[#001d4a]/10' : isScheduled ? 'bg-blue-100' : 'bg-gray-100'}`}>
                         {match.is_home ? <Home size={10} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} /> : <Plane size={10} className={isDark ? 'text-[#FCB131]' : isYellow ? 'text-[#001d4a]' : isScheduled ? 'text-[#003B94]' : 'text-[#003B94]'} />}
                     </div>
 
@@ -1105,6 +1115,7 @@ export const Habilitaciones = () => {
                                 );
                             })()}
                         </div>
+                    </div>
                     </div>
                 </GlassCard>
             )})}

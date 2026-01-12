@@ -208,6 +208,8 @@ export interface AppSettings {
   logoRivalSize?: number; // Taille du logo de l'équipe adverse (défaut: 128)
   enableAnimations: boolean;
   compactMode: boolean; // For denser tables/lists
+  habilitacionesBackgroundImage?: string; // Image de fond pour les cartes d'habilitaciones
+  habilitacionesBackgroundOpacity?: number; // Opacité de l'image de fond (0-100, défaut: 20)
   
   // Sistema & Limites
   isMaintenanceMode: boolean;

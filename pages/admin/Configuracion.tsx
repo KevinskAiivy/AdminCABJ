@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { GlassCard } from '../../components/GlassCard';
-import { Palette, LayoutTemplate, Type, Save, RotateCcw, Upload, Image as ImageIcon, Smartphone, Monitor, Lock, Unlock, Shield, LogIn, MousePointer2, Loader2, HardDrive, Clock, Bell, Activity, CheckCircle2, AlertTriangle, Zap, Eye, EyeOff, LayoutGrid } from 'lucide-react';
+import { Palette, LayoutTemplate, Type, Save, RotateCcw, Upload, Image as ImageIcon, Smartphone, Monitor, Lock, Unlock, Shield, LogIn, MousePointer2, Loader2, HardDrive, Clock, Bell, Activity, CheckCircle2, AlertTriangle, Zap, Eye, EyeOff, LayoutGrid, Ticket } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { AppSettings } from '../../types';
 
@@ -14,12 +14,13 @@ export const Configuracion = () => {
   const loginLogoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const transitionLogoInputRef = useRef<HTMLInputElement>(null);
+  const habilitacionesBackgroundInputRef = useRef<HTMLInputElement>(null);
 
   const handleChange = (field: keyof AppSettings, value: any) => {
     setSettings(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'logoUrl' | 'matchLogoUrl' | 'loginLogoUrl' | 'faviconUrl' | 'transitionLogoUrl') => {
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'logoUrl' | 'matchLogoUrl' | 'loginLogoUrl' | 'faviconUrl' | 'transitionLogoUrl' | 'habilitacionesBackgroundImage') => {
     const file = e.target.files?.[0];
     if (file) {
       // Check upload size limit defined in current settings
@@ -289,6 +290,83 @@ export const Configuracion = () => {
                                               <input type="checkbox" className="sr-only peer" checked={settings.compactMode} onChange={e => handleChange('compactMode', e.target.checked)} />
                                               <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#003B94]"></div>
                                           </label>
+                                      </div>
+                                  </div>
+                                  
+                                  {/* Image de fond pour Habilitaciones */}
+                                  <div className="space-y-4 pt-4 border-t border-gray-100">
+                                      <h3 className="text-[#003B94] font-black uppercase text-sm border-b border-gray-100 pb-2">Fond des Cartes Habilitaciones</h3>
+                                      
+                                      <div className="space-y-3">
+                                          <div className="space-y-2">
+                                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                                  <Ticket size={12}/> Image de Fond
+                                              </label>
+                                              <div className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 hover:border-[#003B94]/30 transition-all h-32 group relative overflow-hidden">
+                                                  <div className="w-12 h-12 mb-2 relative flex items-center justify-center">
+                                                      {settings.habilitacionesBackgroundImage ? (
+                                                          <img src={settings.habilitacionesBackgroundImage} alt="Fond Habilitaciones" className="w-full h-full object-cover rounded-lg drop-shadow-md" />
+                                                      ) : (
+                                                          <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 font-bold text-[8px]">Aucune image</div>
+                                                      )}
+                                                  </div>
+                                                  <button 
+                                                      onClick={() => habilitacionesBackgroundInputRef.current?.click()}
+                                                      className="bg-white border border-gray-200 text-[#001d4a] px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-[#001d4a] hover:text-white transition-all flex items-center gap-2"
+                                                  >
+                                                      <Upload size={10} /> {settings.habilitacionesBackgroundImage ? 'Changer' : 'Choisir'}
+                                                  </button>
+                                                  <input type="file" ref={habilitacionesBackgroundInputRef} className="hidden" accept="image/*" onChange={(e) => handleLogoUpload(e, 'habilitacionesBackgroundImage')} />
+                                              </div>
+                                          </div>
+                                          
+                                          <div className="space-y-2">
+                                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Opacité de l'Image</label>
+                                              <div className="flex items-center gap-4">
+                                                  <input
+                                                      type="range"
+                                                      min="0"
+                                                      max="100"
+                                                      step="5"
+                                                      value={settings.habilitacionesBackgroundOpacity ?? 20}
+                                                      onChange={(e) => handleChange('habilitacionesBackgroundOpacity', parseInt(e.target.value))}
+                                                      className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#003B94]"
+                                                  />
+                                                  <div className="flex items-center gap-2 min-w-[80px]">
+                                                      <input
+                                                          type="number"
+                                                          min="0"
+                                                          max="100"
+                                                          value={settings.habilitacionesBackgroundOpacity ?? 20}
+                                                          onChange={(e) => {
+                                                              const val = parseInt(e.target.value);
+                                                              if (val >= 0 && val <= 100) {
+                                                                  handleChange('habilitacionesBackgroundOpacity', val);
+                                                              }
+                                                          }}
+                                                          className="w-16 bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94] text-center"
+                                                      />
+                                                      <span className="text-[8px] font-black text-gray-400 uppercase">%</span>
+                                                  </div>
+                                              </div>
+                                              {settings.habilitacionesBackgroundImage && (
+                                                  <div className="flex items-center justify-center p-3 bg-gray-50 rounded-xl border border-gray-200">
+                                                      <div 
+                                                          className="bg-white rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center relative overflow-hidden"
+                                                          style={{ 
+                                                              width: '100px', 
+                                                              height: '60px',
+                                                              backgroundImage: `url(${settings.habilitacionesBackgroundImage})`,
+                                                              backgroundSize: 'cover',
+                                                              backgroundPosition: 'center',
+                                                              opacity: (settings.habilitacionesBackgroundOpacity ?? 20) / 100
+                                                          }}
+                                                      >
+                                                          <div className="absolute inset-0 bg-gradient-to-br from-[#001d4a] to-[#003B94] opacity-30"></div>
+                                                      </div>
+                                                  </div>
+                                              )}
+                                          </div>
                                       </div>
                                   </div>
                               </div>
