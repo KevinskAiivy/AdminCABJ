@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, MapPin, Ticket, Settings, ChevronDown, LogOut, MessageSquare, Database, Calendar, Sword, Shield, Lock, Bell, ArrowRightLeft, AlertCircle, Mail, CheckCircle2, X } from 'lucide-react';
 import { BocaLogoSVG } from '../constants';
 import { UserSession, AppNotification } from '../types';
@@ -20,40 +20,23 @@ const NavItem = ({ to, icon: Icon, label, isActive }: any) => (
   </Link>
 );
 
-interface SimulatedView {
-  active: boolean;
-  consulado_id?: string;
-}
-
 export const Navbar = ({ 
   onLogout, 
-  user, 
-  simulatedView, 
-  onSimulatedViewChange 
+  user
 }: { 
   onLogout: () => void, 
-  user: UserSession,
-  simulatedView?: SimulatedView,
-  onSimulatedViewChange?: (view: SimulatedView) => void
+  user: UserSession
 }) => {
   const location = useLocation();
-  const navigate = useNavigate();
   const [logoUrl, setLogoUrl] = useState<string | undefined>(dataService.getAppSettings().logoUrl);
   const [logoError, setLogoError] = useState(false);
   const [logoSize, setLogoSize] = useState<number>(dataService.getAppSettings().logoMenuSize || 40);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [isViewSelectorOpen, setIsViewSelectorOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
-  const [isViewConfirmOpen, setIsViewConfirmOpen] = useState(false);
-  const [pendingViewAction, setPendingViewAction] = useState<'activate' | 'deactivate' | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const viewSelectorRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
-  const viewSelectorTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isSuperAdmin = user.role === 'SUPERADMIN';
-  const consulados = dataService.getConsulados();
   
   // Charger les notifications
   useEffect(() => {
@@ -97,9 +80,6 @@ export const Navbar = ({
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsAdminOpen(false);
       }
-      if (viewSelectorRef.current && !viewSelectorRef.current.contains(event.target as Node)) {
-        setIsViewSelectorOpen(false);
-      }
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setIsNotificationsOpen(false);
       }
@@ -111,68 +91,8 @@ export const Navbar = ({
   // Close dropdowns on route change
   useEffect(() => {
     setIsAdminOpen(false);
-    setIsViewSelectorOpen(false);
     setIsNotificationsOpen(false);
   }, [location]);
-
-  // Auto-close view selector after 5 seconds when simulated view is active
-  useEffect(() => {
-    if (simulatedView?.active && viewSelectorRef.current) {
-      // Clear any existing timer
-      if (viewSelectorTimerRef.current) {
-        clearTimeout(viewSelectorTimerRef.current);
-      }
-      
-      // Set timer to close after 5 seconds
-      viewSelectorTimerRef.current = setTimeout(() => {
-        // Only close if the menu is not being hovered
-        const menuElement = viewSelectorRef.current?.querySelector('div[class*="absolute top-full"]');
-        if (menuElement && !menuElement.matches(':hover')) {
-          setIsViewSelectorOpen(false);
-        }
-      }, 5000); // 5 secondes
-
-      return () => {
-        if (viewSelectorTimerRef.current) {
-          clearTimeout(viewSelectorTimerRef.current);
-        }
-      };
-    }
-  }, [simulatedView?.active]);
-
-  // Reset timer on mouse enter/leave of view selector
-  useEffect(() => {
-    const menuElement = viewSelectorRef.current?.querySelector('div[class*="absolute top-full"]');
-    
-    if (!menuElement) return;
-
-    const handleMouseEnter = () => {
-      // Reset timer when mouse enters
-      if (viewSelectorTimerRef.current) {
-        clearTimeout(viewSelectorTimerRef.current);
-      }
-    };
-
-    const handleMouseLeave = () => {
-      // Start timer when mouse leaves
-      if (viewSelectorTimerRef.current) {
-        clearTimeout(viewSelectorTimerRef.current);
-      }
-      if (simulatedView?.active) {
-        viewSelectorTimerRef.current = setTimeout(() => {
-          setIsViewSelectorOpen(false);
-        }, 5000);
-      }
-    };
-
-    menuElement.addEventListener('mouseenter', handleMouseEnter);
-    menuElement.addEventListener('mouseleave', handleMouseLeave);
-
-    return () => {
-      menuElement.removeEventListener('mouseenter', handleMouseEnter);
-      menuElement.removeEventListener('mouseleave', handleMouseLeave);
-    };
-  }, [simulatedView?.active]);
   
   const handleMarkAsRead = async (notificationId: string) => {
     try {
@@ -195,93 +115,6 @@ export const Navbar = ({
       console.error('Error deleting notification:', error);
     }
   };
-
-  const handleToggleSimulatedView = () => {
-    if (!onSimulatedViewChange) return;
-    
-    if (simulatedView?.active) {
-      // Si la vue simulée est active, ouvrir/fermer le menu directement (sans confirmation)
-      setIsViewSelectorOpen(!isViewSelectorOpen);
-      // Reset timer
-      if (viewSelectorTimerRef.current) {
-        clearTimeout(viewSelectorTimerRef.current);
-      }
-      if (!isViewSelectorOpen) {
-        // Si on ouvre le menu, définir un timer pour le fermer
-        viewSelectorTimerRef.current = setTimeout(() => {
-          setIsViewSelectorOpen(false);
-        }, 5000);
-      }
-    } else {
-      // Si la vue simulée n'est pas active, demander confirmation avant d'activer
-      console.log('Demande de confirmation pour activer la vue simulée');
-      setPendingViewAction('activate');
-      setIsViewConfirmOpen(true);
-      console.log('isViewConfirmOpen devrait être true maintenant');
-    }
-  };
-
-  const confirmViewChange = () => {
-    if (!onSimulatedViewChange || !pendingViewAction) return;
-    
-    if (pendingViewAction === 'deactivate') {
-      // Désactiver la vue simulée
-      onSimulatedViewChange({ active: false });
-      setIsViewSelectorOpen(false);
-      // Clear timer when disabling simulated view
-      if (viewSelectorTimerRef.current) {
-        clearTimeout(viewSelectorTimerRef.current);
-      }
-      navigate('/dashboard');
-    } else {
-      // Activer la vue simulée - ouvrir le menu pour sélectionner un consulado
-      const firstConsulado = consulados.length > 0 ? consulados[0].id : undefined;
-      onSimulatedViewChange({ active: true, consulado_id: firstConsulado });
-      setIsViewSelectorOpen(true); // Ouvrir le menu après confirmation
-      // Définir un timer pour fermer le menu après 5 secondes
-      if (viewSelectorTimerRef.current) {
-        clearTimeout(viewSelectorTimerRef.current);
-      }
-      viewSelectorTimerRef.current = setTimeout(() => {
-        setIsViewSelectorOpen(false);
-      }, 5000);
-      // Ne pas naviguer immédiatement, attendre la sélection d'un consulado
-    }
-    
-    setIsViewConfirmOpen(false);
-    setPendingViewAction(null);
-  };
-
-  const handleSelectConsulado = (consuladoId: string) => {
-    if (!onSimulatedViewChange) return;
-    
-    // Fermer le menu immédiatement avant toute action
-    setIsViewSelectorOpen(false);
-    // Clear timer immédiatement
-    if (viewSelectorTimerRef.current) {
-      clearTimeout(viewSelectorTimerRef.current);
-      viewSelectorTimerRef.current = null;
-    }
-    
-    if (consuladoId === 'return-admin') {
-      // Retour à la vue admin - demander confirmation
-      setPendingViewAction('deactivate');
-      setIsViewConfirmOpen(true);
-      return;
-    }
-    
-    // Changer de consulado
-    onSimulatedViewChange({ active: true, consulado_id: consuladoId });
-    navigate('/dashboard');
-  };
-
-  // Debug log
-  useEffect(() => {
-    console.log('isViewConfirmOpen changed:', isViewConfirmOpen, 'pendingViewAction:', pendingViewAction);
-    if (isViewConfirmOpen) {
-      console.log('Modal should be visible NOW!');
-    }
-  }, [isViewConfirmOpen, pendingViewAction]);
 
   return (
     <div className="fixed top-0 left-0 right-0 z-[100] px-4 pt-4">

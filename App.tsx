@@ -103,11 +103,6 @@ export const App: React.FC = () => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [isInitializing, setIsInitializing] = useState(false);
-  // Vue simulée pour SUPERADMIN (pour voir l'application comme un président)
-  const [simulatedView, setSimulatedView] = useState<{ active: boolean; consulado_id?: string }>(() => {
-    const saved = localStorage.getItem('cabj_simulated_view');
-    return saved ? JSON.parse(saved) : { active: false };
-  });
 
   // Initial Load
   useEffect(() => {
@@ -234,11 +229,11 @@ export const App: React.FC = () => {
       localStorage.setItem('cabj_session', JSON.stringify(user));
     }
   }, [user, loading]);
-
-  // Persist Simulated View
+  
+  // Supprimer l'ancienne vue simulée du localStorage si elle existe
   useEffect(() => {
-    localStorage.setItem('cabj_simulated_view', JSON.stringify(simulatedView));
-  }, [simulatedView]);
+    localStorage.removeItem('cabj_simulated_view');
+  }, []);
 
   const logout = useCallback(() => {
     setUser(null);
@@ -282,27 +277,15 @@ export const App: React.FC = () => {
 
   const isSuperAdmin = user.role === 'SUPERADMIN';
   
-  // Déterminer la vue à utiliser (simulée pour SUPERADMIN ou normale)
-  const effectiveView = isSuperAdmin && simulatedView.active 
-    ? { role: 'PRESIDENTE' as const, consulado_id: simulatedView.consulado_id || user.consulado_id }
-    : { role: user.role, consulado_id: user.consulado_id };
-  
-  const consuladoName = effectiveView.consulado_id 
-    ? dataService.getConsuladoById(effectiveView.consulado_id)?.name || 'Consulado' 
-    : '';
-  
-  // Utiliser la vue simulée pour le routage si active
   // Le menu admin est réservé uniquement aux SUPERADMIN
-  const shouldShowAdminView = isSuperAdmin && !simulatedView.active;
+  const shouldShowAdminView = isSuperAdmin;
 
   return (
     <HashRouter>
       <div className="min-h-screen bg-[#F0F4F8] text-[#001d4a]">
         <Navbar 
           onLogout={logout} 
-          user={user} 
-          simulatedView={simulatedView}
-          onSimulatedViewChange={setSimulatedView}
+          user={user}
         />
         
         <main className="pt-28 pb-10">
@@ -337,11 +320,11 @@ export const App: React.FC = () => {
                 ) : (
                   <>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                    <Route path="/dashboard" element={<PageTransition><DashboardPresident consulado_id={effectiveView.consulado_id || ''} /></PageTransition>} />
-                    <Route path="/consulados" element={<PageTransition><MiConsulado consulado_id={effectiveView.consulado_id || ''} /></PageTransition>} />
-                    <Route path="/socios" element={<PageTransition><SociosPresident consulado_id={effectiveView.consulado_id || ''} /></PageTransition>} />
-                    <Route path="/habilitaciones" element={<PageTransition><HabilitacionesPresident consulado_id={effectiveView.consulado_id || ''} consuladoName={consuladoName} /></PageTransition>} />
-                    <Route path="/habilitaciones/solicitudes/:matchId" element={<PageTransition><SolicitudesDeHabilitaciones consulado_id={effectiveView.consulado_id || ''} consuladoName={consuladoName} /></PageTransition>} />
+                    <Route path="/dashboard" element={<PageTransition><DashboardPresident consulado_id={user.consulado_id || ''} /></PageTransition>} />
+                    <Route path="/consulados" element={<PageTransition><MiConsulado consulado_id={user.consulado_id || ''} /></PageTransition>} />
+                    <Route path="/socios" element={<PageTransition><SociosPresident consulado_id={user.consulado_id || ''} /></PageTransition>} />
+                    <Route path="/habilitaciones" element={<PageTransition><HabilitacionesPresident consulado_id={user.consulado_id || ''} consuladoName={user.consulado_id ? dataService.getConsuladoById(user.consulado_id)?.name || '' : ''} /></PageTransition>} />
+                    <Route path="/habilitaciones/solicitudes/:matchId" element={<PageTransition><SolicitudesDeHabilitaciones consulado_id={user.consulado_id || ''} consuladoName={user.consulado_id ? dataService.getConsuladoById(user.consulado_id)?.name || '' : ''} /></PageTransition>} />
                     
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </>
