@@ -598,7 +598,7 @@ export const Consulados = () => {
       )}
 
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-[1000] flex justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: '100px', paddingBottom: '1rem', alignItems: 'flex-start', height: '500px', marginTop: '10px' }}>
+        <div className="fixed inset-0 z-[1000] flex justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ paddingTop: '10px', paddingBottom: '1rem', alignItems: 'flex-start', height: '500px', marginTop: '0px' }}>
             <div className="relative w-full max-w-3xl bg-white rounded-[2rem] shadow-[0_50px_100px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col border border-white/60 max-h-[90vh] animate-in zoom-in-95 duration-300">
                 <div className="liquid-glass-dark p-4 text-white flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-3">

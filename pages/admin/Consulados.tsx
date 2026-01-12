@@ -6,6 +6,7 @@ import { Search, MapPin, Globe, Users, Building2, ChevronRight, ChevronLeft, X, 
 import { dataService } from '../../services/dataService';
 import { Consulado, Socio } from '../../types';
 import { COUNTRIES, TIMEZONES, WORLD_CITIES } from '../../constants';
+import { supabase } from '../../lib/supabase';
 
 // ... CustomSelect component remains unchanged ...
 // ... existing CustomSelect code ...
@@ -135,6 +136,11 @@ export const Consulados = () => {
   const [importResults, setImportResults] = useState<{ success: number; errors: number; duplicates: number }>({ success: 0, errors: 0, duplicates: 0 });
   const [showImportModal, setShowImportModal] = useState(false);
   const csvInputRef = useRef<HTMLInputElement>(null);
+  
+  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
+  const [selectedBannerFile, setSelectedBannerFile] = useState<File | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -276,6 +282,10 @@ export const Consulados = () => {
           address: '', logo: '', banner: '',
           president: '', vice_president: '', secretary: '', treasurer: '', referente: '', vocal: ''
       });
+      setSelectedLogoFile(null);
+      setSelectedBannerFile(null);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+      if (bannerInputRef.current) bannerInputRef.current.value = '';
       setActiveTab('INFO');
       setIsEditModalOpen(true);
       setShowSaveConfirm(false);
@@ -283,6 +293,10 @@ export const Consulados = () => {
 
   const handleEdit = (consulado: Consulado) => {
       setEditingConsulado({ ...consulado });
+      setSelectedLogoFile(null);
+      setSelectedBannerFile(null);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+      if (bannerInputRef.current) bannerInputRef.current.value = '';
       setActiveTab('INFO');
       setIsEditModalOpen(true);
       setShowSaveConfirm(false);
@@ -297,11 +311,85 @@ export const Consulados = () => {
       const isUpdate = consulados.some(c => c.id === editingConsulado.id);
       const oldConsulado = isUpdate ? consulados.find(c => c.id === editingConsulado.id) : null;
       
-      // Sauvegarder le consulado
-      if (isUpdate) {
-          dataService.updateConsulado(editingConsulado as Consulado);
-      } else {
-          dataService.addConsulado(editingConsulado as Consulado);
+      // Upload des images vers Supabase Storage si des fichiers ont été sélectionnés
+      let logoUrl = editingConsulado.logo || '';
+      let bannerUrl = editingConsulado.banner || '';
+      
+      try {
+          // Upload du logo si un fichier a été sélectionné
+          if (selectedLogoFile) {
+              const consuladoId = editingConsulado.id || crypto.randomUUID();
+              const timestamp = Date.now();
+              const fileExtension = selectedLogoFile.name.split('.').pop() || 'jpg';
+              const fileName = `consulado_${consuladoId}_logo_${timestamp}.${fileExtension}`;
+
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                  .from('logo')
+                  .upload(fileName, selectedLogoFile, {
+                      cacheControl: '3600',
+                      upsert: false
+                  });
+
+              if (uploadError) {
+                  throw new Error(`Error al subir el logo: ${uploadError.message}`);
+              }
+
+              const { data: urlData } = supabase.storage
+                  .from('logo')
+                  .getPublicUrl(fileName);
+
+              if (!urlData?.publicUrl) {
+                  throw new Error('No se pudo obtener la URL pública del logo');
+              }
+
+              logoUrl = urlData.publicUrl;
+          }
+
+          // Upload de la bannière si un fichier a été sélectionné
+          if (selectedBannerFile) {
+              const consuladoId = editingConsulado.id || crypto.randomUUID();
+              const timestamp = Date.now();
+              const fileExtension = selectedBannerFile.name.split('.').pop() || 'jpg';
+              const fileName = `consulado_${consuladoId}_banner_${timestamp}.${fileExtension}`;
+
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                  .from('logo')
+                  .upload(fileName, selectedBannerFile, {
+                      cacheControl: '3600',
+                      upsert: false
+                  });
+
+              if (uploadError) {
+                  throw new Error(`Error al subir la bannière: ${uploadError.message}`);
+              }
+
+              const { data: urlData } = supabase.storage
+                  .from('logo')
+                  .getPublicUrl(fileName);
+
+              if (!urlData?.publicUrl) {
+                  throw new Error('No se pudo obtener la URL pública de la bannière');
+              }
+
+              bannerUrl = urlData.publicUrl;
+          }
+
+          // Mettre à jour les URLs dans editingConsulado
+          const consuladoToSave = {
+              ...editingConsulado,
+              logo: logoUrl,
+              banner: bannerUrl
+          };
+          
+          // Sauvegarder le consulado
+          if (isUpdate) {
+              dataService.updateConsulado(consuladoToSave as Consulado);
+          } else {
+              dataService.addConsulado(consuladoToSave as Consulado);
+          }
+      } catch (error) {
+          alert(error instanceof Error ? error.message : 'Error al subir las imágenes');
+          return;
       }
       
       // Mettre à jour les rôles des socios
@@ -312,7 +400,7 @@ export const Consulados = () => {
           // Si c'est une mise à jour, retirer les rôles des anciens président/referente
           if (oldConsulado) {
               // Retirer le rôle PRESIDENTE de l'ancien président s'il est différent du nouveau
-              if (oldConsulado.president && oldConsulado.president !== editingConsulado.president) {
+              if (oldConsulado.president && oldConsulado.president !== consuladoToSave.president) {
                   const oldPresidentSocio = allSocios.find(s => 
                       s.name === oldConsulado.president || 
                       `${s.first_name} ${s.last_name}` === oldConsulado.president
@@ -320,7 +408,7 @@ export const Consulados = () => {
                   if (oldPresidentSocio && oldPresidentSocio.role === 'PRESIDENTE') {
                       // Vérifier si ce socio n'est pas président d'un autre consulado
                       const isPresidentElsewhere = updatedConsulados.some(c => 
-                          c.id !== editingConsulado.id && 
+                          c.id !== consuladoToSave.id && 
                           (c.president === oldConsulado.president || 
                            c.president === oldPresidentSocio.name ||
                            c.president === `${oldPresidentSocio.first_name} ${oldPresidentSocio.last_name}`)
@@ -333,7 +421,7 @@ export const Consulados = () => {
               }
               
               // Retirer le rôle REFERENTE de l'ancien referente s'il est différent du nouveau
-              if (oldConsulado.referente && oldConsulado.referente !== editingConsulado.referente) {
+              if (oldConsulado.referente && oldConsulado.referente !== consuladoToSave.referente) {
                   const oldReferenteSocio = allSocios.find(s => 
                       s.name === oldConsulado.referente || 
                       `${s.first_name} ${s.last_name}` === oldConsulado.referente
@@ -341,7 +429,7 @@ export const Consulados = () => {
                   if (oldReferenteSocio && oldReferenteSocio.role === 'REFERENTE') {
                       // Vérifier si ce socio n'est pas referente d'un autre consulado
                       const isReferenteElsewhere = updatedConsulados.some(c => 
-                          c.id !== editingConsulado.id && 
+                          c.id !== consuladoToSave.id && 
                           (c.referente === oldConsulado.referente || 
                            c.referente === oldReferenteSocio.name ||
                            c.referente === `${oldReferenteSocio.first_name} ${oldReferenteSocio.last_name}`)
@@ -358,16 +446,16 @@ export const Consulados = () => {
           const updatedSocios = dataService.getSocios();
           
           // Assigner le rôle PRESIDENTE au nouveau président
-          if (editingConsulado.president) {
+          if (consuladoToSave.president) {
               const newPresidentSocio = updatedSocios.find(s => 
-                  s.name === editingConsulado.president || 
-                  `${s.first_name} ${s.last_name}` === editingConsulado.president
+                  s.name === consuladoToSave.president || 
+                  `${s.first_name} ${s.last_name}` === consuladoToSave.president
               );
               if (newPresidentSocio && newPresidentSocio.role !== 'PRESIDENTE') {
                   // Si le socio était referente, on le retire de son ancien consulado
                   if (newPresidentSocio.role === 'REFERENTE') {
                       const oldReferenteConsulado = updatedConsulados.find(c => 
-                          c.id !== editingConsulado.id &&
+                          c.id !== consuladoToSave.id &&
                           (c.referente === newPresidentSocio.name || 
                            c.referente === `${newPresidentSocio.first_name} ${newPresidentSocio.last_name}`)
                       );
@@ -382,10 +470,10 @@ export const Consulados = () => {
           }
           
           // Assigner le rôle REFERENTE au nouveau referente
-          if (editingConsulado.referente) {
+          if (consuladoToSave.referente) {
               const newReferenteSocio = updatedSocios.find(s => 
-                  s.name === editingConsulado.referente || 
-                  `${s.first_name} ${s.last_name}` === editingConsulado.referente
+                  s.name === consuladoToSave.referente || 
+                  `${s.first_name} ${s.last_name}` === consuladoToSave.referente
               );
               if (newReferenteSocio && newReferenteSocio.role !== 'REFERENTE') {
                   // Si le socio était président, on ne peut pas le rétrograder automatiquement
@@ -404,6 +492,12 @@ export const Consulados = () => {
           console.error('Erreur lors de la mise à jour des rôles des socios:', error);
           // Continuer quand même car le consulado a été sauvegardé
       }
+      
+      // Réinitialiser les fichiers après la sauvegarde
+      setSelectedLogoFile(null);
+      setSelectedBannerFile(null);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+      if (bannerInputRef.current) bannerInputRef.current.value = '';
       
       setShowSaveConfirm(false);
       setIsEditModalOpen(false);
@@ -424,7 +518,7 @@ export const Consulados = () => {
       }
   };
 
-  // UPDATED FILE UPLOAD LOGIC
+  // UPDATED FILE UPLOAD LOGIC - Store files for upload to Supabase Storage
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'logo' | 'banner') => {
       const file = e.target.files?.[0];
       if (file) {
@@ -438,6 +532,14 @@ export const Consulados = () => {
               return;
           }
 
+          // Stocker le fichier pour l'upload vers Supabase Storage
+          if (field === 'logo') {
+              setSelectedLogoFile(file);
+          } else {
+              setSelectedBannerFile(file);
+          }
+
+          // Afficher un aperçu local
           const reader = new FileReader();
           reader.onload = (event) => {
               if (event.target?.result) {
@@ -451,6 +553,13 @@ export const Consulados = () => {
 
   const handleRemoveImage = (field: 'logo' | 'banner') => {
       setEditingConsulado(prev => ({ ...prev, [field]: '' }));
+      if (field === 'logo') {
+          setSelectedLogoFile(null);
+          if (logoInputRef.current) logoInputRef.current.value = '';
+      } else {
+          setSelectedBannerFile(null);
+          if (bannerInputRef.current) bannerInputRef.current.value = '';
+      }
   };
 
   // CSV Import Functions
@@ -541,33 +650,39 @@ export const Consulados = () => {
       // Estimate timezone from city/country if not provided
       const estimatedTimezone = timezone || estimateTimezone(row.city?.trim() || '', country);
 
+      // Parse vocales array if provided (comma or semicolon separated)
+      const parseVocales = (vocalesStr: string): string[] => {
+          if (!vocalesStr?.trim()) return [];
+          return vocalesStr.split(/[,;]/).map(v => v.trim()).filter(v => v.length > 0);
+      };
+
       const consulado: Partial<Consulado> = {
           id: crypto.randomUUID(),
           name: name,
           city: row.city?.trim() || '',
           country: country,
-          countryCode: row.country_code?.trim() || getCountryCode(country),
+          country_code: row.country_code?.trim() || getCountryCode(country),
           president: row.president?.trim() || '',
           referente: row.referente?.trim() || '',
           address: row.address?.trim() || '',
           logo: row.logo?.trim() || '',
           banner: row.banner?.trim() || '',
           timezone: estimatedTimezone,
-          foundationYear: foundationYear,
-          isOfficial: row.is_official?.toLowerCase() === 'true' || row.is_official === '1' || row.is_official === 'TRUE' || false,
-          email: '',
-          phone: '',
-          socialInstagram: '',
-          socialFacebook: '',
-          socialX: '',
-          socialYouTube: '',
-          socialTikTok: '',
-          website: '',
-          vicePresident: '',
-          secretary: '',
-          treasurer: '',
-          vocal: '',
-          vocales: []
+          foundation_year: foundationYear,
+          is_official: row.is_official?.toLowerCase() === 'true' || row.is_official === '1' || row.is_official === 'TRUE' || false,
+          email: row.email?.trim() || '',
+          phone: row.phone?.trim() || '',
+          social_instagram: row.social_instagram?.trim() || row.instagram?.trim() || '',
+          social_facebook: row.social_facebook?.trim() || row.facebook?.trim() || '',
+          social_x: row.social_x?.trim() || row.twitter?.trim() || row.x?.trim() || '',
+          social_youtube: row.social_youtube?.trim() || row.youtube?.trim() || '',
+          social_tiktok: row.social_tiktok?.trim() || row.tiktok?.trim() || '',
+          website: row.website?.trim() || row.web?.trim() || '',
+          vice_president: row.vice_president?.trim() || row.vicepresident?.trim() || '',
+          secretary: row.secretary?.trim() || row.secretario?.trim() || '',
+          treasurer: row.treasurer?.trim() || row.tesorero?.trim() || '',
+          vocal: row.vocal?.trim() || '',
+          vocales: parseVocales(row.vocales || row.vocals || '')
       };
 
       return consulado;
@@ -799,21 +914,29 @@ export const Consulados = () => {
                                 <div className="space-y-1 md:col-span-1">
                                     <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
                                         <ImageIcon size={10} className="text-[#003B94]" />
-                                        Logo del Consulado
+                                        Logo del Consulado (URL)
                                     </label>
-                                    <div className="flex items-center gap-3">
+                                    <input 
+                                        type="text" 
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" 
+                                        value={editingConsulado.logo || ''} 
+                                        onChange={e => setEditingConsulado({...editingConsulado, logo: e.target.value})} 
+                                        placeholder="https://example.com/logo.png"
+                                    />
+                                    <div className="flex items-center gap-3 mt-2">
                                         <div className="w-16 h-16 bg-white rounded-full overflow-hidden border-2 border-gray-200 flex items-center justify-center shrink-0">
                                             {editingConsulado.logo ? (
-                                                <img src={editingConsulado.logo} className="w-full h-full object-cover" alt="Logo" />
+                                                <img src={editingConsulado.logo} className="w-full h-full object-cover" alt="Logo" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                             ) : (
                                                 <ImageIcon size={20} className="text-gray-400" />
                                             )}
                                         </div>
                                         <div className="flex-1 flex flex-col gap-2">
                                             <label className="bg-[#003B94] text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 justify-center">
-                                                <Upload size={10} /> {editingConsulado.logo ? 'Cambiar' : 'Subir'} Logo
+                                                <Upload size={10} /> Subir desde archivo
                                                 <input 
                                                     type="file" 
+                                                    ref={logoInputRef}
                                                     accept="image/*" 
                                                     className="hidden" 
                                                     onChange={e => handleFileUpload(e, 'logo')}
@@ -835,20 +958,28 @@ export const Consulados = () => {
                                 <div className="space-y-1 md:col-span-1">
                                     <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
                                         <ImageIcon size={10} className="text-[#003B94]" />
-                                        Bannière del Consulado
+                                        Bannière del Consulado (URL)
                                     </label>
-                                    <div className="w-full h-20 bg-white rounded-lg overflow-hidden border-2 border-gray-200 flex items-center justify-center mb-2">
+                                    <input 
+                                        type="text" 
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" 
+                                        value={editingConsulado.banner || ''} 
+                                        onChange={e => setEditingConsulado({...editingConsulado, banner: e.target.value})} 
+                                        placeholder="https://example.com/banner.jpg"
+                                    />
+                                    <div className="w-full h-20 bg-white rounded-lg overflow-hidden border-2 border-gray-200 flex items-center justify-center mb-2 mt-2">
                                         {editingConsulado.banner ? (
-                                            <img src={editingConsulado.banner} className="w-full h-full object-cover" alt="Bannière" />
+                                            <img src={editingConsulado.banner} className="w-full h-full object-cover" alt="Bannière" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                         ) : (
                                             <ImageIcon size={24} className="text-gray-400" />
                                         )}
                                     </div>
                                     <div className="flex gap-2">
                                         <label className="bg-[#003B94] text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 justify-center flex-1">
-                                            <Upload size={10} /> {editingConsulado.banner ? 'Cambiar' : 'Subir'} Bannière
+                                            <Upload size={10} /> Subir desde archivo
                                             <input 
                                                 type="file" 
+                                                ref={bannerInputRef}
                                                 accept="image/*" 
                                                 className="hidden" 
                                                 onChange={e => handleFileUpload(e, 'banner')}

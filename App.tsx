@@ -1,18 +1,64 @@
 
-import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy, Component, ErrorInfo, ReactNode } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { PageTransition } from './components/PageTransition';
 import { UserSession } from './types';
 import { dataService } from './services/dataService';
 import { BocaLogoSVG } from './constants';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
+
+// Error Boundary pour capturer les erreurs
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#F0F4F8] flex items-center justify-center p-6">
+          <div className="bg-white rounded-xl p-8 max-w-2xl shadow-xl border-2 border-red-200">
+            <AlertTriangle className="mx-auto mb-4 text-red-600" size={48} />
+            <h2 className="text-2xl font-black text-red-800 mb-4 text-center">Erreur de chargement</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Une erreur est survenue lors du chargement de la page.
+            </p>
+            <p className="text-xs text-red-500 mb-4 font-mono bg-red-50 p-3 rounded">
+              {this.state.error?.message || 'Erreur inconnue'}
+            </p>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                window.location.hash = '#/dashboard';
+              }}
+              className="w-full bg-[#003B94] text-white px-6 py-3 rounded-xl font-black uppercase text-sm hover:bg-[#001d4a] transition-all"
+            >
+              Retour au Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 // --- LAZY LOADING DES PAGES (Optimisation Performance) ---
 const Login = lazy(() => import('./pages/Login.tsx'));
 const Dashboard = lazy(() => import('./pages/Dashboard.tsx'));
 const Consulados = lazy(() => import('./pages/Consulados.tsx'));
-const Socios = lazy(() => import('./pages/Socios.tsx'));
+const Socios = lazy(() => import('./pages/Socios.tsx').then(module => ({ default: module.Socios || module.default })));
 const Habilitaciones = lazy(() => import('./pages/Habilitaciones.tsx'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage.tsx'));
 
@@ -298,7 +344,13 @@ export const App: React.FC = () => {
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
                     <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
                     <Route path="/consulados" element={<PageTransition><Consulados /></PageTransition>} />
-                    <Route path="/socios" element={<PageTransition><Socios user={user} /></PageTransition>} />
+                    <Route path="/socios" element={
+                      <PageTransition>
+                        <ErrorBoundary>
+                          <Socios user={user} />
+                        </ErrorBoundary>
+                      </PageTransition>
+                    } />
                     <Route path="/habilitaciones" element={<PageTransition><Habilitaciones /></PageTransition>} />
                     
                     <Route path="/admin/futbol" element={<PageTransition><Futbol /></PageTransition>} />

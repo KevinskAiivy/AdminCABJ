@@ -19,13 +19,31 @@ import autoTable from "jspdf-autotable";
 import { supabase } from '../lib/supabase';
 
 export const Socios = ({ user }: { user?: any }) => {
+  console.log('🔵 Socios component starting to render', { user: user?.name || 'no user' });
+  
   const [searchParams, setSearchParams] = useSearchParams();
-  const [socios, setSocios] = useState<Socio[]>(dataService.getSocios());
-  const [consulados, setConsulados] = useState(dataService.getConsulados());
+  
+  // Protection: initialiser avec des tableaux vides si les données ne sont pas disponibles
+  const [socios, setSocios] = useState<Socio[]>(() => {
+    try {
+      return dataService.getSocios() || [];
+    } catch (error) {
+      console.error('Erreur lors du chargement des socios:', error);
+      return [];
+    }
+  });
+  const [consulados, setConsulados] = useState(() => {
+    try {
+      return dataService.getConsulados() || [];
+    } catch (error) {
+      console.error('Erreur lors du chargement des consulados:', error);
+      return [];
+    }
+  });
   const [searchQuery, setSearchQuery] = useState('');
   
   // Récupérer le consulado depuis l'URL au chargement
-  const consuladoFromUrl = searchParams.get('consulado');
+  const consuladoFromUrl = searchParams?.get('consulado') || null;
   
   // Filters
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
@@ -33,17 +51,27 @@ export const Socios = ({ user }: { user?: any }) => {
   const [filterRole, setFilterRole] = useState<string>('ALL');
   const [filterCuotaStatus, setFilterCuotaStatus] = useState<string>('ALL');
   
-  // Initialiser le filtre consulado depuis l'URL si présent
-  useEffect(() => {
-    if (consuladoFromUrl && filterConsulado !== consuladoFromUrl) {
-      setFilterConsulado(consuladoFromUrl);
-      // Réinitialiser la page à 1 quand le filtre change
-      setCurrentPage(1);
-    }
-  }, [consuladoFromUrl]);
-
+  // Pagination - doit être déclaré avant le useEffect qui l'utilise
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
+  
+  // Initialiser le filtre consulado depuis l'URL si présent (une seule fois au chargement)
+  const hasInitializedFromUrl = useRef(false);
+  useEffect(() => {
+    if (consuladoFromUrl && !hasInitializedFromUrl.current) {
+      try {
+        const decodedConsulado = decodeURIComponent(consuladoFromUrl);
+        setFilterConsulado(decodedConsulado);
+        setCurrentPage(1);
+        hasInitializedFromUrl.current = true;
+      } catch (error) {
+        console.error('Erreur lors du décodage du consulado depuis l\'URL:', error);
+        setFilterConsulado(consuladoFromUrl);
+        setCurrentPage(1);
+        hasInitializedFromUrl.current = true;
+      }
+    }
+  }, [consuladoFromUrl]);
 
   // Modals & Forms
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -77,8 +105,16 @@ export const Socios = ({ user }: { user?: any }) => {
   // SUBSCRIBE TO DATA SERVICE
   useEffect(() => {
       const loadData = () => {
-          setSocios(dataService.getSocios());
-          setConsulados(dataService.getConsulados());
+          try {
+              const loadedSocios = dataService.getSocios();
+              const loadedConsulados = dataService.getConsulados();
+              setSocios(loadedSocios || []);
+              setConsulados(loadedConsulados || []);
+          } catch (error) {
+              console.error('Erreur lors du chargement des données:', error);
+              setSocios([]);
+              setConsulados([]);
+          }
       };
       loadData();
       const unsubscribe = dataService.subscribe(loadData);
@@ -165,36 +201,57 @@ export const Socios = ({ user }: { user?: any }) => {
   };
 
   const stats = useMemo(() => {
-    let alDiaCount = 0, deudaCount = 0, bajaCount = 0;
-    socios.forEach(s => {
-        const computed = calculateSocioStatus(s.last_month_paid || '');
-        if (computed.label === 'AL DÍA') alDiaCount++;
-        else if (computed.label === 'EN DEUDA') deudaCount++;
-        else if (computed.label === 'DE BAJA') bajaCount++;
-    });
-    return { total: socios.length, alDia: alDiaCount, morosos: deudaCount, deBaja: bajaCount };
+    try {
+      let alDiaCount = 0, deudaCount = 0, bajaCount = 0;
+      const safeSocios = socios || [];
+      safeSocios.forEach(s => {
+          try {
+              const computed = calculateSocioStatus(s?.last_month_paid || '');
+              if (computed?.label === 'AL DÍA') alDiaCount++;
+              else if (computed?.label === 'EN DEUDA') deudaCount++;
+              else if (computed?.label === 'DE BAJA') bajaCount++;
+          } catch (error) {
+              console.error('Erreur lors du calcul du statut d\'un socio:', error);
+          }
+      });
+      return { total: safeSocios.length, alDia: alDiaCount, morosos: deudaCount, deBaja: bajaCount };
+    } catch (error) {
+      console.error('Erreur lors du calcul des stats:', error);
+      return { total: 0, alDia: 0, morosos: 0, deBaja: 0 };
+    }
   }, [socios]);
 
   const filteredSocios = useMemo(() => {
-    return socios.filter(s => {
-      const q = searchQuery.toLowerCase();
-      const matchesSearch = s.name.toLowerCase().includes(q) || s.dni.includes(q) || s.id.includes(q) || (s.consulado && s.consulado.toLowerCase().includes(q));
-      
-      const dynamicStatus = calculateSocioStatus(s.last_month_paid || '').label;
-      const matchesCategory = filterCategory === 'ALL' || s.category === filterCategory;
-      const matchesConsulado = filterConsulado === 'ALL' || 
-        (filterConsulado === 'SEDE CENTRAL' || filterConsulado?.toUpperCase() === 'SEDE CENTRAL' 
-          ? (!s.consulado || s.consulado?.toUpperCase() === 'SEDE CENTRAL' || s.consulado?.toUpperCase() === 'SEDE CENTRAL')
-          : s.consulado === filterConsulado || s.consulado?.toUpperCase() === filterConsulado?.toUpperCase());
-      const matchesRole = filterRole === 'ALL' 
-        ? true 
-        : filterRole === '' 
-          ? !s.role || s.role === '' || s.role === null || s.role === undefined
-          : (s.role && s.role.toUpperCase().trim() === filterRole.toUpperCase().trim());
-      const matchesCuotaStatus = filterCuotaStatus === 'ALL' || dynamicStatus === filterCuotaStatus;
+    try {
+      const safeSocios = socios || [];
+      return safeSocios.filter(s => {
+        try {
+          const q = searchQuery.toLowerCase();
+          const matchesSearch = (s?.name || '').toLowerCase().includes(q) || (s?.dni || '').includes(q) || (s?.id || '').includes(q) || (s?.consulado && s.consulado.toLowerCase().includes(q));
+          
+          const dynamicStatus = calculateSocioStatus(s?.last_month_paid || '')?.label || '';
+          const matchesCategory = filterCategory === 'ALL' || s?.category === filterCategory;
+          const matchesConsulado = filterConsulado === 'ALL' || 
+            (filterConsulado === 'SEDE CENTRAL' || filterConsulado?.toUpperCase() === 'SEDE CENTRAL' 
+              ? (!s?.consulado || s.consulado?.toUpperCase() === 'SEDE CENTRAL' || s.consulado?.toUpperCase() === 'SEDE CENTRAL')
+              : s?.consulado === filterConsulado || s?.consulado?.toUpperCase() === filterConsulado?.toUpperCase());
+          const matchesRole = filterRole === 'ALL' 
+            ? true 
+            : filterRole === '' 
+              ? !s?.role || s.role === '' || s.role === null || s.role === undefined
+              : (s?.role && s.role.toUpperCase().trim() === filterRole.toUpperCase().trim());
+          const matchesCuotaStatus = filterCuotaStatus === 'ALL' || dynamicStatus === filterCuotaStatus;
 
-      return matchesSearch && matchesCategory && matchesConsulado && matchesRole && matchesCuotaStatus;
-    });
+          return matchesSearch && matchesCategory && matchesConsulado && matchesRole && matchesCuotaStatus;
+        } catch (error) {
+          console.error('Erreur lors du filtrage d\'un socio:', error);
+          return false;
+        }
+      });
+    } catch (error) {
+      console.error('Erreur lors du filtrage des socios:', error);
+      return [];
+    }
   }, [socios, searchQuery, filterCategory, filterConsulado, filterRole, filterCuotaStatus]);
 
   const totalPages = Math.ceil(filteredSocios.length / itemsPerPage);
@@ -498,6 +555,18 @@ export const Socios = ({ user }: { user?: any }) => {
       setIdStatus(isUsed ? 'ERROR' : 'VALID');
   };
 
+  // Log pour debug
+  useEffect(() => {
+    console.log('🟢 Socios component fully rendered', { 
+      sociosCount: socios?.length || 0, 
+      consuladosCount: consulados?.length || 0,
+      filterConsulado,
+      consuladoFromUrl
+    });
+  }, [socios, consulados, filterConsulado, consuladoFromUrl]);
+
+  console.log('🟡 Socios about to return JSX');
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 px-4 animate-boca-entrance">
       <div className="bg-[#003B94] p-6 rounded-xl border border-white/20 shadow-xl relative overflow-hidden">
@@ -518,28 +587,28 @@ export const Socios = ({ user }: { user?: any }) => {
                     <div className="flex flex-col items-center gap-1.5">
                         <div className="w-16 h-16 flex flex-col items-center justify-center">
                             <div className="p-1.5 rounded bg-white/20 text-white mb-1"><Users size={14}/></div>
-                            <span className="text-sm font-black text-white oswald leading-none">{stats.total}</span>
+                            <span className="text-sm font-black text-white oswald leading-none">{stats?.total || 0}</span>
                         </div>
                         <span className="text-[8px] text-white/80 font-bold uppercase tracking-wider whitespace-nowrap">Total Socios</span>
                     </div>
                     <div className="flex flex-col items-center gap-1.5">
                         <div className="w-16 h-16 flex flex-col items-center justify-center">
                             <div className="p-1.5 rounded bg-white/20 text-white mb-1"><CheckCircle2 size={14}/></div>
-                            <span className="text-sm font-black text-white oswald leading-none">{stats.alDia}</span>
+                            <span className="text-sm font-black text-white oswald leading-none">{stats?.alDia || 0}</span>
                         </div>
                         <span className="text-[8px] text-white/80 font-bold uppercase tracking-wider whitespace-nowrap">Al Día</span>
                     </div>
                     <div className="flex flex-col items-center gap-1.5">
                         <div className="w-16 h-16 flex flex-col items-center justify-center">
                             <div className="p-1.5 rounded bg-white/20 text-white mb-1"><AlertTriangle size={14}/></div>
-                            <span className="text-sm font-black text-white oswald leading-none">{stats.morosos}</span>
+                            <span className="text-sm font-black text-white oswald leading-none">{stats?.morosos || 0}</span>
                         </div>
                         <span className="text-[8px] text-white/80 font-bold uppercase tracking-wider whitespace-nowrap">En Deuda</span>
                     </div>
                     <div className="flex flex-col items-center gap-1.5">
                         <div className="w-16 h-16 flex flex-col items-center justify-center">
                             <div className="p-1.5 rounded bg-white/20 text-white mb-1"><UserX size={14}/></div>
-                            <span className="text-sm font-black text-white oswald leading-none">{stats.deBaja}</span>
+                            <span className="text-sm font-black text-white oswald leading-none">{stats?.deBaja || 0}</span>
                         </div>
                         <span className="text-[8px] text-white/80 font-bold uppercase tracking-wider whitespace-nowrap">De Baja</span>
                     </div>
@@ -555,7 +624,7 @@ export const Socios = ({ user }: { user?: any }) => {
                 <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
             </div>
             <div className="relative min-w-[150px]">
-                <select value={filterConsulado} onChange={(e) => setFilterConsulado(e.target.value)} style={{width: '200px'}} className="bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Consulados</option><option value="SEDE CENTRAL">Sede Central</option>{consulados.sort((a,b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
+                <select value={filterConsulado} onChange={(e) => setFilterConsulado(e.target.value)} style={{width: '200px'}} className="bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Consulados</option><option value="SEDE CENTRAL">Sede Central</option>{(consulados || []).sort((a,b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
                 <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
             </div>
             {/* Filtre Estado de la cuota - visible uniquement pour PRESIDENTE et REFERENTE */}
@@ -588,7 +657,7 @@ export const Socios = ({ user }: { user?: any }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {currentItems.map((socio) => {
+        {(currentItems || []).map((socio) => {
             const isPresident = socio.role === 'PRESIDENTE';
             const isReferente = socio.role === 'REFERENTE';
             const computedStatus = calculateSocioStatus(socio.last_month_paid || '');
