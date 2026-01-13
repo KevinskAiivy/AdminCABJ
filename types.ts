@@ -54,6 +54,17 @@ export interface Consulado {
   official_date?: string; // Date d'officialisation (format DD/MM/YYYY)
 }
 
+export interface Logo {
+  id: string;
+  consulado_id: string;
+  marco_url: string | null; // URL du logo "marco" (cadre)
+  logotipo_url: string | null; // URL du logo "logotipo"
+  marco_uploaded_at: string | null;
+  logotipo_uploaded_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Match {
   id: number;
   // Relational Fields

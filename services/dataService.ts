@@ -1,4 +1,4 @@
-import { AppSettings, Socio, Consulado, Match, Team, Competition, Mensaje, AgendaEvent, AppUser, UserSession, AppNotification, Solicitud, TransferRequest } from '../types';
+import { AppSettings, Socio, Consulado, Match, Team, Competition, Mensaje, AgendaEvent, AppUser, UserSession, AppNotification, Solicitud, TransferRequest, Logo } from '../types';
 import { supabase } from '../lib/supabase';
 
 export interface IntegrityResult {
@@ -2741,6 +2741,147 @@ class DataService {
       console.error("❌ Error en re-mapeo manual:", error);
       this.loadingMessage = "";
       throw new Error(error.message || 'Error durante el re-mapeo manual');
+    }
+  }
+
+  // ============================================================================
+  // LOGOS - Marco & Logotipo
+  // ============================================================================
+
+  /**
+   * Récupérer les logos d'un consulado
+   */
+  async getConsuladoLogos(consuladoId: string): Promise<Logo | null> {
+    try {
+      const { data, error } = await supabase
+        .from('logos')
+        .select('*')
+        .eq('consulado_id', consuladoId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
+        throw error;
+      }
+
+      return data || null;
+    } catch (error: any) {
+      console.error('Erreur lors de la récupération des logos:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Créer ou mettre à jour les logos d'un consulado
+   */
+  async upsertConsuladoLogos(consuladoId: string, marcoUrl: string | null, logotipoUrl: string | null): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('logos')
+        .upsert({
+          consulado_id: consuladoId,
+          marco_url: marcoUrl,
+          logotipo_url: logotipoUrl,
+          marco_uploaded_at: marcoUrl ? new Date().toISOString() : null,
+          logotipo_uploaded_at: logotipoUrl ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'consulado_id'
+        });
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Erreur lors de la mise à jour des logos:', error);
+      throw new Error(error.message || 'Erreur lors de la mise à jour des logos');
+    }
+  }
+
+  /**
+   * Mettre à jour uniquement le marco
+   */
+  async updateMarco(consuladoId: string, marcoUrl: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('logos')
+        .upsert({
+          consulado_id: consuladoId,
+          marco_url: marcoUrl,
+          marco_uploaded_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'consulado_id'
+        });
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Erreur lors de la mise à jour du marco:', error);
+      throw new Error(error.message || 'Erreur lors de la mise à jour du marco');
+    }
+  }
+
+  /**
+   * Mettre à jour uniquement le logotipo
+   */
+  async updateLogotipo(consuladoId: string, logotipoUrl: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('logos')
+        .upsert({
+          consulado_id: consuladoId,
+          logotipo_url: logotipoUrl,
+          logotipo_uploaded_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'consulado_id'
+        });
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Erreur lors de la mise à jour du logotipo:', error);
+      throw new Error(error.message || 'Erreur lors de la mise à jour du logotipo');
+    }
+  }
+
+  /**
+   * Supprimer les logos d'un consulado
+   */
+  async deleteConsuladoLogos(consuladoId: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('logos')
+        .delete()
+        .eq('consulado_id', consuladoId);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Erreur lors de la suppression des logos:', error);
+      throw new Error(error.message || 'Erreur lors de la suppression des logos');
+    }
+  }
+
+  /**
+   * Récupérer tous les logos de tous les consulados
+   */
+  async getAllLogos(): Promise<(Logo & { consulado_name?: string })[]> {
+    try {
+      const { data, error } = await supabase
+        .from('logos')
+        .select(`
+          *,
+          consulados (
+            name
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return (data || []).map(item => ({
+        ...item,
+        consulado_name: item.consulados?.name || undefined
+      }));
+    } catch (error: any) {
+      console.error('Erreur lors de la récupération de tous les logos:', error);
+      return [];
     }
   }
 }
