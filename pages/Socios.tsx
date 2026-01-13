@@ -412,7 +412,7 @@ export const Socios = ({ user }: { user?: any }) => {
             
             // Upload du fichier dans Supabase Storage
             const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('logo')
+                .from('Logo')
                 .upload(fileName, selectedPhotoFile, {
                     cacheControl: '3600',
                     upsert: false
@@ -424,7 +424,7 @@ export const Socios = ({ user }: { user?: any }) => {
             
             // Récupérer l'URL publique de l'image
             const { data: urlData } = supabase.storage
-                .from('logo')
+                .from('Logo')
                 .getPublicUrl(fileName);
             
             if (!urlData?.publicUrl) {

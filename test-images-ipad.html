@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Images Supabase - iPad</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #003B94 0%, #001d4a 100%);
+            color: white;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 28px;
+            font-weight: 900;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            color: #FCB131;
+        }
+        .subtitle {
+            font-size: 14px;
+            margin-bottom: 30px;
+            opacity: 0.8;
+        }
+        .section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(252, 177, 49, 0.3);
+        }
+        .section h2 {
+            font-size: 18px;
+            font-weight: 900;
+            color: #FCB131;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+        .test-image {
+            width: 100%;
+            max-width: 200px;
+            height: 200px;
+            background: white;
+            border-radius: 15px;
+            padding: 10px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .test-image img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .status {
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .status.success {
+            background: #10b981;
+            color: white;
+        }
+        .status.error {
+            background: #ef4444;
+            color: white;
+        }
+        .status.info {
+            background: #3b82f6;
+            color: white;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .info-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        .info-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #FCB131;
+            font-weight: 900;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .url-test {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+        button {
+            background: #FCB131;
+            color: #001d4a;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 14px;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Test Images Supabase</h1>
+        <p class="subtitle">Diagnostic pour iPad Pro - Safari & Opera</p>
+
+        <!-- Informations appareil -->
+        <div class="section">
+            <h2>📱 Informations Appareil</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Navigateur</div>
+                    <div class="info-value" id="browser">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Résolution</div>
+                    <div class="info-value" id="resolution">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Connexion</div>
+                    <div class="info-value" id="online">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Cookies</div>
+                    <div class="info-value" id="cookies">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test 1 : Bucket accessible -->
+        <div class="section">
+            <h2>Test 1 : Accès au bucket Storage</h2>
+            <div id="test1-status" class="status info">En attente...</div>
+            <button onclick="testBucketAccess()">🚀 Lancer Test 1</button>
+            <div class="url-test" id="test1-url"></div>
+        </div>
+
+        <!-- Test 2 : Chargement image depuis consulados/ -->
+        <div class="section">
+            <h2>Test 2 : Image du dossier consulados/</h2>
+            <div id="test2-status" class="status info">En attente...</div>
+            <div class="test-image">
+                <img id="test2-img" src="" alt="Test" style="display:none;">
+                <div id="test2-placeholder">Cliquez sur "Lancer Test 2"</div>
+            </div>
+            <button onclick="testConsuladoImage()">🚀 Lancer Test 2</button>
+            <div class="url-test" id="test2-url"></div>
+        </div>
+
+        <!-- Test 3 : Image depuis la racine -->
+        <div class="section">
+            <h2>Test 3 : Image de la racine (socios)</h2>
+            <div id="test3-status" class="status info">En attente...</div>
+            <div class="test-image">
+                <img id="test3-img" src="" alt="Test" style="display:none;">
+                <div id="test3-placeholder">Cliquez sur "Lancer Test 3"</div>
+            </div>
+            <button onclick="testRootImage()">🚀 Lancer Test 3</button>
+            <div class="url-test" id="test3-url"></div>
+        </div>
+
+        <!-- Résumé -->
+        <div class="section">
+            <h2>📊 Résumé</h2>
+            <div id="summary">Lancez les tests ci-dessus</div>
+        </div>
+
+        <!-- Solutions -->
+        <div class="section">
+            <h2>💡 Solutions si les tests échouent</h2>
+            <ol style="padding-left: 20px; line-height: 1.8;">
+                <li><strong>Erreur 403/401</strong> : Le bucket n'est pas public → Activez-le dans Supabase</li>
+                <li><strong>Timeout</strong> : Problème de connexion réseau</li>
+                <li><strong>CORS error</strong> : Configuration CORS à vérifier dans Supabase</li>
+                <li><strong>Image ne charge pas</strong> : Videz le cache Safari/Opera</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Informations appareil
+        document.getElementById('browser').textContent = navigator.userAgent.includes('Safari') ? 'Safari' : 
+                                                         navigator.userAgent.includes('OPR') ? 'Opera' : 
+                                                         'Autre';
+        document.getElementById('resolution').textContent = window.screen.width + 'x' + window.screen.height;
+        document.getElementById('online').textContent = navigator.onLine ? '✅ En ligne' : '❌ Hors ligne';
+        document.getElementById('cookies').textContent = navigator.cookieEnabled ? '✅ Activés' : '❌ Désactivés';
+
+        const SUPABASE_URL = 'https://mihvnjyicixelzdwztet.supabase.co';
+        const BUCKET = 'logo';
+
+        // Test 1 : Accès au bucket
+        async function testBucketAccess() {
+            const statusEl = document.getElementById('test1-status');
+            const urlEl = document.getElementById('test1-url');
+            
+            const testUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/`;
+            urlEl.textContent = testUrl;
+            
+            statusEl.className = 'status info';
+            statusEl.textContent = '⏳ Test en cours...';
+            
+            try {
+                const response = await fetch(testUrl, { method: 'GET' });
+                
+                if (response.ok) {
+                    statusEl.className = 'status success';
+                    statusEl.textContent = '✅ SUCCÈS : Le bucket est accessible (HTTP ' + response.status + ')';
+                } else {
+                    statusEl.className = 'status error';
+                    statusEl.textContent = '❌ ERREUR : HTTP ' + response.status + ' - Le bucket n\'est probablement pas public';
+                }
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ ERREUR : ' + error.message;
+            }
+            
+            updateSummary();
+        }
+
+        // Test 2 : Image consulados
+        function testConsuladoImage() {
+            const statusEl = document.getElementById('test2-status');
+            const urlEl = document.getElementById('test2-url');
+            const img = document.getElementById('test2-img');
+            const placeholder = document.getElementById('test2-placeholder');
+            
+            // URL d'exemple - remplacez par une vraie image de votre bucket
+            const testUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/consulados/test.png`;
+            urlEl.textContent = testUrl;
+            
+            statusEl.className = 'status info';
+            statusEl.textContent = '⏳ Chargement en cours...';
+            
+            img.onload = function() {
+                statusEl.className = 'status success';
+                statusEl.textContent = '✅ SUCCÈS : L\'image s\'est chargée !';
+                placeholder.style.display = 'none';
+                img.style.display = 'block';
+                updateSummary();
+            };
+            
+            img.onerror = function() {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ ERREUR : Impossible de charger l\'image (fichier inexistant ou permissions)';
+                updateSummary();
+            };
+            
+            img.src = testUrl;
+        }
+
+        // Test 3 : Image racine
+        function testRootImage() {
+            const statusEl = document.getElementById('test3-status');
+            const urlEl = document.getElementById('test3-url');
+            const img = document.getElementById('test3-img');
+            const placeholder = document.getElementById('test3-placeholder');
+            
+            // URL d'exemple - remplacez par une vraie image de votre bucket
+            const testUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/test.jpg`;
+            urlEl.textContent = testUrl;
+            
+            statusEl.className = 'status info';
+            statusEl.textContent = '⏳ Chargement en cours...';
+            
+            img.onload = function() {
+                statusEl.className = 'status success';
+                statusEl.textContent = '✅ SUCCÈS : L\'image s\'est chargée !';
+                placeholder.style.display = 'none';
+                img.style.display = 'block';
+                updateSummary();
+            };
+            
+            img.onerror = function() {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ ERREUR : Impossible de charger l\'image (fichier inexistant ou permissions)';
+                updateSummary();
+            };
+            
+            img.src = testUrl;
+        }
+
+        function updateSummary() {
+            const summaryEl = document.getElementById('summary');
+            const tests = [
+                document.getElementById('test1-status').textContent,
+                document.getElementById('test2-status').textContent,
+                document.getElementById('test3-status').textContent
+            ];
+            
+            const successCount = tests.filter(t => t.includes('✅')).length;
+            const errorCount = tests.filter(t => t.includes('❌')).length;
+            
+            summaryEl.innerHTML = `
+                <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">
+                    ✅ Réussis : ${successCount} / 3<br>
+                    ❌ Échoués : ${errorCount} / 3
+                </div>
+                ${errorCount > 0 ? '<div style="color: #FCB131; margin-top: 10px;">⚠️ Vérifiez que le bucket "logo" est bien configuré en PUBLIC dans Supabase</div>' : ''}
+                ${successCount === 3 ? '<div style="color: #10b981; margin-top: 10px;">🎉 Tout fonctionne ! Si les logos ne s\'affichent toujours pas, videz le cache de votre navigateur.</div>' : ''}
+            `;
+        }
+    </script>
+</body>
+</html>

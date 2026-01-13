@@ -59,10 +59,10 @@ export const getConsuladoLogoUrl = (filePath: string | null | undefined): string
     return placeholderUrl;
   }
   
-  // Récupérer l'URL publique depuis le bucket 'logo'
+  // Récupérer l'URL publique depuis le bucket 'Logo'
   // Le filePath contient déjà le sous-dossier (ex: "consulados/fichier.png")
   const { data } = supabase.storage
-    .from('logo')
+    .from('Logo')
     .getPublicUrl(filePath);
   
   return data.publicUrl;
@@ -92,9 +92,9 @@ export const listStorageFiles = async (
   } = {}
 ) => {
   try {
-    const { data, error } = await supabase.storage
-      .from('logo')
-      .list(folderPath, {
+      const { data, error } = await supabase.storage
+        .from('Logo')
+        .list(folderPath, {
         limit: options.limit || 100,
         offset: options.offset || 0,
         sortBy: options.sortBy || { column: 'created_at', order: 'desc' }

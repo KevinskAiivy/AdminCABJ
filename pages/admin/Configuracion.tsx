@@ -32,7 +32,7 @@ export const Configuracion = () => {
     setCurrentFolder(folderPath);
     try {
       const { data: files, error } = await supabase.storage
-        .from('logo')
+        .from('Logo')
         .list(folderPath, {
           limit: 1000,
           sortBy: { column: 'name', order: 'asc' }
@@ -55,7 +55,7 @@ export const Configuracion = () => {
         const imagesWithUrls = imageFiles.map(file => {
           const fullPath = folderPath ? `${folderPath}/${file.name}` : file.name;
           const { data } = supabase.storage
-            .from('logo')
+            .from('Logo')
             .getPublicUrl(fullPath);
           
           return {
@@ -149,7 +149,7 @@ export const Configuracion = () => {
     
     try {
       const { error } = await supabase.storage
-        .from('logo')
+        .from('Logo')
         .remove([fullPath]);
 
       if (error) throw error;

@@ -347,7 +347,7 @@ export const Consulados = () => {
               const fileName = `consulados/consulado_${consuladoId}_logo_${timestamp}.${fileExtension}`;
 
               const { data: uploadData, error: uploadError } = await supabase.storage
-                  .from('logo')
+                  .from('Logo')
                   .upload(fileName, selectedLogoFile, {
                       cacheControl: '3600',
                       upsert: false
@@ -378,7 +378,7 @@ export const Consulados = () => {
               const fileName = `consulados/consulado_${consuladoId}_banner_${timestamp}.${fileExtension}`;
 
               const { data: uploadData, error: uploadError } = await supabase.storage
-                  .from('logo')
+                  .from('Logo')
                   .upload(fileName, selectedBannerFile, {
                       cacheControl: '3600',
                       upsert: false

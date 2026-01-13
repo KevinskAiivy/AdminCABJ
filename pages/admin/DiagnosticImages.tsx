@@ -49,7 +49,7 @@ export const DiagnosticImages = () => {
 
     // Test 2: Accès au bucket Storage
     try {
-      const { data, error } = await supabase.storage.from('logo').list('', { limit: 1 });
+      const { data, error } = await supabase.storage.from('Logo').list('', { limit: 1 });
       results.push({
         test: 'Accès Storage bucket "logo"',
         status: error ? 'error' : 'success',
@@ -68,7 +68,7 @@ export const DiagnosticImages = () => {
     // Test 3: Permissions bucket
     try {
       const testPath = 'consulados/test.png';
-      const { data } = supabase.storage.from('logo').getPublicUrl(testPath);
+      const { data } = supabase.storage.from('Logo').getPublicUrl(testPath);
       
       // Tester si l'URL est accessible
       const response = await fetch(data.publicUrl, { method: 'HEAD' });
@@ -136,7 +136,7 @@ export const DiagnosticImages = () => {
 
     // Test 5: CORS et politique de sécurité
     try {
-      const testUrl = supabase.storage.from('logo').getPublicUrl('test.png').data.publicUrl;
+      const testUrl = supabase.storage.from('Logo').getPublicUrl('test.png').data.publicUrl;
       const corsTest = await fetch(testUrl, { 
         method: 'GET',
         mode: 'cors'
@@ -168,7 +168,7 @@ export const DiagnosticImages = () => {
       details: {
         logoMenuUrl: settings.logoUrl?.substring(0, 50) + '...',
         matchLogoUrl: settings.matchLogoUrl?.substring(0, 50) + '...',
-        supabaseUrl: supabase.storage.from('logo').getPublicUrl('').data.publicUrl
+        supabaseUrl: supabase.storage.from('Logo').getPublicUrl('').data.publicUrl
       }
     });
 
