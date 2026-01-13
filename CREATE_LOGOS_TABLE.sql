@@ -4,7 +4,7 @@
 -- Création de la table logos
 CREATE TABLE IF NOT EXISTS public.logos (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    consulado_id UUID REFERENCES public.consulados(id) ON DELETE CASCADE,
+    consulado_id TEXT REFERENCES public.consulados(id) ON DELETE CASCADE,
     
     -- URLs des logos
     marco_url TEXT,  -- URL du logo "marco" (cadre)
