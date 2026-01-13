@@ -65,7 +65,10 @@ export const getConsuladoLogoUrl = (filePath: string | null | undefined): string
     .from('Logo')
     .getPublicUrl(filePath);
   
-  return data.publicUrl;
+  // Ajouter un timestamp pour éviter les problèmes de cache
+  const urlWithTimestamp = `${data.publicUrl}?t=${Date.now()}`;
+  
+  return urlWithTimestamp;
 };
 
 /**
