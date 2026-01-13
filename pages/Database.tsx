@@ -5,7 +5,7 @@ import {
   Database as DatabaseIcon, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Activity, Server, HardDrive, 
   Users, MapPin, Calendar, MessageSquare, ShieldCheck, Trophy, Clock, Loader2, 
   Trash2, Download, Settings, Eye, EyeOff, FileText, TrendingUp, 
-  AlertCircle, RotateCcw, RotateCw, X, Check, Code, ArrowRight, Copy, CheckCircle
+  AlertCircle, RotateCcw, RotateCw, X, Check, Code, ArrowRight, Copy, CheckCircle, Image
 } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import { IntegrityResult, TableSchema, FieldMapping } from '../services/dataService';
@@ -36,7 +36,8 @@ const TABLE_CONFIG = [
   { name: 'agenda', icon: Clock, color: 'pink', label: 'Agenda' },
   { name: 'mensajes', icon: MessageSquare, color: 'indigo', label: 'Mensajes' },
   { name: 'users', icon: Users, color: 'teal', label: 'Usuarios' },
-  { name: 'transfer_requests', icon: ArrowRight, color: 'cyan', label: 'Transferencias' }
+  { name: 'transfer_requests', icon: ArrowRight, color: 'cyan', label: 'Transferencias' },
+  { name: 'logos', icon: Image, color: 'red', label: 'Logos' }
 ] as const;
 
 export const Database = () => {
@@ -69,7 +70,8 @@ export const Database = () => {
     competitions: 0,
     agenda: 0,
     mensajes: 0,
-    users: 0
+    users: 0,
+    logos: 0
   });
 
   // Add log entry
@@ -84,10 +86,21 @@ export const Database = () => {
   }, []);
 
   // Update status function
-  const updateStatus = useCallback(() => {
+  const updateStatus = useCallback(async () => {
     setIsConnected(dataService.isConnected);
     setConnectionError(dataService.connectionError);
     setLoadingMessage(dataService.loadingMessage);
+    
+    // Count logos from Supabase
+    let logosCount = 0;
+    try {
+      const { count } = await supabase
+        .from('logos')
+        .select('*', { count: 'exact', head: true });
+      logosCount = count || 0;
+    } catch (error) {
+      console.error('Error counting logos:', error);
+    }
     
     const newStats = {
       socios: dataService.getSocios().length,
@@ -97,7 +110,8 @@ export const Database = () => {
       competitions: dataService.getCompetitions().length,
       agenda: dataService.getAgendaEvents().length,
       mensajes: dataService.getMensajes().length,
-      users: dataService.getUsers().length
+      users: dataService.getUsers().length,
+      logos: logosCount
     };
     
     setStats(newStats);
