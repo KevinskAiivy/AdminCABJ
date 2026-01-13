@@ -51,6 +51,7 @@ export interface Consulado {
   banner: string;
   logo: string;
   is_official?: boolean;
+  official_date?: string; // Date d'officialisation (format DD/MM/YYYY)
 }
 
 export interface Match {

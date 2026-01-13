@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GlassCard } from '../components/GlassCard';
-import { Search, MapPin, Globe, Users, Building2, ChevronRight, ChevronLeft, X, Mail, Phone, Instagram, Facebook, Twitter, Link as LinkIcon, Filter, Plus, Edit2, Trash2, Save, Star, Upload, Image as ImageIcon, Check, AlertTriangle, Youtube, Clock, ShieldCheck, Video, ChevronUp, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Search, MapPin, Globe, Users, Building2, ChevronRight, ChevronLeft, X, Mail, Phone, Instagram, Facebook, Twitter, Link as LinkIcon, Filter, Plus, Edit2, Trash2, Save, Star, Upload, Image as ImageIcon, Check, AlertTriangle, Youtube, Clock, ShieldCheck, Video, ChevronUp, ChevronDown, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import { Consulado, Socio } from '../types';
 import { COUNTRIES, TIMEZONES, WORLD_CITIES } from '../constants';
@@ -117,9 +117,11 @@ export const Consulados = () => {
   const [allSocios, setAllSocios] = useState<Socio[]>(dataService.getSocios()); 
   const [searchQuery, setSearchQuery] = useState('');
   const [countryFilter, setCountryFilter] = useState('ALL');
+  const [officialFilter, setOfficialFilter] = useState<'ALL' | 'OFFICIAL' | 'NON_OFFICIAL'>('ALL');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | 'none'>('none');
   
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 9;
+  const itemsPerPage = 6;
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingConsulado, setEditingConsulado] = useState<Partial<Consulado>>({});
@@ -198,12 +200,30 @@ export const Consulados = () => {
   }, [consulados]);
 
   const filteredConsulados = useMemo(() => {
-    return consulados.filter(c => {
+    let filtered = consulados.filter(c => {
       const matchesSearch = (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (c.city || '').toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCountry = countryFilter === 'ALL' || c.country === countryFilter;
-      return matchesSearch && matchesCountry;
+      const matchesOfficial = officialFilter === 'ALL' || 
+        (officialFilter === 'OFFICIAL' && c.is_official === true) ||
+        (officialFilter === 'NON_OFFICIAL' && (c.is_official === false || !c.is_official));
+      return matchesSearch && matchesCountry && matchesOfficial;
     });
-  }, [consulados, searchQuery, countryFilter]);
+    
+    // Tri par nom si activé
+    if (sortOrder !== 'none') {
+      filtered = [...filtered].sort((a, b) => {
+        const nameA = (a.name || '').toLowerCase();
+        const nameB = (b.name || '').toLowerCase();
+        if (sortOrder === 'asc') {
+          return nameA.localeCompare(nameB);
+        } else {
+          return nameB.localeCompare(nameA);
+        }
+      });
+    }
+    
+    return filtered;
+  }, [consulados, searchQuery, countryFilter, officialFilter, sortOrder]);
 
   const totalPages = Math.ceil(filteredConsulados.length / itemsPerPage);
   const currentItems = useMemo(() => {
@@ -227,7 +247,7 @@ export const Consulados = () => {
   const handleCreate = () => {
       setEditingConsulado({
           id: crypto.randomUUID(),
-          name: '', city: '', country: 'Argentina', is_official: false,
+          name: '', city: '', country: 'Argentina', is_official: false, official_date: '',
           social_instagram: '', social_facebook: '', social_x: '', social_youtube: '', social_tiktok: '', website: '',
           address: '', logo: '', banner: '',
           president: '', vice_president: '', secretary: '', treasurer: '', referente: '', vocal: ''
@@ -405,6 +425,7 @@ export const Consulados = () => {
           banner: bannerUrl.trim(),
           logo: logoUrl.trim(),
           is_official: editingConsulado.is_official === true,
+          official_date: editingConsulado.official_date?.trim() || undefined,
           email: editingConsulado.email?.trim() || undefined,
           phone: editingConsulado.phone?.trim() || undefined,
           social_instagram: editingConsulado.social_instagram?.trim() || undefined,
@@ -576,6 +597,29 @@ export const Consulados = () => {
                     <select value={countryFilter} onChange={(e) => { setCountryFilter(e.target.value); setCurrentPage(1); }} className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-8 text-xs font-bold text-white outline-none appearance-none cursor-pointer hover:bg-white/20 transition-all"><option value="ALL" className="text-[#001d4a]">Todos los Países</option>{countries.map(c => <option key={c} value={c} className="text-[#001d4a]">{c}</option>)}</select>
                     <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" size={14} /><Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" size={12} />
                 </div>
+                <div className="relative min-w-[160px]">
+                    <select value={officialFilter} onChange={(e) => { setOfficialFilter(e.target.value as 'ALL' | 'OFFICIAL' | 'NON_OFFICIAL'); setCurrentPage(1); }} className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-8 text-xs font-bold text-white outline-none appearance-none cursor-pointer hover:bg-white/20 transition-all">
+                        <option value="ALL" className="text-[#001d4a]">Todos</option>
+                        <option value="OFFICIAL" className="text-[#001d4a]">Oficiales</option>
+                        <option value="NON_OFFICIAL" className="text-[#001d4a]">No Oficiales</option>
+                    </select>
+                    <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" size={14} />
+                </div>
+                <button 
+                    onClick={() => {
+                        if (sortOrder === 'none') setSortOrder('asc');
+                        else if (sortOrder === 'asc') setSortOrder('desc');
+                        else setSortOrder('none');
+                        setCurrentPage(1);
+                    }}
+                    className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-xs font-black text-white hover:bg-white/20 transition-all flex items-center gap-2 whitespace-nowrap"
+                    title="Ordenar por nombre"
+                >
+                    {sortOrder === 'none' && <ArrowUpDown size={14} />}
+                    {sortOrder === 'asc' && <ArrowUp size={14} />}
+                    {sortOrder === 'desc' && <ArrowDown size={14} />}
+                    <span className="hidden md:inline">Ordenar</span>
+                </button>
              </div>
             <div className="relative group w-full md:w-64">
                 <input type="text" placeholder="Buscar consulado..." className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-4 outline-none text-xs font-bold text-white placeholder:text-white/40 transition-all focus:bg-white focus:text-[#001d4a]" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }} />
@@ -716,26 +760,76 @@ export const Consulados = () => {
                 </div>
 
                 <div className="flex justify-center backdrop-blur-md border-b border-[#003B94]/30 px-6 pt-3 gap-2 overflow-x-auto shrink-0 shadow-[0_2px_10px_rgba(0,0,0,0.1)]" style={{ backgroundColor: 'unset', background: 'unset', backgroundImage: 'none' }}>
-                    {[ { id: 'INFO', label: 'Info General', icon: Building2 }, { id: 'SOCIAL', label: 'Redes Sociales', icon: Globe }, { id: 'LOCATION', label: 'Ubicación', icon: MapPin }, { id: 'BOARD', label: 'Directiva', icon: Users } ].map(tab => (
-                        <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-1.5 px-5 py-2.5 rounded-t-xl text-[9px] font-black uppercase tracking-widest transition-all duration-300 relative whitespace-nowrap ${
-                            activeTab === tab.id 
-                                ? 'bg-[#003B94] backdrop-blur-sm text-[#FCB131] shadow-[0_-4px_15px_rgba(252,177,49,0.2)] border-t-2 border-x-2 border-[#FCB131]/40 border-b-0 z-10 translate-y-[1px] before:absolute before:inset-0 before:bg-gradient-to-b before:from-[#FCB131]/20 before:to-transparent before:rounded-t-xl' 
-                                : 'bg-white/5 text-[#001d4a] hover:text-[#FCB131] hover:bg-[#003B94]/60 backdrop-blur-sm border-t-2 border-x-2 border-transparent hover:border-[#FCB131]/30'
-                        }`}>
-                            <tab.icon size={12} className={`transition-colors ${activeTab === tab.id ? 'text-[#FCB131]' : 'text-[#001d4a]'}`} /> 
-                            <span className={activeTab === tab.id ? 'text-[#FCB131]' : 'text-[#001d4a]'}>{tab.label}</span>
-                        </button>
-                    ))}
+                    {(() => {
+                        const isSedeCentral = editingConsulado.id === 'sede-central-virtual' || 
+                                             (editingConsulado.name && editingConsulado.name.toUpperCase() === 'SEDE CENTRAL');
+                        
+                        const allTabs = [
+                            { id: 'INFO', label: 'Info General', icon: Building2 }, 
+                            { id: 'SOCIAL', label: 'Redes Sociales', icon: Globe }, 
+                            { id: 'LOCATION', label: 'Ubicación', icon: MapPin }, 
+                            { id: 'BOARD', label: 'Directiva', icon: Users }
+                        ];
+                        
+                        // Pour Sede Central, exclure LOCATION et BOARD
+                        const availableTabs = isSedeCentral 
+                            ? allTabs.filter(tab => tab.id !== 'LOCATION' && tab.id !== 'BOARD')
+                            : allTabs;
+                        
+                        return availableTabs.map(tab => (
+                            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-1.5 px-5 py-2.5 rounded-t-xl text-[9px] font-black uppercase tracking-widest transition-all duration-300 relative whitespace-nowrap ${
+                                activeTab === tab.id 
+                                    ? 'bg-[#003B94] backdrop-blur-sm text-[#FCB131] shadow-[0_-4px_15px_rgba(252,177,49,0.2)] border-t-2 border-x-2 border-[#FCB131]/40 border-b-0 z-10 translate-y-[1px] before:absolute before:inset-0 before:bg-gradient-to-b before:from-[#FCB131]/20 before:to-transparent before:rounded-t-xl' 
+                                    : 'bg-white/5 text-[#001d4a] hover:text-[#FCB131] hover:bg-[#003B94]/60 backdrop-blur-sm border-t-2 border-x-2 border-transparent hover:border-[#FCB131]/30'
+                            }`}>
+                                <tab.icon size={12} className={`transition-colors ${activeTab === tab.id ? 'text-[#FCB131]' : 'text-[#001d4a]'}`} /> 
+                                <span className={activeTab === tab.id ? 'text-[#FCB131]' : 'text-[#001d4a]'}>{tab.label}</span>
+                            </button>
+                        ));
+                    })()}
                 </div>
 
                 <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-white">
                     {activeTab === 'INFO' && ( <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <div onClick={() => setEditingConsulado({...editingConsulado, is_official: !editingConsulado.is_official})} className={`w-full p-3 rounded-xl border-2 cursor-pointer transition-all duration-300 flex items-center justify-between group ${editingConsulado.is_official ? 'bg-[#001d4a] border-[#FCB131] shadow-md' : 'bg-gray-50 border-gray-200 hover:border-blue-200'}`}>
-                            <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg transition-colors ${editingConsulado.is_official ? 'bg-[#FCB131] text-[#001d4a]' : 'bg-white text-gray-400 shadow-sm'}`}><ShieldCheck size={16} /></div>
-                                <div><span className={`block text-[9px] font-black uppercase tracking-widest ${editingConsulado.is_official ? 'text-white' : 'text-gray-500'}`}>Estatus de Oficialidad</span><span className={`block text-[8px] font-bold ${editingConsulado.is_official ? 'text-[#FCB131]' : 'text-gray-400'}`}>{editingConsulado.is_official ? 'Reconocido Oficialmente' : 'En formación / No Oficial'}</span></div>
+                        <div className={`w-full p-3 rounded-xl border-2 transition-all duration-300 ${editingConsulado.is_official ? 'bg-[#001d4a] border-[#FCB131] shadow-md' : 'bg-gray-50 border-gray-200'}`}>
+                            <div className="flex items-center justify-between">
+                                <div onClick={() => setEditingConsulado({...editingConsulado, is_official: !editingConsulado.is_official})} className="flex items-center gap-3 cursor-pointer flex-1">
+                                    <div className={`p-2 rounded-lg transition-colors ${editingConsulado.is_official ? 'bg-[#FCB131] text-[#001d4a]' : 'bg-white text-gray-400 shadow-sm'}`}><ShieldCheck size={16} /></div>
+                                    <div><span className={`block text-[9px] font-black uppercase tracking-widest ${editingConsulado.is_official ? 'text-white' : 'text-gray-500'}`}>Consulado Oficial</span><span className={`block text-[8px] font-bold ${editingConsulado.is_official ? 'text-[#FCB131]' : 'text-gray-400'}`}>{editingConsulado.is_official ? 'Reconocido Oficialmente' : 'En formación / No Oficial'}</span></div>
+                                </div>
+                                {editingConsulado.is_official && (
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex flex-col items-end">
+                                            <label className="text-[7px] font-black text-[#FCB131] uppercase tracking-widest mb-1">Fecha de Oficialización</label>
+                                            <input 
+                                                type="text" 
+                                                className="bg-white/10 border border-[#FCB131]/30 rounded-lg py-1.5 px-3 font-bold text-xs text-white outline-none focus:border-[#FCB131] transition-all tracking-widest w-32 text-center" 
+                                                value={editingConsulado.official_date || ''} 
+                                                onChange={e => {
+                                                    let value = e.target.value.replace(/\D/g, '');
+                                                    if (value.length > 0) {
+                                                        if (value.length <= 2) {
+                                                            value = value;
+                                                        } else if (value.length <= 4) {
+                                                            value = value.slice(0, 2) + '/' + value.slice(2);
+                                                        } else {
+                                                            value = value.slice(0, 2) + '/' + value.slice(2, 4) + '/' + value.slice(4, 8);
+                                                        }
+                                                    }
+                                                    setEditingConsulado({...editingConsulado, official_date: value});
+                                                }}
+                                                onClick={e => e.stopPropagation()}
+                                                placeholder="DD/MM/AAAA" 
+                                                maxLength={10} 
+                                            />
+                                        </div>
+                                        <div className="relative"><Star size={20} className="text-[#FCB131] fill-[#FCB131] scale-110 drop-shadow-md" /></div>
+                                    </div>
+                                )}
+                                {!editingConsulado.is_official && (
+                                    <div className="relative"><Star size={20} className="text-gray-300" /></div>
+                                )}
                             </div>
-                            <div className="relative"><Star size={20} className={`transition-all duration-500 ${editingConsulado.is_official ? 'text-[#FCB131] fill-[#FCB131] scale-110 rotate-[360deg] drop-shadow-md' : 'text-gray-300'}`} /></div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                            <div className="space-y-1"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Nombre del Consulado</label><input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" value={editingConsulado.name} onChange={e => setEditingConsulado({...editingConsulado, name: e.target.value})} placeholder="Ej: Consulado Madrid" /></div>
@@ -781,64 +875,62 @@ export const Consulados = () => {
                                     onChange={e => setEditingConsulado({...editingConsulado, logo: e.target.value})} 
                                     placeholder="https://example.com/logo.png"
                                 />
-                                <div className="flex items-center gap-3 mt-2">
-                                    <div className="w-16 h-16 bg-white rounded-full overflow-hidden border-2 border-gray-200 flex items-center justify-center shrink-0">
-                                        {editingConsulado.logo ? (
-                                            <img src={editingConsulado.logo} className="w-full h-full object-cover" alt="Logo" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                                        ) : (
-                                            <ImageIcon size={20} className="text-gray-400" />
-                                        )}
-                                    </div>
-                                    <div className="flex-1 flex gap-2">
-                                        {(() => {
-                                            const hasUrl = editingConsulado.logo && (editingConsulado.logo.startsWith('http://') || editingConsulado.logo.startsWith('https://'));
-                                            const hasDataUrl = editingConsulado.logo && editingConsulado.logo.startsWith('data:');
-                                            
-                                            if (hasUrl && !hasDataUrl) {
-                                                // Bouton de validation d'URL
-                                                return (
-                                                    <button 
-                                                        onClick={() => {
-                                                            // Valider l'URL en testant le chargement de l'image
-                                                            const img = new Image();
-                                                            img.onload = () => {
-                                                                alert('URL válida');
-                                                            };
-                                                            img.onerror = () => {
-                                                                alert('Error: La URL de la imagen no es válida o no es accesible');
-                                                            };
-                                                            img.src = editingConsulado.logo || '';
-                                                        }}
-                                                        className="bg-green-500 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-green-600 transition-all flex items-center gap-2 justify-center flex-1"
-                                                    >
-                                                        <CheckCircle2 size={10} /> Validar URL
-                                                    </button>
-                                                );
-                                            } else {
-                                                // Bouton d'upload de fichier
-                                                return (
-                                                    <label className="bg-[#003B94] text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 justify-center flex-1">
-                                                        <Upload size={10} /> Subir desde archivo
-                                                        <input 
-                                                            type="file" 
-                                                            ref={logoInputRef}
-                                                            accept="image/*" 
-                                                            className="hidden" 
-                                                            onChange={e => handleFileUpload(e, 'logo')}
-                                                        />
-                                                    </label>
-                                                );
-                                            }
-                                        })()}
-                                        {editingConsulado.logo && (
-                                            <button 
-                                                onClick={() => handleRemoveImage('logo')} 
-                                                className="bg-red-50 border border-red-300 text-red-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2"
-                                            >
-                                                <Trash2 size={10} />
-                                            </button>
-                                        )}
-                                    </div>
+                                <div className="w-full h-20 bg-white rounded-lg overflow-hidden border-2 border-gray-200 flex items-center justify-center mb-2 mt-2">
+                                    {editingConsulado.logo ? (
+                                        <img src={editingConsulado.logo} className="w-full h-full object-cover" alt="Logo" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                    ) : (
+                                        <ImageIcon size={24} className="text-gray-400" />
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    {(() => {
+                                        const hasUrl = editingConsulado.logo && (editingConsulado.logo.startsWith('http://') || editingConsulado.logo.startsWith('https://'));
+                                        const hasDataUrl = editingConsulado.logo && editingConsulado.logo.startsWith('data:');
+                                        
+                                        if (hasUrl && !hasDataUrl) {
+                                            // Bouton de validation d'URL
+                                            return (
+                                                <button 
+                                                    onClick={() => {
+                                                        // Valider l'URL en testant le chargement de l'image
+                                                        const img = new Image();
+                                                        img.onload = () => {
+                                                            alert('URL válida');
+                                                        };
+                                                        img.onerror = () => {
+                                                            alert('Error: La URL de la imagen no es válida o no es accesible');
+                                                        };
+                                                        img.src = editingConsulado.logo || '';
+                                                    }}
+                                                    className="bg-green-500 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-green-600 transition-all flex items-center gap-2 justify-center flex-1"
+                                                >
+                                                    <CheckCircle2 size={10} /> Validar URL
+                                                </button>
+                                            );
+                                        } else {
+                                            // Bouton d'upload de fichier
+                                            return (
+                                                <label className="bg-[#003B94] text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 justify-center flex-1">
+                                                    <Upload size={10} /> Subir desde archivo
+                                                    <input 
+                                                        type="file" 
+                                                        ref={logoInputRef}
+                                                        accept="image/*" 
+                                                        className="hidden" 
+                                                        onChange={e => handleFileUpload(e, 'logo')}
+                                                    />
+                                                </label>
+                                            );
+                                        }
+                                    })()}
+                                    {editingConsulado.logo && (
+                                        <button 
+                                            onClick={() => handleRemoveImage('logo')} 
+                                            className="bg-red-50 border border-red-300 text-red-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2"
+                                        >
+                                            <Trash2 size={10} />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                             

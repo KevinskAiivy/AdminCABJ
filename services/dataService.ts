@@ -158,6 +158,7 @@ const mapConsuladoFromDB = (db: any): Consulado | null => {
             vocal: cleanOptionalString(db.vocal),
             vocales: parseVocales(db.vocales),
             is_official: parseBoolean(db.is_official, false),
+            official_date: cleanOptionalString(db.official_date),
             email: cleanOptionalString(db.email),
             phone: cleanOptionalString(db.phone),
             social_instagram: cleanOptionalString(db.social_instagram),
@@ -191,7 +192,7 @@ const mapConsuladoToDB = (c: Partial<Consulado>) => {
     const requiredFields = ['id', 'name', 'city', 'country', 'country_code', 'president', 'referente', 'foundation_year', 'address', 'timezone', 'banner', 'logo'];
     
     // Liste des champs optionnels (peuvent être null)
-    const optionalFields = ['vice_president', 'secretary', 'treasurer', 'vocal', 'vocales', 'email', 'phone', 'social_instagram', 'social_facebook', 'social_x', 'social_tiktok', 'social_youtube', 'website', 'is_official'];
+    const optionalFields = ['vice_president', 'secretary', 'treasurer', 'vocal', 'vocales', 'email', 'phone', 'social_instagram', 'social_facebook', 'social_x', 'social_tiktok', 'social_youtube', 'website', 'is_official', 'official_date'];
     
     // Nettoyer les valeurs
     Object.keys(payload).forEach(key => {
@@ -2342,6 +2343,7 @@ class DataService {
           { dbField: 'banner', appField: 'banner', type: 'text', nullable: true },
           { dbField: 'logo', appField: 'logo', type: 'text', nullable: true },
           { dbField: 'is_official', appField: 'is_official', type: 'boolean', nullable: false },
+          { dbField: 'official_date', appField: 'official_date', type: 'text', nullable: true },
           { dbField: 'email', appField: 'email', type: 'text', nullable: true },
           { dbField: 'phone', appField: 'phone', type: 'text', nullable: true },
           { dbField: 'social_instagram', appField: 'social_instagram', type: 'text', nullable: true },
