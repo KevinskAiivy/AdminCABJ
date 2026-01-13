@@ -639,7 +639,7 @@ export const Partidos = () => {
       )}
 
       {deletingMatch && (
-          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ height: '350px' }}>
               <div className="relative w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-2xl text-center border border-white animate-in zoom-in-95 overflow-hidden">
                   <div className="w-16 h-16 bg-red-50 text-red-500 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner border border-red-100">
                       <AlertTriangle size={32} />

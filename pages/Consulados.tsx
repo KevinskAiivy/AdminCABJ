@@ -1127,8 +1127,8 @@ export const Consulados = () => {
       )}
 
       {showSaveConfirm && (
-        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-[#001d4a]/60 backdrop-blur-sm animate-in fade-in duration-300" >
-            <div className="relative w-full max-w-md bg-white rounded-[2rem] p-10 shadow-[0_50px_150px_rgba(0,29,74,0.3)] text-center border border-white animate-in zoom-in-95">
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-[#001d4a]/60 backdrop-blur-sm animate-in fade-in duration-300" style={{ height: '300px' }}>
+            <div className="relative w-full bg-white rounded-[2rem] shadow-[0_50px_150px_rgba(0,29,74,0.3)] text-center border border-white animate-in zoom-in-95" style={{ paddingTop: '15px', paddingBottom: '15px', paddingLeft: '15px', paddingRight: '15px', width: '500px' }}>
                 <div className="w-20 h-20 bg-[#FCB131]/10 text-[#FCB131] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner"><CheckCircle2 size={40} /></div>
                 <h2 className="oswald text-3xl font-black text-[#001d4a] uppercase mb-4 tracking-tighter">¿Guardar Cambios?</h2>
                 <p className="text-[#003B94]/70 font-bold mb-10 text-[10px] leading-relaxed uppercase tracking-widest">Se actualizará la información del consulado en el sistema.</p>

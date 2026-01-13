@@ -388,7 +388,7 @@ export const Socios = ({ user }: { user?: any }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 min-h-[500px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 min-h-[400px]">
         {currentItems.map((socio) => {
             const isPresident = socio.role === 'PRESIDENTE';
             const computedStatus = calculateSocioStatus(socio.last_month_paid || '');
@@ -488,7 +488,7 @@ export const Socios = ({ user }: { user?: any }) => {
 
       {/* EDIT MODAL - CENTERED FIXED & DRAGGABLE */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 pointer-events-none">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 pointer-events-none" style={{ height: '600px', paddingTop: '10px', paddingBottom: '10px' }}>
              <div 
                 style={{ transform: `translate(${position.x}px, ${position.y}px)`, transition: isDragging ? 'none' : 'transform 0.2s' }}
                 className="pointer-events-auto relative w-full max-w-5xl bg-white/95 backdrop-blur-xl rounded-[2.5rem] shadow-[0_50px_100px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col border border-white/60 max-h-[90vh] animate-in zoom-in-95 duration-300"

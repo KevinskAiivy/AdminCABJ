@@ -1,13 +1,18 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { GlassCard } from '../../components/GlassCard';
-import { Palette, LayoutTemplate, Type, Save, RotateCcw, Upload, Image as ImageIcon, Smartphone, Monitor, Lock, Unlock, Shield, LogIn, MousePointer2, Loader2, HardDrive, Clock, Bell, Activity, CheckCircle2, AlertTriangle, Zap, Eye, EyeOff, LayoutGrid, Ticket } from 'lucide-react';
+import { Palette, LayoutTemplate, Type, Save, RotateCcw, Upload, Image as ImageIcon, Smartphone, Monitor, Lock, Unlock, Shield, LogIn, MousePointer2, Loader2, HardDrive, Clock, Bell, Activity, CheckCircle2, AlertTriangle, Zap, Eye, EyeOff, LayoutGrid, Ticket, MapPin, Building2, FolderOpen, Copy, ExternalLink, Trash2, RefreshCw, ChevronLeft } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { AppSettings } from '../../types';
+import { supabase } from '../../lib/supabase';
 
 export const Configuracion = () => {
   const [settings, setSettings] = useState<AppSettings>(dataService.getAppSettings());
-  const [activeTab, setActiveTab] = useState<'IDENTIDAD' | 'APARIENCIA' | 'SISTEMA' | 'ALMACENAMIENTO'>('IDENTIDAD');
+  const [activeTab, setActiveTab] = useState<'IDENTIDAD' | 'APARIENCIA' | 'SISTEMA' | 'ALMACENAMIENTO' | 'LOGOS_CONSULADOS'>('IDENTIDAD');
+  const [storageImages, setStorageImages] = useState<any[]>([]);
+  const [storageFolders, setStorageFolders] = useState<any[]>([]);
+  const [currentFolder, setCurrentFolder] = useState<string>('');
+  const [loadingImages, setLoadingImages] = useState(false);
   
   const logoInputRef = useRef<HTMLInputElement>(null);
   const matchLogoInputRef = useRef<HTMLInputElement>(null);
@@ -15,6 +20,65 @@ export const Configuracion = () => {
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const transitionLogoInputRef = useRef<HTMLInputElement>(null);
   const habilitacionesBackgroundInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (activeTab === 'LOGOS_CONSULADOS') {
+      loadStorageImages();
+    }
+  }, [activeTab]);
+
+  const loadStorageImages = async (folderPath: string = '') => {
+    setLoadingImages(true);
+    setCurrentFolder(folderPath);
+    try {
+      const { data: files, error } = await supabase.storage
+        .from('logo')
+        .list(folderPath, {
+          limit: 1000,
+          sortBy: { column: 'name', order: 'asc' }
+        });
+
+      if (error) throw error;
+
+      if (files) {
+        // Séparer les dossiers et les fichiers
+        const folders = files.filter(file => file.id === null); // Les dossiers ont id === null
+        const imageFiles = files.filter(file => 
+          file.id !== null && file.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)
+        );
+
+        setStorageFolders(folders.map(folder => ({
+          name: folder.name,
+          path: folderPath ? `${folderPath}/${folder.name}` : folder.name
+        })));
+
+        const imagesWithUrls = imageFiles.map(file => {
+          const fullPath = folderPath ? `${folderPath}/${file.name}` : file.name;
+          const { data } = supabase.storage
+            .from('logo')
+            .getPublicUrl(fullPath);
+          
+          return {
+            ...file,
+            bucket: 'logo',
+            folder: folderPath || 'racine',
+            folderPath: folderPath,
+            fullPath: fullPath,
+            publicUrl: data.publicUrl,
+            size: file.metadata?.size || 0,
+            created_at: file.created_at || new Date().toISOString()
+          };
+        });
+
+        setStorageImages(imagesWithUrls);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement:', error);
+      alert('Erreur lors du chargement des images');
+    } finally {
+      setLoadingImages(false);
+    }
+  };
 
   const handleChange = (field: keyof AppSettings, value: any) => {
     setSettings(prev => ({ ...prev, [field]: value }));
@@ -60,12 +124,43 @@ export const Configuracion = () => {
   const TabButton = ({ id, label, icon: Icon }: any) => (
       <button 
         onClick={() => setActiveTab(id)}
-        className={`w-full flex items-center gap-3 px-5 py-4 rounded-xl text-left transition-all ${activeTab === id ? 'bg-white shadow-lg border-l-4 border-[#003B94] text-[#003B94]' : 'bg-transparent text-gray-400 hover:bg-white/50'}`}
+        className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all ${activeTab === id ? 'bg-white shadow-lg border-b-4 border-[#003B94] text-[#003B94]' : 'bg-transparent text-gray-400 hover:bg-white/50'}`}
       >
-          <Icon size={18} />
-          <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
+          <Icon size={16} />
+          <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">{label}</span>
       </button>
   );
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert('URL copiée !');
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const deleteImage = async (fullPath: string) => {
+    if (!confirm(`¿Estás seguro de eliminar "${fullPath}"?`)) return;
+    
+    try {
+      const { error } = await supabase.storage
+        .from('logo')
+        .remove([fullPath]);
+
+      if (error) throw error;
+      
+      alert('Imagen eliminada con éxito');
+      loadStorageImages();
+    } catch (error) {
+      console.error('Error al eliminar:', error);
+      alert('Error al eliminar la imagen');
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 px-4 animate-boca-entrance">
@@ -91,18 +186,21 @@ export const Configuracion = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="space-y-6">
           
-          {/* Sidebar Tabs */}
-          <div className="lg:col-span-1 space-y-2">
-              <TabButton id="IDENTIDAD" label="Identidad & Logos" icon={Type} />
-              <TabButton id="APARIENCIA" label="Apariencia & UI" icon={Palette} />
-              <TabButton id="SISTEMA" label="Sistema & Seguridad" icon={Shield} />
-              <TabButton id="ALMACENAMIENTO" label="Datos & Límites" icon={HardDrive} />
+          {/* Tabs horizontaux en haut */}
+          <div className="bg-white/50 backdrop-blur-sm p-2 rounded-2xl shadow-sm">
+              <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
+                  <TabButton id="IDENTIDAD" label="Identidad & Logos" icon={Type} />
+                  <TabButton id="LOGOS_CONSULADOS" label="Imágenes y Logos" icon={Building2} />
+                  <TabButton id="APARIENCIA" label="Apariencia & UI" icon={Palette} />
+                  <TabButton id="SISTEMA" label="Sistema & Seguridad" icon={Shield} />
+                  <TabButton id="ALMACENAMIENTO" label="Datos & Límites" icon={HardDrive} />
+              </div>
           </div>
 
           {/* Content Area */}
-          <div className="lg:col-span-3">
+          <div>
               <GlassCard className="bg-white p-8 min-h-[600px]">
                   
                   {activeTab === 'IDENTIDAD' && (
@@ -505,6 +603,177 @@ export const Configuracion = () => {
                           </div>
                       </div>
                   )}
+
+                  {activeTab === 'LOGOS_CONSULADOS' && (
+                      <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                          <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
+                              <div>
+                                  <h2 className="text-[#003B94] font-black uppercase text-xl">Imágenes y Logos en Storage</h2>
+                                  <p className="text-gray-500 text-xs mt-1">
+                                      Bucket: <span className="font-bold">logo</span>
+                                      {currentFolder && <span> / <span className="text-[#003B94] font-bold">{currentFolder}</span></span>}
+                                  </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                  {currentFolder && (
+                                      <button 
+                                          onClick={() => {
+                                              const parentFolder = currentFolder.split('/').slice(0, -1).join('/');
+                                              loadStorageImages(parentFolder);
+                                          }}
+                                          className="flex items-center gap-2 bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-300 transition-all"
+                                      >
+                                          <ChevronLeft size={14} />
+                                          Retour
+                                      </button>
+                                  )}
+                                  <button 
+                                      onClick={() => loadStorageImages(currentFolder)}
+                                      disabled={loadingImages}
+                                      className="flex items-center gap-2 bg-[#003B94] text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#001d4a] transition-all disabled:opacity-50"
+                                  >
+                                      <RefreshCw size={14} className={loadingImages ? 'animate-spin' : ''} />
+                                      Actualizar
+                                  </button>
+                              </div>
+                          </div>
+
+                          {loadingImages ? (
+                              <div className="flex flex-col items-center justify-center py-20">
+                                  <Loader2 size={48} className="text-[#003B94] animate-spin mb-4" />
+                                  <p className="text-gray-500 text-sm font-bold">Cargando imágenes...</p>
+                              </div>
+                          ) : (
+                              <div>
+                                  {/* Affichage des sous-dossiers */}
+                                  {storageFolders.length > 0 && (
+                                      <div className="mb-6">
+                                          <h3 className="text-[#003B94] font-black uppercase text-sm mb-3 flex items-center gap-2">
+                                              <FolderOpen size={16} />
+                                              Dossiers ({storageFolders.length})
+                                          </h3>
+                                          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                              {storageFolders.map(folder => (
+                                                  <button
+                                                      key={folder.path}
+                                                      onClick={() => loadStorageImages(folder.path)}
+                                                      className="bg-gradient-to-br from-[#003B94] to-[#001d4a] p-4 rounded-xl hover:scale-105 transition-transform shadow-lg group"
+                                                  >
+                                                      <FolderOpen size={32} className="text-[#FCB131] mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                                                      <p className="text-white text-xs font-black uppercase truncate">{folder.name}</p>
+                                                  </button>
+                                              ))}
+                                          </div>
+                                      </div>
+                                  )}
+
+                                  {/* Affichage des images */}
+                                  {storageImages.length > 0 && (
+                                      <div>
+                                          <div className="mb-4 flex items-center gap-2 text-[#003B94]">
+                                              <ImageIcon size={18} />
+                                              <span className="text-sm font-black">{storageImages.length} Imágenes</span>
+                                          </div>
+
+                                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                      {storageImages.map((image, index) => (
+                                          <div key={`${image.fullPath}-${index}`} className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden hover:border-[#003B94]/50 transition-all shadow-sm hover:shadow-lg group">
+                                              {/* Image Preview */}
+                                              <div className="relative h-48 bg-gray-50 flex items-center justify-center overflow-hidden">
+                                                  <img 
+                                                      src={image.publicUrl} 
+                                                      alt={image.name}
+                                                      className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                                                      onError={(e) => {
+                                                          (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage%3C/text%3E%3C/svg%3E';
+                                                      }}
+                                                  />
+                                                  {/* Overlay avec actions */}
+                                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                                                      <button
+                                                          onClick={() => window.open(image.publicUrl, '_blank')}
+                                                          className="p-2 bg-white rounded-lg hover:bg-[#FCB131] transition-colors"
+                                                          title="Ouvrir dans un nouvel onglet"
+                                                      >
+                                                          <ExternalLink size={16} className="text-[#003B94]" />
+                                                      </button>
+                                                      <button
+                                                          onClick={() => copyToClipboard(image.publicUrl)}
+                                                          className="p-2 bg-white rounded-lg hover:bg-[#FCB131] transition-colors"
+                                                          title="Copier l'URL"
+                                                      >
+                                                          <Copy size={16} className="text-[#003B94]" />
+                                                      </button>
+                                                      <button
+                                                          onClick={() => deleteImage(image.fullPath)}
+                                                          className="p-2 bg-white rounded-lg hover:bg-red-500 transition-colors group/delete"
+                                                          title="Eliminar"
+                                                      >
+                                                          <Trash2 size={16} className="text-red-500 group-hover/delete:text-white" />
+                                                      </button>
+                                                  </div>
+                                              </div>
+
+                                              {/* Info */}
+                                              <div className="p-3 space-y-2">
+                                                  <div className="flex items-start gap-2">
+                                                      <FolderOpen size={14} className="text-[#003B94] shrink-0 mt-0.5" />
+                                                      <div className="flex-1 min-w-0">
+                                                          <p className="text-[10px] font-black text-[#003B94] uppercase truncate">{image.folder}</p>
+                                                          <p className="text-[10px] font-bold text-gray-600 truncate" title={image.fullPath}>{image.name}</p>
+                                                          <p className="text-[8px] text-gray-400 font-mono truncate mt-0.5" title={image.fullPath}>📁 {image.fullPath}</p>
+                                                      </div>
+                                                  </div>
+
+                                                  <div className="flex items-center justify-between text-[8px] text-gray-400 font-bold pt-2 border-t border-gray-100">
+                                                      <span>{formatFileSize(image.size)}</span>
+                                                      <span>{new Date(image.created_at).toLocaleDateString()}</span>
+                                                  </div>
+
+                                                  {/* URL (cliquable pour copier) */}
+                                                  <button
+                                                      onClick={() => copyToClipboard(image.publicUrl)}
+                                                      className="w-full bg-gray-50 hover:bg-[#003B94]/5 border border-gray-200 rounded-lg px-2 py-1.5 text-[9px] font-mono text-gray-600 truncate text-left transition-all"
+                                                      title="Cliquer pour copier l'URL"
+                                                  >
+                                                      {image.publicUrl}
+                                                  </button>
+                                              </div>
+                                          </div>
+                                      ))}
+                                          </div>
+                                      </div>
+                                  )}
+
+                              {/* Message si aucun contenu */}
+                              {storageFolders.length === 0 && storageImages.length === 0 && (
+                                  <div className="text-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                                      <FolderOpen size={64} className="text-gray-300 mx-auto mb-4" />
+                                      <h3 className="text-[#001d4a] font-black text-lg uppercase mb-2">Dossier vide</h3>
+                                      <p className="text-gray-500 text-sm mb-4">
+                                          {currentFolder 
+                                              ? `Le dossier "${currentFolder}" ne contient pas d'images`
+                                              : "Il n'y a pas encore de fichiers dans ce bucket"
+                                          }
+                                      </p>
+                                      {currentFolder && (
+                                          <button 
+                                              onClick={() => {
+                                                  const parentFolder = currentFolder.split('/').slice(0, -1).join('/');
+                                                  loadStorageImages(parentFolder);
+                                              }}
+                                              className="inline-flex items-center gap-2 bg-[#003B94] text-white px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#001d4a] transition-all"
+                                          >
+                                              <ChevronLeft size={14} />
+                                              Retour
+                                          </button>
+                                      )}
+                                  </div>
+                              )}
+                          </div>
+                      )}
+                  </div>
+              )}
 
               </GlassCard>
           </div>
