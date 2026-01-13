@@ -312,16 +312,19 @@ export const Consulados = () => {
       }
       
       // Upload des images vers Supabase Storage si des fichiers ont été sélectionnés
+      // Si l'utilisateur a entré une URL directement (pas de fichier sélectionné), on l'utilise telle quelle
       let logoUrl = editingConsulado.logo || '';
       let bannerUrl = editingConsulado.banner || '';
       
       try {
-          // Upload du logo si un fichier a été sélectionné
-          if (selectedLogoFile) {
+          // Upload du logo UNIQUEMENT si un fichier a été sélectionné (pas si c'est juste une URL)
+          // Si l'utilisateur a entré une URL http/https directement, on ne fait pas d'upload
+          const isLogoUrl = logoUrl && (logoUrl.startsWith('http://') || logoUrl.startsWith('https://'));
+          if (selectedLogoFile && selectedLogoFile instanceof File && !isLogoUrl) {
               const consuladoId = editingConsulado.id || crypto.randomUUID();
               const timestamp = Date.now();
               const fileExtension = selectedLogoFile.name.split('.').pop() || 'jpg';
-              const fileName = `consulado_${consuladoId}_logo_${timestamp}.${fileExtension}`;
+              const fileName = `consulados/consulado_${consuladoId}_logo_${timestamp}.${fileExtension}`;
 
               const { data: uploadData, error: uploadError } = await supabase.storage
                   .from('logo')
@@ -345,12 +348,14 @@ export const Consulados = () => {
               logoUrl = urlData.publicUrl;
           }
 
-          // Upload de la bannière si un fichier a été sélectionné
-          if (selectedBannerFile) {
+          // Upload de la bannière UNIQUEMENT si un fichier a été sélectionné (pas si c'est juste une URL)
+          // Si l'utilisateur a entré une URL http/https directement, on ne fait pas d'upload
+          const isBannerUrl = bannerUrl && (bannerUrl.startsWith('http://') || bannerUrl.startsWith('https://'));
+          if (selectedBannerFile && selectedBannerFile instanceof File && !isBannerUrl) {
               const consuladoId = editingConsulado.id || crypto.randomUUID();
               const timestamp = Date.now();
               const fileExtension = selectedBannerFile.name.split('.').pop() || 'jpg';
-              const fileName = `consulado_${consuladoId}_banner_${timestamp}.${fileExtension}`;
+              const fileName = `consulados/consulado_${consuladoId}_banner_${timestamp}.${fileExtension}`;
 
               const { data: uploadData, error: uploadError } = await supabase.storage
                   .from('logo')
@@ -414,12 +419,6 @@ export const Consulados = () => {
       const isUpdate = consulados.some(c => c.id === payload.id);
       const oldConsulado = isUpdate ? consulados.find(c => c.id === payload.id) : null;
       
-      // Réinitialiser les fichiers après sauvegarde réussie
-      setSelectedLogoFile(null);
-      setSelectedBannerFile(null);
-      if (logoInputRef.current) logoInputRef.current.value = '';
-      if (bannerInputRef.current) bannerInputRef.current.value = '';
-      
       if (isUpdate) {
           await dataService.updateConsulado(payload).catch(err => {
               console.error('Erreur lors de la mise à jour du consulado:', err);
@@ -431,6 +430,12 @@ export const Consulados = () => {
               alert('Erreur lors de la sauvegarde. Veuillez réessayer.');
           });
       }
+      
+      // Réinitialiser les fichiers après sauvegarde réussie
+      setSelectedLogoFile(null);
+      setSelectedBannerFile(null);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+      if (bannerInputRef.current) bannerInputRef.current.value = '';
       
       // Mettre à jour les rôles des socios
       try {
@@ -785,16 +790,46 @@ export const Consulados = () => {
                                         )}
                                     </div>
                                     <div className="flex-1 flex gap-2">
-                                        <label className="bg-[#003B94] text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 justify-center flex-1">
-                                            <Upload size={10} /> Subir desde archivo
-                                            <input 
-                                                type="file" 
-                                                ref={logoInputRef}
-                                                accept="image/*" 
-                                                className="hidden" 
-                                                onChange={e => handleFileUpload(e, 'logo')}
-                                            />
-                                        </label>
+                                        {(() => {
+                                            const hasUrl = editingConsulado.logo && (editingConsulado.logo.startsWith('http://') || editingConsulado.logo.startsWith('https://'));
+                                            const hasDataUrl = editingConsulado.logo && editingConsulado.logo.startsWith('data:');
+                                            
+                                            if (hasUrl && !hasDataUrl) {
+                                                // Bouton de validation d'URL
+                                                return (
+                                                    <button 
+                                                        onClick={() => {
+                                                            // Valider l'URL en testant le chargement de l'image
+                                                            const img = new Image();
+                                                            img.onload = () => {
+                                                                alert('URL válida');
+                                                            };
+                                                            img.onerror = () => {
+                                                                alert('Error: La URL de la imagen no es válida o no es accesible');
+                                                            };
+                                                            img.src = editingConsulado.logo || '';
+                                                        }}
+                                                        className="bg-green-500 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-green-600 transition-all flex items-center gap-2 justify-center flex-1"
+                                                    >
+                                                        <CheckCircle2 size={10} /> Validar URL
+                                                    </button>
+                                                );
+                                            } else {
+                                                // Bouton d'upload de fichier
+                                                return (
+                                                    <label className="bg-[#003B94] text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 justify-center flex-1">
+                                                        <Upload size={10} /> Subir desde archivo
+                                                        <input 
+                                                            type="file" 
+                                                            ref={logoInputRef}
+                                                            accept="image/*" 
+                                                            className="hidden" 
+                                                            onChange={e => handleFileUpload(e, 'logo')}
+                                                        />
+                                                    </label>
+                                                );
+                                            }
+                                        })()}
                                         {editingConsulado.logo && (
                                             <button 
                                                 onClick={() => handleRemoveImage('logo')} 
@@ -828,16 +863,46 @@ export const Consulados = () => {
                                     )}
                                 </div>
                                 <div className="flex gap-2">
-                                    <label className="bg-[#003B94] text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 justify-center flex-1">
-                                        <Upload size={10} /> Subir desde archivo
-                                        <input 
-                                            type="file" 
-                                            ref={bannerInputRef}
-                                            accept="image/*" 
-                                            className="hidden" 
-                                            onChange={e => handleFileUpload(e, 'banner')}
-                                        />
-                                    </label>
+                                    {(() => {
+                                        const hasUrl = editingConsulado.banner && (editingConsulado.banner.startsWith('http://') || editingConsulado.banner.startsWith('https://'));
+                                        const hasDataUrl = editingConsulado.banner && editingConsulado.banner.startsWith('data:');
+                                        
+                                        if (hasUrl && !hasDataUrl) {
+                                            // Bouton de validation d'URL
+                                            return (
+                                                <button 
+                                                    onClick={() => {
+                                                        // Valider l'URL en testant le chargement de l'image
+                                                        const img = new Image();
+                                                        img.onload = () => {
+                                                            alert('URL válida');
+                                                        };
+                                                        img.onerror = () => {
+                                                            alert('Error: La URL de la imagen no es válida o no es accesible');
+                                                        };
+                                                        img.src = editingConsulado.banner || '';
+                                                    }}
+                                                    className="bg-green-500 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-green-600 transition-all flex items-center gap-2 justify-center flex-1"
+                                                >
+                                                    <CheckCircle2 size={10} /> Validar URL
+                                                </button>
+                                            );
+                                        } else {
+                                            // Bouton d'upload de fichier
+                                            return (
+                                                <label className="bg-[#003B94] text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 justify-center flex-1">
+                                                    <Upload size={10} /> Subir desde archivo
+                                                    <input 
+                                                        type="file" 
+                                                        ref={bannerInputRef}
+                                                        accept="image/*" 
+                                                        className="hidden" 
+                                                        onChange={e => handleFileUpload(e, 'banner')}
+                                                    />
+                                                </label>
+                                            );
+                                        }
+                                    })()}
                                     {editingConsulado.banner && (
                                         <button 
                                             onClick={() => handleRemoveImage('banner')} 
