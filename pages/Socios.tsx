@@ -813,8 +813,8 @@ export const Socios = ({ user }: { user?: any }) => {
       )}
 
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ height: '700px' }}>
-             <div className="relative w-full max-w-[700px] bg-white/95 backdrop-blur-xl rounded-xl shadow-[0_50px_100px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col border border-white/60 max-h-[90vh] animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center px-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300 mt-[10px]" style={{ height: '650px', paddingTop: '10px', paddingBottom: '10px' }}>
+             <div className="relative w-full max-w-[700px] bg-white/95 backdrop-blur-xl rounded-xl shadow-[0_50px_100px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col border border-white/60 max-h-[620px] animate-in zoom-in-95 duration-300">
                 <div className="relative bg-gradient-to-r from-[#003B94] to-[#001d4a] p-3 text-white shrink-0 overflow-hidden">
                     <div className="flex items-center gap-3 relative z-10">
                         <div className="w-10 h-10 rounded-lg bg-white/10 border border-white/20 shadow-inner flex items-center justify-center text-lg font-black text-[#FCB131]">
@@ -1177,7 +1177,7 @@ export const Socios = ({ user }: { user?: any }) => {
 
       {/* ... Other modals (Save, Delete, Export) remain the same */}
       {showSaveConfirm && (
-        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-[#001d4a]/40 backdrop-blur-sm animate-in fade-in" >
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-[#001d4a]/40 backdrop-blur-sm animate-in fade-in" style={{ height: '400px' }}>
             <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-sm text-center animate-in zoom-in-95">
                 <h3 className="oswald text-xl font-bold text-[#001d4a] mb-2">¿Confirmar cambios?</h3>
                 <div className="flex gap-3 mt-6">
@@ -1189,7 +1189,7 @@ export const Socios = ({ user }: { user?: any }) => {
       )}
 
       {isDeleteModalOpen && selectedSocio && (
-        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-[#001d4a]/40 backdrop-blur-sm animate-in fade-in" >
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-[#001d4a]/40 backdrop-blur-sm animate-in fade-in" style={{ height: '400px' }}>
             <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-sm text-center animate-in zoom-in-95">
                 <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4"><AlertTriangle size={32}/></div>
                 <h3 className="oswald text-xl font-bold text-red-600 mb-2">Eliminar {getGenderLabel('Socio', selectedSocio.gender)}</h3>
