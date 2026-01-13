@@ -65,6 +65,26 @@ export interface Logo {
   updated_at: string;
 }
 
+export interface AppAsset {
+  id: string;
+  asset_key: string; // Identifiant unique (ex: 'navbar_logo')
+  name: string;
+  description: string | null;
+  category: 'navbar' | 'footer' | 'general' | 'icons';
+  file_url: string | null; // Chemin dans Storage
+  file_type: string | null;
+  file_size: number | null;
+  width: number | null;
+  height: number | null;
+  fallback_svg: string | null;
+  fallback_color: string | null;
+  display_size: number;
+  is_active: boolean;
+  uploaded_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Match {
   id: number;
   // Relational Fields

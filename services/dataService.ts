@@ -1,5 +1,5 @@
-import { AppSettings, Socio, Consulado, Match, Team, Competition, Mensaje, AgendaEvent, AppUser, UserSession, AppNotification, Solicitud, TransferRequest, Logo } from '../types';
-import { supabase } from '../lib/supabase';
+import { AppSettings, Socio, Consulado, Match, Team, Competition, Mensaje, AgendaEvent, AppUser, UserSession, AppNotification, Solicitud, TransferRequest, Logo, AppAsset } from '../types';
+import { supabase, getConsuladoLogoUrl } from '../lib/supabase';
 
 export interface IntegrityResult {
   table: string;
@@ -678,6 +678,7 @@ class DataService {
   private solicitudes: Solicitud[] = [];
   private notifications: AppNotification[] = [];
   private transfers: TransferRequest[] = [];
+  private appAssets: AppAsset[] = []; // Assets de l'application (logos, etc.)
   private mappings: Record<string, Record<string, string>> = {};
 
   constructor() {
@@ -2882,6 +2883,166 @@ class DataService {
     } catch (error: any) {
       console.error('Erreur lors de la récupération de tous les logos:', error);
       return [];
+    }
+  }
+
+  // ============================================================================
+  // APP ASSETS - Logos et assets de l'application
+  // ============================================================================
+
+  /**
+   * Charger tous les assets de l'application
+   */
+  async loadAppAssets(): Promise<void> {
+    try {
+      const { data, error } = await supabase
+        .from('app_assets')
+        .select('*')
+        .eq('is_active', true)
+        .order('category', { ascending: true });
+
+      if (error) throw error;
+
+      this.appAssets = data || [];
+      this.notify();
+    } catch (error: any) {
+      console.error('Erreur lors du chargement des assets:', error);
+      this.appAssets = [];
+    }
+  }
+
+  /**
+   * Récupérer tous les assets
+   */
+  getAppAssets(): AppAsset[] {
+    return this.appAssets;
+  }
+
+  /**
+   * Récupérer un asset par sa clé
+   */
+  getAssetByKey(assetKey: string): AppAsset | null {
+    return this.appAssets.find(asset => asset.asset_key === assetKey) || null;
+  }
+
+  /**
+   * Récupérer l'URL d'un asset (avec fallback)
+   */
+  getAssetUrl(assetKey: string): string {
+    const asset = this.getAssetByKey(assetKey);
+    
+    if (!asset) {
+      // Retourner un placeholder par défaut
+      return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23003B94" width="100" height="100"/%3E%3C/svg%3E';
+    }
+
+    // Si l'asset a un fichier uploadé, retourner son URL
+    if (asset.file_url) {
+      return getConsuladoLogoUrl(asset.file_url);
+    }
+
+    // Sinon, utiliser le fallback SVG
+    if (asset.fallback_svg) {
+      return `data:image/svg+xml,${encodeURIComponent(asset.fallback_svg)}`;
+    }
+
+    // Fallback ultime
+    return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23003B94" width="100" height="100"/%3E%3C/svg%3E';
+  }
+
+  /**
+   * Mettre à jour un asset
+   */
+  async updateAppAsset(assetKey: string, updates: Partial<AppAsset>): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('app_assets')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('asset_key', assetKey);
+
+      if (error) throw error;
+
+      // Recharger les assets
+      await this.loadAppAssets();
+    } catch (error: any) {
+      console.error('Erreur lors de la mise à jour de l\'asset:', error);
+      throw new Error(error.message || 'Erreur lors de la mise à jour de l\'asset');
+    }
+  }
+
+  /**
+   * Uploader un nouveau fichier pour un asset
+   */
+  async uploadAssetFile(assetKey: string, file: File): Promise<string> {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `assets/${assetKey}_${Date.now()}.${fileExt}`;
+
+      // Upload vers Storage
+      const { error: uploadError } = await supabase.storage
+        .from('Logo')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // Mettre à jour l'asset avec le nouveau fichier
+      await this.updateAppAsset(assetKey, {
+        file_url: fileName,
+        file_type: file.type,
+        file_size: file.size,
+        uploaded_at: new Date().toISOString()
+      });
+
+      return fileName;
+    } catch (error: any) {
+      console.error('Erreur lors de l\'upload de l\'asset:', error);
+      throw new Error(error.message || 'Erreur lors de l\'upload');
+    }
+  }
+
+  /**
+   * Créer un nouvel asset
+   */
+  async createAppAsset(asset: Omit<AppAsset, 'id' | 'created_at' | 'updated_at'>): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('app_assets')
+        .insert({
+          ...asset,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      // Recharger les assets
+      await this.loadAppAssets();
+    } catch (error: any) {
+      console.error('Erreur lors de la création de l\'asset:', error);
+      throw new Error(error.message || 'Erreur lors de la création de l\'asset');
+    }
+  }
+
+  /**
+   * Supprimer un asset
+   */
+  async deleteAppAsset(assetKey: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('app_assets')
+        .delete()
+        .eq('asset_key', assetKey);
+
+      if (error) throw error;
+
+      // Recharger les assets
+      await this.loadAppAssets();
+    } catch (error: any) {
+      console.error('Erreur lors de la suppression de l\'asset:', error);
+      throw new Error(error.message || 'Erreur lors de la suppression de l\'asset');
     }
   }
 }
