@@ -70,6 +70,7 @@ const Accesos = lazy(() => import('./pages/admin/Accesos.tsx'));
 const Usuarios = lazy(() => import('./pages/admin/Usuarios.tsx'));
 const Configuracion = lazy(() => import('./pages/admin/Configuracion.tsx'));
 const Database = lazy(() => import('./pages/Database.tsx'));
+const TestLogosTablette = lazy(() => import('./pages/TestLogosTablette.tsx').then(module => ({ default: module.TestLogosTablette })));
 
 // President Pages Lazy
 const DashboardPresident = lazy(() => import('./pages/president/DashboardPresident.tsx'));
@@ -364,6 +365,7 @@ export const App: React.FC = () => {
                         <Route path="/admin/accesos" element={<PageTransition><Accesos /></PageTransition>} />
                         <Route path="/admin/configuracion" element={<PageTransition><Configuracion /></PageTransition>} />
                         <Route path="/admin/database" element={<PageTransition><Database /></PageTransition>} />
+                        <Route path="/test-logos" element={<PageTransition><TestLogosTablette /></PageTransition>} />
                       </>
                     )}
                     
