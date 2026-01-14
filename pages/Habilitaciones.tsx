@@ -1481,15 +1481,56 @@ export const Habilitaciones = () => {
                             </p>
                         </div>
                         <div className="flex items-center gap-3">
-                            {allRequestsProcessed && (
-                                <button
-                                    onClick={generatePDF}
-                                    className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-emerald-600 transition-all flex items-center gap-2"
-                                    title="Descargar lista definitiva en PDF"
-                                >
-                                    <FileText size={14} /> Imprimir Lista Definitiva
-                                </button>
-                            )}
+                            {(() => {
+                                // Vérifier si la fenêtre est fermée
+                                const cierreDateTime = parseDate(selectedMatch.cierre_date, selectedMatch.cierre_hour);
+                                const isWindowClosed = now > cierreDateTime;
+                                const isListValidated = selectedMatch.is_list_validated === true;
+                                
+                                // Si la liste est déjà validée, toujours afficher "Imprimir Lista Definitiva"
+                                if (isListValidated) {
+                                    return (
+                                        <button
+                                            onClick={generatePDF}
+                                            className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-emerald-600 transition-all flex items-center gap-2"
+                                            title="Descargar lista definitiva en PDF"
+                                        >
+                                            <FileText size={14} /> Imprimir Lista Definitiva
+                                        </button>
+                                    );
+                                }
+                                
+                                // Si la fenêtre est fermée ET toutes les solicitudes traitées ET liste pas encore validée
+                                if (isWindowClosed && allRequestsProcessed) {
+                                    return (
+                                        <button
+                                            onClick={async () => {
+                                                if (!window.confirm('¿Está seguro de validar definitivamente esta lista? Esta acción confirma que la lista está completa y lista para imprimir.')) {
+                                                    return;
+                                                }
+                                                try {
+                                                    const matchId = (selectedMatch as any)._originalId || selectedMatch.id;
+                                                    await dataService.validateMatchList(matchId, true);
+                                                    // Recharger le match pour avoir is_list_validated = true
+                                                    await dataService.reloadMatches();
+                                                    setMatches(dataService.getMatches());
+                                                    alert('Lista validada definitivamente. Ahora puede imprimirla.');
+                                                } catch (error) {
+                                                    console.error('Erreur lors de la validation:', error);
+                                                    alert('Error al validar la lista. Por favor, intente nuevamente.');
+                                                }
+                                            }}
+                                            className="px-4 py-2 bg-blue-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-blue-600 transition-all flex items-center gap-2 animate-pulse"
+                                            title="Validar definitivamente la lista para poder imprimirla"
+                                        >
+                                            <FileText size={14} /> Validación Definitiva
+                                        </button>
+                                    );
+                                }
+                                
+                                // Sinon, rien à afficher (fenêtre ouverte ou solicitudes pas toutes traitées)
+                                return null;
+                            })()}
                             <X onClick={() => setSelectedMatch(null)} className="cursor-pointer opacity-60 hover:opacity-100 p-2 hover:bg-white/10 rounded-full transition-all" />
                         </div>
                     </div>

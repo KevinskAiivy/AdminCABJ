@@ -1341,6 +1341,41 @@ class DataService {
           throw error;
       }
   }
+
+  // Valider définitivement la liste des habilitations pour un match
+  async validateMatchList(matchId: number | string, validated: boolean = true) {
+      try {
+          // Mettre à jour dans Supabase
+          const { data, error } = await supabase
+              .from('matches')
+              .update({ is_list_validated: validated })
+              .eq('id', matchId)
+              .select()
+              .single();
+          
+          if (error) {
+              console.error("❌ Erreur lors de la validation de la liste:", error);
+              throw new Error(error.message);
+          }
+          
+          if (data) {
+              const mappedMatch = mapMatchFromDB(data);
+              // Mettre à jour localement
+              this.matches = this.matches.map(x => {
+                  const xOriginalId = (x as any)._originalId;
+                  if (xOriginalId !== undefined && xOriginalId === matchId) {
+                      return mappedMatch;
+                  }
+                  return x.id === matchId ? mappedMatch : x;
+              });
+              this.notify();
+              return mappedMatch;
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la validation de la liste:", error);
+          throw error;
+      }
+  }
   async deleteMatch(id: number) { 
       try {
           // Trouver le match avec l'ID original (UUID) si disponible

@@ -132,6 +132,7 @@ export interface Match {
   apertura_hour: string;
   cierre_date: string;
   cierre_hour: string;
+  is_list_validated?: boolean; // TRUE si la liste définitive a été validée par les admins
 }
 
 export interface Team {
