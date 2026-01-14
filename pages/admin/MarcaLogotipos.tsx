@@ -48,6 +48,15 @@ export const MarcaLogotipos = () => {
     }
   };
 
+  const handleSizeChange = async (assetKey: string, newSize: number) => {
+    try {
+      await dataService.updateAppAsset(assetKey, { display_size: newSize });
+      // Pas besoin d'alert, la mise à jour est immédiate
+    } catch (error: any) {
+      alert('Error al actualizar tamaño: ' + error.message);
+    }
+  };
+
   // Filtrer uniquement les logos utiles
   const usefulLogos = [
     'navbar_logo_main',
@@ -120,6 +129,7 @@ export const MarcaLogotipos = () => {
               key={asset.id}
               asset={asset}
               onUpload={handleUpload}
+              onSizeChange={handleSizeChange}
               uploading={uploading === asset.asset_key}
             />
           ))}
@@ -141,17 +151,20 @@ export const MarcaLogotipos = () => {
 // Composant pour afficher un asset
 const AssetCard = ({ 
   asset, 
-  onUpload, 
+  onUpload,
+  onSizeChange,
   uploading,
   compact = false
 }: { 
   asset: AppAsset; 
   onUpload: (key: string, file: File) => void;
+  onSizeChange: (key: string, size: number) => void;
   uploading: boolean;
   compact?: boolean;
 }) => {
   const imageUrl = dataService.getAssetUrl(asset.asset_key);
   const hasFile = asset.file_url !== null;
+  const [localSize, setLocalSize] = React.useState(asset.display_size || 40);
 
   return (
     <div className={`border-2 rounded-xl p-4 hover:border-[#003B94] transition-all ${hasFile ? 'border-green-200 bg-green-50/30' : 'border-gray-200'}`}>
@@ -175,29 +188,60 @@ const AssetCard = ({
       </div>
 
       {/* Aperçu de l'image */}
-      <div className={`bg-gray-100 rounded-lg flex items-center justify-center mb-3 ${compact ? 'h-24' : 'h-32'}`}>
+      <div className={`bg-gray-100 rounded-lg flex items-center justify-center mb-3 ${compact ? 'h-24' : 'h-40'} relative overflow-hidden`}>
         <img 
           src={imageUrl}
           alt={asset.name}
-          className="max-w-full max-h-full object-contain p-2"
+          style={{ 
+            width: `${Math.min(localSize, compact ? 80 : 120)}px`,
+            height: `${Math.min(localSize, compact ? 80 : 120)}px`
+          }}
+          className="object-contain transition-all duration-300"
           onError={(e) => {
             (e.target as HTMLImageElement).style.display = 'none';
           }}
         />
+        {/* Indicateur de taille */}
+        <div className="absolute bottom-2 right-2 bg-[#003B94] text-white text-[8px] font-black px-2 py-1 rounded-full">
+          {localSize}px
+        </div>
       </div>
 
       {/* Métadonnées */}
       {!compact && (
-        <div className="text-xs text-gray-500 mb-3 space-y-1">
+        <div className="text-xs text-gray-500 mb-3 space-y-2">
           {hasFile && (
-            <div className="flex items-center gap-2 text-green-600 font-bold mb-2">
+            <div className="flex items-center gap-2 text-green-600 font-bold">
               <HardDrive size={12} />
               <span>Almacenado en Storage</span>
             </div>
           )}
-          {asset.display_size && (
-            <div>📐 Tamaño visualización: {asset.display_size}px</div>
-          )}
+          
+          {/* Contrôle de taille */}
+          <div className="space-y-2 pt-2 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-gray-700">📐 Tamaño:</span>
+              <span className="font-black text-[#003B94]">{localSize}px</span>
+            </div>
+            <input
+              type="range"
+              min="20"
+              max="200"
+              step="4"
+              value={localSize}
+              onChange={(e) => {
+                const newSize = parseInt(e.target.value);
+                setLocalSize(newSize);
+                onSizeChange(asset.asset_key, newSize);
+              }}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#003B94]"
+            />
+            <div className="flex justify-between text-[9px] text-gray-400">
+              <span>20px</span>
+              <span>200px</span>
+            </div>
+          </div>
+          
           {asset.file_type && (
             <div>📄 Tipo: {asset.file_type}</div>
           )}
