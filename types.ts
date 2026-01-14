@@ -85,6 +85,27 @@ export interface AppAsset {
   updated_at: string;
 }
 
+export interface UploadedFile {
+  id: string;
+  file_path: string; // Chemin complet dans Storage
+  file_name: string; // Nom original
+  bucket_name: string; // Nom du bucket
+  file_type: string | null;
+  file_size: number | null;
+  width: number | null;
+  height: number | null;
+  uploaded_by: string | null; // ID utilisateur
+  entity_type: string | null; // 'consulado', 'socio', 'team', etc.
+  entity_id: string | null; // ID de l'entité
+  field_name: string | null; // 'logo', 'banner', 'avatar', etc.
+  public_url: string | null;
+  is_active: boolean;
+  uploaded_at: string;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Match {
   id: number;
   // Relational Fields
