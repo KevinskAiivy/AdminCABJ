@@ -676,6 +676,15 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                                 >
                                   <CheckCircle2 size={13} strokeWidth={2.5} /> Ver Resultados
                                 </button>
+                              ) : hasCancellationRequest ? (
+                                /* Bouton Cancelación Pendiente (désactivé) quand annulation en cours */
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="w-full py-2 rounded-xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-1.5 bg-orange-100 text-orange-700 border-2 border-orange-300 cursor-not-allowed opacity-90 animate-pulse"
+                                >
+                                  <Clock size={13} strokeWidth={2.5} /> Cancelación Pendiente
+                                </button>
                               ) : shouldShowCancelButton ? (
                                 <>
                                   {/* Bouton Lista Enviada (désactivé) */}
