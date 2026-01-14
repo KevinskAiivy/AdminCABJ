@@ -6,7 +6,7 @@ import { Search, MapPin, Globe, Users, Building2, ChevronRight, ChevronLeft, X, 
 import { dataService } from '../../services/dataService';
 import { Consulado, Socio } from '../../types';
 import { COUNTRIES, TIMEZONES, WORLD_CITIES } from '../../constants';
-import { supabase } from '../../lib/supabase';
+import { supabase, getConsuladoLogoUrl } from '../../lib/supabase';
 import { uploadFileWithTracking } from '../../lib/uploadHelper';
 
 // ... CustomSelect component remains unchanged ...
@@ -337,9 +337,9 @@ export const Consulados = () => {
                   throw new Error(`Error al subir el logo: ${result.error}`);
               }
 
-              console.log('✅ Logo subido:', result.filePath);
-              // Utiliser le chemin du fichier (pas l'URL complète) pour la DB
-              logoUrl = result.filePath || '';
+              console.log('✅ Logo subido:', result.publicUrl || result.filePath);
+              // Utiliser l'URL publique pour l'affichage direct, ou le filePath comme fallback
+              logoUrl = result.publicUrl || result.filePath || '';
           }
 
           // Upload de la bannière UNIQUEMENT si un fichier a été sélectionné (pas si c'est juste une URL)
@@ -361,8 +361,9 @@ export const Consulados = () => {
                   throw new Error(`Error al subir la bannière: ${result.error}`);
               }
 
-              console.log('✅ Banner subido:', result.filePath);
-              bannerUrl = result.filePath || '';
+              console.log('✅ Banner subido:', result.publicUrl || result.filePath);
+              // Utiliser l'URL publique pour l'affichage direct, ou le filePath comme fallback
+              bannerUrl = result.publicUrl || result.filePath || '';
           }
 
           // Mettre à jour les URLs dans editingConsulado
@@ -814,7 +815,7 @@ export const Consulados = () => {
                     </div>
                     <div className="relative pt-10 pb-5 px-5 flex-1 flex flex-col bg-gradient-to-b from-transparent to-white/30">
                         <div className="absolute -top-10 left-6 w-20 h-20 rounded-full border-[4px] border-white/70 bg-white shadow-2xl overflow-hidden flex items-center justify-center z-20 group-hover:scale-105 transition-transform duration-500">
-                            {consulado.logo ? (<img src={consulado.logo} className="w-full h-full object-cover" />) : (<Building2 className="text-[#003B94]/20" size={32} />)}
+                            {consulado.logo ? (<img src={getConsuladoLogoUrl(consulado.logo)} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />) : (<Building2 className="text-[#003B94]/20" size={32} />)}
                         </div>
                         <div className="mb-4 space-y-1">
                             <h3 className={`oswald text-xl font-black uppercase leading-tight line-clamp-2 drop-shadow-sm transition-colors ${consulado.is_official ? 'text-[#001d4a]' : 'text-[#001d4a] group-hover:text-[#003B94]'}`}>{consulado.name}</h3>

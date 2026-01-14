@@ -59,16 +59,32 @@ export const getConsuladoLogoUrl = (filePath: string | null | undefined): string
     return placeholderUrl;
   }
   
-  // Récupérer l'URL publique depuis le bucket 'Logo'
+  // Si c'est déjà une URL complète (http/https), la retourner directement
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    return filePath;
+  }
+  
+  // Si c'est une data URL (base64), la retourner directement
+  if (filePath.startsWith('data:')) {
+    return filePath;
+  }
+  
+  // Sinon, c'est un chemin Storage - récupérer l'URL publique depuis le bucket 'Logo'
   // Le filePath contient déjà le sous-dossier (ex: "consulados/fichier.png")
-  const { data } = supabase.storage
-    .from('Logo')
-    .getPublicUrl(filePath);
+  try {
+    const { data } = supabase.storage
+      .from('Logo')
+      .getPublicUrl(filePath);
+    
+    if (data?.publicUrl) {
+      // Ajouter un timestamp pour éviter les problèmes de cache
+      return `${data.publicUrl}?t=${Date.now()}`;
+    }
+  } catch (error) {
+    console.error('Erreur getConsuladoLogoUrl:', error);
+  }
   
-  // Ajouter un timestamp pour éviter les problèmes de cache
-  const urlWithTimestamp = `${data.publicUrl}?t=${Date.now()}`;
-  
-  return urlWithTimestamp;
+  return placeholderUrl;
 };
 
 /**
