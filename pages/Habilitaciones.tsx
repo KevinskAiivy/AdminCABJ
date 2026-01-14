@@ -174,7 +174,14 @@ export const Habilitaciones = () => {
       });
   }, [matches, now]);
 
-  const handleOpenMatch = (match: ProcessedMatch) => {
+  const handleOpenMatch = async (match: ProcessedMatch) => {
+    // Recharger les solicitudes depuis Supabase avant d'ouvrir la modal
+    try {
+      await dataService.reloadSolicitudes();
+    } catch (error) {
+      console.error("Erreur lors du rechargement des solicitudes:", error);
+    }
+
     // Fonction helper pour créer un hash unique d'un UUID string en nombre (même fonction que dans processedMatches)
     const hashUUID = (uuid: string): number => {
       let hash = 0;
@@ -185,35 +192,35 @@ export const Habilitaciones = () => {
       }
       return Math.abs(hash) % 2147483647; // Max safe integer
     };
-    
+
     // Convertir l'ID en number si c'est une chaîne
     const matchId = typeof match.id === 'string' ? parseInt(match.id, 10) : match.id;
-    
+
     // Pour les matches avec UUID, utiliser le hash pour trouver les solicitudes
     const matchAny = match as any;
     const hasOriginalId = matchAny._originalId !== undefined && matchAny._originalId !== null;
     const isMatchUUID = typeof matchId === 'number' && matchId === 0 && hasOriginalId;
-    
+
     let allRequests: Solicitud[] = [];
     if (isMatchUUID && typeof matchAny._originalId === 'string') {
       // Utiliser le même hash que lors de la création des solicitudes
       const solicitudesMatchId = hashUUID(matchAny._originalId);
       console.log('🔑 Admin - Match avec UUID détecté, hash utilisé:', solicitudesMatchId, 'depuis UUID:', matchAny._originalId);
-      
+
       // Chercher avec le hash (nouvelles solicitudes créées avec le hash)
       const reqsWithHash = dataService.getSolicitudes(solicitudesMatchId);
       console.log('📋 Solicitudes trouvées avec hash:', Array.isArray(reqsWithHash) ? reqsWithHash.length : 0);
-      
+
       // Pour compatibilité, aussi chercher avec 0 (anciennes solicitudes créées avant le hash)
       // ATTENTION: Cela inclura TOUTES les solicitudes avec match_id=0 de TOUS les matches avec UUID
       // C'est un problème temporaire qui sera résolu quand toutes les solicitudes utiliseront le hash
       const reqsWithZero = dataService.getSolicitudes(0);
       console.log('📋 Solicitudes trouvées avec match_id=0 (anciennes):', Array.isArray(reqsWithZero) ? reqsWithZero.length : 0);
-      
+
       // Combiner et dédupliquer
       const allReqs = [...(Array.isArray(reqsWithHash) ? reqsWithHash : []), ...(Array.isArray(reqsWithZero) ? reqsWithZero : [])];
       const uniqueReqs = Array.from(new Map(allReqs.map(r => [r.id, r])).values());
-      
+
       // Filtrer pour ce match spécifique
       // Pour les nouvelles solicitudes, utiliser le hash
       // Pour les anciennes avec match_id=0, on ne peut pas les distinguer, donc on les inclut toutes
