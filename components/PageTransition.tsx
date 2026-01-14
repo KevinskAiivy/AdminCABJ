@@ -6,11 +6,13 @@ export const PageTransition: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isTransitioning, setIsTransitioning] = useState(true);
   const [shouldRenderContent, setShouldRenderContent] = useState(false);
   const [loadingLogoUrl, setLoadingLogoUrl] = useState<string>(dataService.getAssetUrl('loading_logo'));
+  const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
     // Mettre à jour le logo de chargement depuis app_assets
     const updateLogo = () => {
       setLoadingLogoUrl(dataService.getAssetUrl('loading_logo'));
+      setLogoError(false);
     };
     updateLogo();
     const unsubscribe = dataService.subscribe(updateLogo);
@@ -37,17 +39,19 @@ export const PageTransition: React.FC<{ children: React.ReactNode }> = ({ childr
           <div className="relative flex flex-col items-center">
             <div className="absolute inset-0 bg-[#FCB131] blur-[60px] opacity-10 animate-pulse rounded-full"></div>
             <div className="animate-boca-entrance">
-                <img 
-                  src={loadingLogoUrl} 
-                  alt="Cargando" 
-                  className="w-24 h-24 object-contain relative z-10 drop-shadow-md" 
-                  onError={(e) => {
-                    // Fallback vers SVG si l'image ne charge pas
-                    (e.target as HTMLImageElement).style.display = 'none';
-                    const svg = document.createElement('div');
-                    svg.innerHTML = '<svg>...</svg>'; // BocaLogoSVG
-                  }}
-                />
+                {!logoError ? (
+                  <img 
+                    src={loadingLogoUrl} 
+                    alt="Cargando" 
+                    className="w-24 h-24 object-contain relative z-10 drop-shadow-md" 
+                    onError={() => {
+                      // Fallback vers SVG si l'image ne charge pas
+                      setLogoError(true);
+                    }}
+                  />
+                ) : (
+                  <BocaLogoSVG className="w-20 h-20 relative z-10" />
+                )}
             </div>
             <div className="mt-6 overflow-hidden">
                 <p className="oswald text-[11px] font-bold text-[#003B94] uppercase tracking-[0.6em] animate-pulse">
