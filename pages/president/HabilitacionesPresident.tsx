@@ -232,6 +232,17 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
     }
   };
 
+  // Obtenir le logo de Boca Juniors depuis la table teams
+  const getBocaLogo = () => {
+      const bocaTeam = teams.find(t => 
+          t.name && (
+              t.name.toLowerCase().includes('boca') || 
+              t.name.toLowerCase().includes('club atlético boca juniors')
+          )
+      );
+      return bocaTeam?.logo || null;
+  };
+
   // Obtenir le logo de l'équipe rivale
   const getRivalLogo = (match: Match) => {
       const foundTeam = teams.find(t => 
@@ -466,11 +477,14 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                             {/* Logo Boca */}
                             <div className="flex flex-col items-center gap-0.5">
                               <div className="w-14 h-14 flex items-center justify-center">
-                                {settings.matchLogoUrl ? (
+                                {getBocaLogo() ? (
                                   <img 
-                                    src={settings.matchLogoUrl} 
+                                    src={getBocaLogo()!} 
                                     alt="Boca Juniors" 
                                     className="w-full h-full object-contain"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
                                   />
                                 ) : (
                                   <BocaLogoSVG className="w-full h-full" />

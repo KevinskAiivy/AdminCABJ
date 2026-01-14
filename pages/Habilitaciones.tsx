@@ -73,6 +73,7 @@ export const Habilitaciones = () => {
   const [now, setNow] = useState(new Date());
   const [selectedMatch, setSelectedMatch] = useState<ProcessedMatch | null>(null);
   const [requests, setRequests] = useState<Solicitud[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     const load = () => {
@@ -97,8 +98,8 @@ export const Habilitaciones = () => {
     const unsub = dataService.subscribe(load);
     const clock = setInterval(() => setNow(new Date()), 30000);
     
-    // Recharger les solicitudes depuis Supabase toutes les 30 secondes
-    const reloadInterval = setInterval(reloadSolicitudesFromDB, 30000);
+    // Recharger les solicitudes depuis Supabase toutes les 10 secondes pour un affichage en temps réel
+    const reloadInterval = setInterval(reloadSolicitudesFromDB, 10000);
     
     // Recharger immédiatement au démarrage
     reloadSolicitudesFromDB();
@@ -150,17 +151,17 @@ export const Habilitaciones = () => {
             const reqsWithZero = dataService.getSolicitudes(0);
             const allReqs = [...(Array.isArray(reqsWithHash) ? reqsWithHash : []), ...(Array.isArray(reqsWithZero) ? reqsWithZero : [])];
             const uniqueReqs = Array.from(new Map(allReqs.map(r => [r.id, r])).values());
-            // Filtrer pour ce match spécifique (hash OU 0) et exclure CANCELLATION_REQUESTED
-            const activeReqs = uniqueReqs.filter(r => 
+            // Compter uniquement les solicitudes PENDING (non traitées)
+            const pendingReqs = uniqueReqs.filter(r => 
               (r.match_id === solicitudesMatchId || (isMatchUUID && r.match_id === 0)) &&
-              r.status !== 'CANCELLATION_REQUESTED'
+              r.status === 'PENDING'
             );
-            return { ...m, status, activeRequests: activeReqs.length };
+            return { ...m, status, activeRequests: pendingReqs.length };
           } else {
-            // Pour les matches normaux, chercher normalement
+            // Pour les matches normaux, chercher normalement et compter uniquement les PENDING
             const allReqs = dataService.getSolicitudes(matchId);
-            const activeReqs = Array.isArray(allReqs) ? allReqs.filter(r => r.status !== 'CANCELLATION_REQUESTED') : [];
-            return { ...m, status, activeRequests: activeReqs.length };
+            const pendingReqs = Array.isArray(allReqs) ? allReqs.filter(r => r.status === 'PENDING') : [];
+            return { ...m, status, activeRequests: pendingReqs.length };
           }
       })
       .sort((a, b) => {
@@ -172,7 +173,7 @@ export const Habilitaciones = () => {
           const priority = { 'OPEN': 0, 'SCHEDULED': 1, 'CLOSED': 2 };
           return priority[a.status] - priority[b.status];
       });
-  }, [matches, now]);
+  }, [matches, now, requests]);
 
   const handleOpenMatch = async (match: ProcessedMatch) => {
     // Recharger les solicitudes depuis Supabase avant d'ouvrir la modal
@@ -1168,11 +1169,16 @@ export const Habilitaciones = () => {
 
   // Fonction pour rafraîchir manuellement les solicitudes
   const handleRefreshSolicitudes = async () => {
+    setIsRefreshing(true);
     try {
       await dataService.reloadSolicitudes();
       setRequests(dataService.getSolicitudes());
+      // Forcer le recalcul en mettant à jour 'now' pour déclencher le useMemo de processedMatches
+      setNow(new Date());
     } catch (error) {
       console.error("Erreur lors du rafraîchissement:", error);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -1190,11 +1196,12 @@ export const Habilitaciones = () => {
           </div>
           <button
             onClick={handleRefreshSolicitudes}
-            className="flex items-center gap-2 px-4 py-2 bg-[#FCB131] text-[#001d4a] rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-[#FFD23F] transition-all shadow-lg relative z-10"
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-[#FCB131] text-[#001d4a] rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-[#FFD23F] transition-all shadow-lg relative z-10 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Actualizar solicitudes desde la base de datos"
           >
-            <RefreshCw size={16} />
-            Actualizar
+            <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+            {isRefreshing ? 'Actualizando...' : 'Actualizar'}
           </button>
         </div>
 
@@ -1392,7 +1399,7 @@ export const Habilitaciones = () => {
         </div>
 
         {selectedMatch && (
-            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300 h-[550px]">
                 <div className="relative w-full max-w-4xl bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-white/60 max-h-[80vh] animate-in zoom-in-95 duration-200">
                     <div className="liquid-glass-dark p-5 text-white flex justify-between items-center shrink-0">
                         <div>
