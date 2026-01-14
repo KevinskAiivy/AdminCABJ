@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GlassCard } from '../../components/GlassCard';
-import { Ticket, Clock, MapPin, CheckCircle2 } from 'lucide-react';
+import { Ticket, Clock, MapPin, CheckCircle2, X, XCircle, AlertCircle } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { Match, Solicitud, Team, Competition } from '../../types';
 import { formatDateDisplay } from '../../utils/dateFormat';
@@ -20,6 +20,8 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
   const [teams, setTeams] = useState<Team[]>([]);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [settings, setSettings] = useState(dataService.getAppSettings());
+  const [selectedMatch, setSelectedMatch] = useState<ProcessedMatch | null>(null);
+  const [matchRequests, setMatchRequests] = useState<Solicitud[]>([]);
 
   // Fonction de parsing des dates
   const parseDate = (d: string, h: string) => {
@@ -122,6 +124,63 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
       };
   }, [consulado_id, consuladoName]);
   
+  
+  // Gérer l'ouverture du modal pour voir les demandes
+  const handleViewRequests = async (match: ProcessedMatch) => {
+    console.log('🚀 handleViewRequests appelé avec:', match);
+    if (!match) {
+      console.error('❌ Match est null/undefined dans handleViewRequests');
+      return;
+    }
+    
+    // Fonction helper pour créer un hash unique d'un UUID string en nombre
+    const hashUUID = (uuid: string): number => {
+      let hash = 0;
+      for (let i = 0; i < uuid.length; i++) {
+        const char = uuid.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return Math.abs(hash) % 2147483647;
+    };
+    
+    // Accéder à _originalId pour les UUIDs
+    const matchAny = match as any;
+    const hasOriginalId = matchAny._originalId !== undefined && matchAny._originalId !== null;
+    const isMatchUUID = typeof match.id === 'number' && match.id === 0 && hasOriginalId;
+    
+    // Calculer le matchId pour getSolicitudes
+    let solicitudesMatchId: number;
+    if (isMatchUUID && typeof matchAny._originalId === 'string') {
+      solicitudesMatchId = hashUUID(matchAny._originalId);
+    } else {
+      solicitudesMatchId = match.id;
+    }
+    
+    // Charger les solicitudes depuis la base de données
+    await dataService.reloadSolicitudes();
+    
+    // Récupérer les solicitudes pour ce match et ce consulado
+    const allSolicitudes = dataService.getSolicitudes(solicitudesMatchId);
+    const filteredRequests = Array.isArray(allSolicitudes) 
+      ? allSolicitudes.filter(r => r.consulado === consuladoName)
+      : [];
+    
+    // Pour compatibilité avec les anciennes solicitudes (match_id = 0)
+    if (isMatchUUID) {
+      const oldSolicitudes = dataService.getSolicitudes(0);
+      const oldFiltered = Array.isArray(oldSolicitudes)
+        ? oldSolicitudes.filter(r => r.consulado === consuladoName)
+        : [];
+      filteredRequests.push(...oldFiltered);
+    }
+    
+    // Dédupliquer par ID
+    const uniqueRequests = Array.from(new Map(filteredRequests.map(r => [r.id, r])).values());
+    
+    setMatchRequests(uniqueRequests);
+    setSelectedMatch(match);
+  };
   
   // Gérer la navigation vers la page de solicitudes (fonction conservée pour compatibilité mais non utilisée directement)
   const handleSolicitarHabilitaciones = (match: ProcessedMatch) => {
@@ -395,11 +454,24 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                     // Vérifier si une cancellation est en cours
                     const hasCancellationRequest = filteredMatchRequests.some(r => r.status === 'CANCELLATION_REQUESTED');
                     
+                    // Vérifier si les admins ont traité les demandes (au moins une APPROVED ou REJECTED)
+                    const hasProcessedRequests = filteredMatchRequests.some(r => 
+                        r.status === 'APPROVED' || r.status === 'REJECTED'
+                    );
+                    
+                    // Vérifier si toutes les demandes sont encore PENDING
+                    const allPending = filteredMatchRequests.length > 0 && 
+                        filteredMatchRequests.every(r => r.status === 'PENDING' || r.status === 'CANCELLATION_REQUESTED');
+                    
                     // Si la cancellation a été approuvée (pas de CANCELLATION_REQUESTED et pas de requêtes actives), on peut à nouveau solicitar
                     const canSolicitarAgain = hasListSent && !hasCancellationRequest && 
                         filteredMatchRequests.length === 0;
                     
-                    const shouldShowCancelButton = hasListSent && !hasCancellationRequest;
+                    // Afficher le bouton de cancelación seulement si toutes les demandes sont PENDING (pas encore traitées)
+                    const shouldShowCancelButton = hasListSent && !hasCancellationRequest && allPending;
+                    
+                    // Afficher le bouton "Ver Resultados" si les admins ont traité les demandes
+                    const shouldShowViewResults = hasListSent && !hasCancellationRequest && hasProcessedRequests;
                     
                     const rivalLogo = getRivalLogo(match);
                     const compLogo = getCompetitionLogo(match);
@@ -584,9 +656,14 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                                 console.log('   - routeIdentifier (pour URL):', routeIdentifier);
                                 console.log('   - hasOriginalId:', hasOriginalId);
                                 console.log('   - shouldShowCancelButton:', shouldShowCancelButton);
+                                console.log('   - shouldShowViewResults:', shouldShowViewResults);
                                 console.log('   - match object complet:', match);
                                 
-                                if (shouldShowCancelButton) {
+                                if (shouldShowViewResults) {
+                                  // Ouvrir le modal pour voir les résultats
+                                  console.log('   → Appel handleViewRequests');
+                                  handleViewRequests(match);
+                                } else if (shouldShowCancelButton) {
                                   console.log('   → Appel handleSolicitarCancelacion');
                                   handleSolicitarCancelacion(match);
                                 } else {
@@ -605,19 +682,30 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                               }}
                               className={`w-full py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 ${
                                 isOpen
-                                  ? shouldShowCancelButton
-                                    ? 'bg-amber-500 text-white hover:bg-amber-600 hover:shadow-[0_0_30px_rgba(245,158,11,0.5)] transform hover:scale-[1.02]'
-                                    : 'bg-[#FCB131] text-[#001d4a] hover:bg-white hover:shadow-[0_0_30px_rgba(252,177,49,0.5)] transform hover:scale-[1.02]'
-                                  : 'bg-[#003B94] text-white hover:bg-[#001d4a] hover:shadow-[0_0_20px_rgba(0,59,148,0.4)] transform hover:scale-[1.02]'
+                                  ? shouldShowViewResults
+                                    ? 'bg-emerald-500 text-white hover:bg-emerald-600 hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transform hover:scale-[1.02]'
+                                    : shouldShowCancelButton
+                                      ? 'bg-amber-500 text-white hover:bg-amber-600 hover:shadow-[0_0_30px_rgba(245,158,11,0.5)] transform hover:scale-[1.02]'
+                                      : 'bg-[#FCB131] text-[#001d4a] hover:bg-white hover:shadow-[0_0_30px_rgba(252,177,49,0.5)] transform hover:scale-[1.02]'
+                                  : shouldShowViewResults
+                                    ? 'bg-emerald-500 text-white hover:bg-emerald-600 hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transform hover:scale-[1.02]'
+                                    : 'bg-[#003B94] text-white hover:bg-[#001d4a] hover:shadow-[0_0_20px_rgba(0,59,148,0.4)] transform hover:scale-[1.02]'
                               }`}
                             >
-                              <Ticket size={13} strokeWidth={2.5} /> 
-                              {shouldShowCancelButton 
-                                ? 'Solicitar Cancelación de Pedido' 
-                                : isOpen 
-                                  ? 'Solicitar Habilitaciones' 
-                                  : 'Ver Detalles'
-                              }
+                              {shouldShowViewResults ? (
+                                <>
+                                  <CheckCircle2 size={13} strokeWidth={2.5} /> Ver Resultados
+                                </>
+                              ) : shouldShowCancelButton ? (
+                                <>
+                                  <XCircle size={13} strokeWidth={2.5} /> Solicitar Cancelación
+                                </>
+                              ) : (
+                                <>
+                                  <Ticket size={13} strokeWidth={2.5} /> 
+                                  {isOpen ? 'Solicitar Habilitaciones' : 'Ver Detalles'}
+                                </>
+                              )}
                             </button>
                           )}
                         </div>
@@ -637,6 +725,90 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                     No hay partidos disponibles para solicitar habilitaciones en este momento.
                 </p>
             </GlassCard>
+        )}
+        
+        {/* Modal pour voir les résultats des demandes */}
+        {selectedMatch && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="relative w-full max-w-3xl bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-white/60 max-h-[80vh] animate-in zoom-in-95 duration-200">
+              {/* Header */}
+              <div className="liquid-glass-dark p-5 text-white flex justify-between items-center shrink-0">
+                <div>
+                  <h2 className="oswald text-xl font-black uppercase">Resultados: vs {selectedMatch.rival}</h2>
+                  <p className="text-[10px] font-bold text-[#FCB131] uppercase tracking-widest">
+                    {formatDateDisplay(selectedMatch.date)} - {formatHourDisplay(selectedMatch.hour || '')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedMatch(null)}
+                  className="opacity-60 hover:opacity-100 p-2 hover:bg-white/10 rounded-full transition-all"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              
+              {/* Contenu */}
+              <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50 custom-scrollbar">
+                {matchRequests.length > 0 ? (
+                  <div className="space-y-3">
+                    {/* Statistiques */}
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                      <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-200">
+                        <div className="text-2xl font-black text-emerald-600">
+                          {matchRequests.filter(r => r.status === 'APPROVED').length}
+                        </div>
+                        <div className="text-[9px] font-black uppercase text-emerald-600">Aprobadas</div>
+                      </div>
+                      <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                        <div className="text-2xl font-black text-red-600">
+                          {matchRequests.filter(r => r.status === 'REJECTED').length}
+                        </div>
+                        <div className="text-[9px] font-black uppercase text-red-600">Rechazadas</div>
+                      </div>
+                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                        <div className="text-2xl font-black text-blue-600">
+                          {matchRequests.filter(r => r.status === 'PENDING').length}
+                        </div>
+                        <div className="text-[9px] font-black uppercase text-blue-600">Pendientes</div>
+                      </div>
+                    </div>
+                    
+                    {/* Liste des demandes */}
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                      <div className="divide-y">
+                        {matchRequests
+                          .filter(r => r.status !== 'CANCELLATION_REQUESTED')
+                          .map(req => (
+                            <div key={req.id} className="p-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                              <div className="flex-1">
+                                <p className="font-black text-[#001d4a] uppercase text-xs">{req.socio_name}</p>
+                                <p className="text-[9px] text-gray-400 font-mono">DNI: {req.socio_dni}</p>
+                              </div>
+                              <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
+                                req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' :
+                                req.status === 'REJECTED' ? 'bg-red-100 text-red-700 border border-red-300' :
+                                'bg-blue-100 text-blue-700 border border-blue-300'
+                              }`}>
+                                {req.status === 'APPROVED' ? '✓ Aprobada' : 
+                                 req.status === 'REJECTED' ? '✗ Rechazada' : 
+                                 '⏳ Pendiente'}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <AlertCircle size={48} className="mx-auto mb-3 text-gray-300" />
+                    <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
+                      No hay solicitudes para este partido
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
     </div>
   );
