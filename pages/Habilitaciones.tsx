@@ -330,10 +330,10 @@ export const Habilitaciones = () => {
       return;
     }
     
-    // Trouver toutes les solicitudes du même consulado avec CANCELLATION_REQUESTED pour CE MATCH uniquement
+    // Trouver toutes les solicitudes du même consulado avec cancellation_requested=true pour CE MATCH uniquement
     const consuladoRequests = requests.filter(r => 
       r.consulado === req.consulado && 
-      r.status === 'CANCELLATION_REQUESTED' &&
+      r.cancellation_requested === true &&
       r.match_id === req.match_id // ✅ FILTRE PAR MATCH
     );
     
@@ -348,7 +348,7 @@ export const Habilitaciones = () => {
     }
     
     try {
-      // Supprimer toutes les solicitudes du consulado avec CANCELLATION_REQUESTED pour ce match
+      // Supprimer toutes les solicitudes du consulado avec cancellation_requested=true pour ce match
       for (const request of consuladoRequests) {
         await dataService.deleteSolicitud(request.id);
       }
@@ -376,10 +376,10 @@ export const Habilitaciones = () => {
       return;
     }
     
-    // Trouver toutes les solicitudes du même consulado avec CANCELLATION_REQUESTED pour CE MATCH uniquement
+    // Trouver toutes les solicitudes du même consulado avec cancellation_requested=true pour CE MATCH uniquement
     const consuladoRequests = requests.filter(r => 
       r.consulado === req.consulado && 
-      r.status === 'CANCELLATION_REQUESTED' &&
+      r.cancellation_requested === true &&
       r.match_id === req.match_id // ✅ FILTRE PAR MATCH
     );
     
@@ -388,22 +388,20 @@ export const Habilitaciones = () => {
       return;
     }
     
-    const confirmMessage = `¿Está seguro de rechazar la solicitud de anulación del consulado ${req.consulado} para este partido?\n\nSe mantendrán ${consuladoRequests.length} solicitud(es) en estado APROBADO.`;
+    const confirmMessage = `¿Está seguro de rechazar la solicitud de anulación del consulado ${req.consulado} para este partido?\n\nSe mantendrán ${consuladoRequests.length} solicitud(es) y el proceso de habilitación continuará normalmente.`;
     if (!confirm(confirmMessage)) {
       return;
     }
     
     try {
-      // Restaurer toutes les solicitudes du consulado pour ce match à leur statut précédent
+      // Remettre cancellation_requested à false (le status reste inchangé)
       for (const request of consuladoRequests) {
-        // Utiliser le previous_status si disponible, sinon revenir à APPROVED par défaut
-        const statusToRestore = request.previous_status || 'APPROVED';
-        await dataService.updateSolicitudStatus(request.id, statusToRestore);
+        await dataService.updateCancellationRequested(request.id, false);
       }
       
       // Recharger les requests
       await reloadRequestsForSelectedMatch();
-      alert(`Solicitud de anulación rechazada. ${consuladoRequests.length} solicitud(es) del consulado ${req.consulado} para este partido vuelven a su estado inicial.`);
+      alert(`Solicitud de anulación rechazada. El proceso de habilitación continuará normalmente para ${consuladoRequests.length} solicitud(es) del consulado ${req.consulado}.`);
     } catch (error) {
       console.error('Erreur lors du refus de l\'annulation:', error);
       alert('Error al rechazar la anulación. Por favor, intente nuevamente.');
@@ -458,11 +456,11 @@ export const Habilitaciones = () => {
     setRequests(allRequests);
   };
   
-  // Vérifier si toutes les sollicitations ont été traitées (pas de PENDING ni CANCELLATION_REQUESTED)
+  // Vérifier si toutes les sollicitations ont été traitées (pas de PENDING ni de demande d'annulation en cours)
   const allRequestsProcessed = useMemo(() => {
     if (!selectedMatch || requests.length === 0) return false;
-    // Exclure les CANCELLATION_REQUESTED de la vérification
-    const nonCancellationRequests = requests.filter(req => req.status !== 'CANCELLATION_REQUESTED');
+    // Exclure les solicitudes avec demande d'annulation en cours
+    const nonCancellationRequests = requests.filter(req => !req.cancellation_requested);
     if (nonCancellationRequests.length === 0) return false;
     return nonCancellationRequests.every(req => req.status === 'APPROVED' || req.status === 'REJECTED');
   }, [selectedMatch, requests]);
@@ -1429,15 +1427,15 @@ export const Habilitaciones = () => {
                                   const reqsWithZero = dataService.getSolicitudes(0);
                                   const allReqs = [...(Array.isArray(reqsWithHash) ? reqsWithHash : []), ...(Array.isArray(reqsWithZero) ? reqsWithZero : [])];
                                   const uniqueReqs = Array.from(new Map(allReqs.map(r => [r.id, r])).values());
-                                  // Filtrer pour ce match spécifique (hash OU 0) et exclure CANCELLATION_REQUESTED
+                                  // Filtrer pour ce match spécifique (hash OU 0) et exclure les demandes d'annulation en cours
                                   allRequests = uniqueReqs.filter(r => 
                                     (r.match_id === solicitudesMatchId || r.match_id === 0) &&
-                                    r.status !== 'CANCELLATION_REQUESTED'
+                                    !r.cancellation_requested
                                   );
                                 } else {
                                   // Pour les matches normaux, chercher normalement
                                   const reqs = dataService.getSolicitudes(matchId);
-                                  allRequests = Array.isArray(reqs) ? reqs.filter(r => r.status !== 'CANCELLATION_REQUESTED') : [];
+                                  allRequests = Array.isArray(reqs) ? reqs.filter(r => !r.cancellation_requested) : [];
                                 }
                                 
                                 const allProcessed = allRequests.length > 0 && allRequests.every(req => req.status === 'APPROVED' || req.status === 'REJECTED');
@@ -1509,20 +1507,20 @@ export const Habilitaciones = () => {
                                     </thead>
                                     <tbody className="divide-y">
                                         {(() => {
-                                            // Grouper les solicitudes par consulado pour les CANCELLATION_REQUESTED
+                                            // Grouper les solicitudes par consulado pour les demandes d'annulation en cours
                                             const consuladosWithCancellation = new Set(
                                                 requests
-                                                    .filter(r => r.status === 'CANCELLATION_REQUESTED')
+                                                    .filter(r => r.cancellation_requested === true)
                                                     .map(r => r.consulado)
                                             );
                                             
-                                            // Filtrer les solicitudes à afficher : exclure les CANCELLATION_REQUESTED individuelles
-                                            const regularRequests = requests.filter(r => r.status !== 'CANCELLATION_REQUESTED');
+                                            // Filtrer les solicitudes à afficher : exclure celles avec demande d'annulation en cours
+                                            const regularRequests = requests.filter(r => !r.cancellation_requested);
                                             
                                             // Créer les lignes pour les consulados avec demande d'annulation
                                             const cancellationRows = Array.from(consuladosWithCancellation).map(consulado => {
                                                 const consuladoReqs = requests.filter(r => 
-                                                    r.consulado === consulado && r.status === 'CANCELLATION_REQUESTED'
+                                                    r.consulado === consulado && r.cancellation_requested === true
                                                 );
                                                 const firstReq = consuladoReqs[0];
                                                 const cancellationCount = consuladoReqs.length;

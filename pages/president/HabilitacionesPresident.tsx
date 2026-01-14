@@ -294,9 +294,9 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
       }
 
       for (const req of filteredReqs) {
-        if (req && req.id && (req.status === 'PENDING' || req.status === 'APPROVED' || req.status === 'REJECTED')) {
-          // Sauvegarder le statut actuel comme previous_status avant de changer vers CANCELLATION_REQUESTED
-          await dataService.updateSolicitudStatusWithPrevious(req.id, 'CANCELLATION_REQUESTED', req.status);
+        if (req && req.id) {
+          // Marquer la solicitude comme ayant une demande d'annulation (sans changer le status)
+          await dataService.updateCancellationRequested(req.id, true);
         }
       }
       
@@ -474,16 +474,16 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                     );
                     
                     // Vérifier si une cancellation est en cours
-                    const hasCancellationRequest = filteredMatchRequests.some(r => r.status === 'CANCELLATION_REQUESTED');
+                    const hasCancellationRequest = filteredMatchRequests.some(r => r.cancellation_requested === true);
                     
                     // Vérifier si les admins ont traité les demandes (au moins une APPROVED ou REJECTED)
                     const hasProcessedRequests = filteredMatchRequests.some(r => 
                         r.status === 'APPROVED' || r.status === 'REJECTED'
                     );
                     
-                    // Vérifier si toutes les demandes sont encore PENDING
+                    // Vérifier si toutes les demandes sont encore PENDING (sans demande d'annulation)
                     const allPending = filteredMatchRequests.length > 0 && 
-                        filteredMatchRequests.every(r => r.status === 'PENDING' || r.status === 'CANCELLATION_REQUESTED');
+                        filteredMatchRequests.every(r => r.status === 'PENDING' && !r.cancellation_requested);
                     
                     // Si la cancellation a été approuvée (pas de CANCELLATION_REQUESTED et pas de requêtes actives), on peut à nouveau solicitar
                     const canSolicitarAgain = hasListSent && !hasCancellationRequest && 

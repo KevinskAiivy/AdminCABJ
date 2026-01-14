@@ -1786,7 +1786,7 @@ class DataService {
           throw error;
       }
   }
-  async updateSolicitudStatus(id: string, status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLATION_REQUESTED') { 
+  async updateSolicitudStatus(id: string, status: 'PENDING' | 'APPROVED' | 'REJECTED') { 
       try {
           // Mettre à jour localement
           this.solicitudes = this.solicitudes.map(s => s.id === id ? { ...s, status } : s);
@@ -1810,24 +1810,22 @@ class DataService {
       }
   }
 
-  // Mettre à jour le statut avec sauvegarde du previous_status
-  async updateSolicitudStatusWithPrevious(id: string, status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLATION_REQUESTED', previousStatus?: 'PENDING' | 'APPROVED' | 'REJECTED') {
+  // Mettre à jour le champ cancellation_requested
+  async updateCancellationRequested(id: string, cancellationRequested: boolean) {
       try {
           // Mettre à jour localement
           this.solicitudes = this.solicitudes.map(s => 
-              s.id === id ? { ...s, status, previous_status: previousStatus } : s
+              s.id === id ? { ...s, cancellation_requested: cancellationRequested } : s
           );
           this.notify();
           
           // Sauvegarder dans Supabase (si la table existe)
           try {
-              const updateData: any = { status };
-              if (previousStatus !== undefined) {
-                  updateData.previous_status = previousStatus;
-              }
-              const { error } = await supabase.from('solicitudes').update(updateData).eq('id', id);
+              const { error } = await supabase.from('solicitudes').update({ 
+                  cancellation_requested: cancellationRequested 
+              }).eq('id', id);
               if (error && error.code !== '42P01') {
-                  console.error("❌ Erreur lors de la mise à jour de la solicitud avec previous_status:", error);
+                  console.error("❌ Erreur lors de la mise à jour de cancellation_requested:", error);
               }
           } catch (dbError: any) {
               // Ignorer si la table n'existe pas
@@ -1836,7 +1834,7 @@ class DataService {
               }
           }
       } catch (error: any) {
-          console.error("❌ Erreur lors de la mise à jour de la solicitud:", error);
+          console.error("❌ Erreur lors de la mise à jour de cancellation_requested:", error);
           throw error;
       }
   }

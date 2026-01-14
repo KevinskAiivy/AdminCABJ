@@ -190,8 +190,8 @@ export interface Solicitud {
   socio_dni: string;
   socio_category: string;
   consulado: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLATION_REQUESTED';
-  previous_status?: 'PENDING' | 'APPROVED' | 'REJECTED'; // Statut avant demande d'annulation
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  cancellation_requested?: boolean; // TRUE si demande d'annulation en cours, FALSE/undefined sinon
   timestamp: string;
 }
 

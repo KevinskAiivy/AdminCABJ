@@ -53,15 +53,15 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
   
   // Vérifier si la liste a été envoyée
   const isListSent = submittedRequests.length > 0 && submittedRequests.some(r => 
-      r.status === 'PENDING' || r.status === 'APPROVED' || r.status === 'REJECTED' || r.status === 'CANCELLATION_REQUESTED'
+      r.status === 'PENDING' || r.status === 'APPROVED' || r.status === 'REJECTED'
   );
   
   // Vérifier si une demande d'annulation est en cours
-  const hasCancellationRequest = submittedRequests.some(r => r.status === 'CANCELLATION_REQUESTED');
+  const hasCancellationRequest = submittedRequests.some(r => r.cancellation_requested === true);
 
   // Statistiques calculées
   const stats = useMemo(() => {
-    const total = submittedRequests.filter(r => r.status !== 'CANCELLATION_REQUESTED').length;
+    const total = submittedRequests.filter(r => !r.cancellation_requested).length;
     const approved = submittedRequests.filter(r => r.status === 'APPROVED').length;
     const rejected = submittedRequests.filter(r => r.status === 'REJECTED').length;
     const pending = submittedRequests.filter(r => r.status === 'PENDING').length;
@@ -204,7 +204,7 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
         setSubmittedRequests(filteredReqs);
 
         // Vérifier si une cancellation a été approuvée et restaurer les socios précédemment sélectionnés
-        // Si il n'y a plus de requêtes actives (pas de PENDING, APPROVED, REJECTED, ni CANCELLATION_REQUESTED),
+        // Si il n'y a plus de requêtes actives (pas de PENDING, APPROVED, REJECTED),
         // mais qu'il y avait des requêtes stockées dans localStorage, restaurer la liste
         // Utiliser le matchId original (UUID ou nombre) pour la clé localStorage
         const storedMatchId = isUUID ? decodedMatchId : (typeof match.id === 'number' ? match.id : parseInt(String(match.id), 10));
@@ -213,7 +213,7 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
         
         // Si aucune requête active n'existe et qu'il y a des socios stockés, cela signifie que la cancellation a été approuvée
         const hasActiveRequests = filteredReqs && Array.isArray(filteredReqs) && filteredReqs.length > 0 && 
-          filteredReqs.some(r => r.status === 'PENDING' || r.status === 'APPROVED' || r.status === 'REJECTED' || r.status === 'CANCELLATION_REQUESTED');
+          filteredReqs.some(r => r.status === 'PENDING' || r.status === 'APPROVED' || r.status === 'REJECTED');
         
         if (!hasActiveRequests && storedSociosIds) {
           try {
@@ -398,7 +398,7 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
           r.socio_id === socio.id && 
           r.match_id === matchIdNum &&
           r.consulado === consuladoName.trim() &&
-          r.status !== 'CANCELLATION_REQUESTED'
+          !r.cancellation_requested
         );
         
         if (existingRequest) {
@@ -467,8 +467,9 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
     
     try {
       for (const req of submittedRequests) {
-        if (req && req.id && (req.status === 'PENDING' || req.status === 'APPROVED' || req.status === 'REJECTED')) {
-          await dataService.updateSolicitudStatus(req.id, 'CANCELLATION_REQUESTED');
+        if (req && req.id) {
+          // Marquer la solicitude comme ayant une demande d'annulation (sans changer le status)
+          await dataService.updateCancellationRequested(req.id, true);
         }
       }
       
@@ -822,7 +823,7 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
                   
                   const isAlreadySubmitted = existingRequest && 
                       (existingRequest.status === 'PENDING' || existingRequest.status === 'APPROVED' || existingRequest.status === 'REJECTED');
-                  const isCancellationRequested = existingRequest && existingRequest.status === 'CANCELLATION_REQUESTED';
+                  const isCancellationRequested = existingRequest && existingRequest.cancellation_requested === true;
                   
                   return (
                     <div 
@@ -1047,7 +1048,7 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
           {/* Historial */}
           {submittedRequests.filter(r => {
             const mId = typeof selectedMatch?.id === 'string' ? parseInt(selectedMatch.id, 10) : selectedMatch?.id;
-            return r.status !== 'CANCELLATION_REQUESTED' && 
+            return !r.cancellation_requested && 
                    r.match_id === mId && 
                    r.consulado === consuladoName;
           }).length > 0 && (
@@ -1059,7 +1060,7 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
                 {submittedRequests
                   .filter(req => {
                     const mId = typeof selectedMatch?.id === 'string' ? parseInt(selectedMatch.id, 10) : selectedMatch?.id;
-                    return req.status !== 'CANCELLATION_REQUESTED' && 
+                    return !req.cancellation_requested && 
                            req.match_id === mId && 
                            req.consulado === consuladoName;
                   })
