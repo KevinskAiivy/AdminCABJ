@@ -114,13 +114,30 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
           setAvailableMatches(processedMatches);
       };
       
+      // Vérifier les solicitudes dans la base de données dès l'arrivée sur la page
+      const loadSolicitudesFromDB = async () => {
+          try {
+              await dataService.reloadSolicitudes();
+              console.log('✅ Solicitudes rechargées depuis la base de données');
+          } catch (error) {
+              console.error('❌ Erreur lors du rechargement des solicitudes:', error);
+          }
+      };
+      
+      // Charger immédiatement les solicitudes au démarrage
+      loadSolicitudesFromDB();
+      
       loadMatches();
       const unsub = dataService.subscribe(loadMatches);
       const interval = setInterval(loadMatches, 30000);
       
+      // Recharger les solicitudes toutes les 15 secondes pour garder les boutons à jour
+      const solicitudesInterval = setInterval(loadSolicitudesFromDB, 15000);
+      
       return () => {
           unsub();
           clearInterval(interval);
+          clearInterval(solicitudesInterval);
       };
   }, [consulado_id, consuladoName]);
   
