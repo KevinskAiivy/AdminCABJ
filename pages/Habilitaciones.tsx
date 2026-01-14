@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { GlassCard } from '../components/GlassCard';
-import { Ticket, CheckCircle2, XCircle, Calendar, MapPin, X, UserCheck, UserX, Filter, Timer, Archive, Home, Plane, FileText, RefreshCw, AlertCircle } from 'lucide-react';
+import { Ticket, CheckCircle2, XCircle, Calendar, MapPin, X, UserCheck, UserX, Filter, Timer, Archive, Home, Plane, FileText, RefreshCw, AlertCircle, ChevronDown, ChevronRight, Building2 } from 'lucide-react';
 import { Match, Solicitud, Socio, Team } from '../types';
 import { dataService } from '../services/dataService';
 import { BocaLogoSVG } from '../constants';
@@ -74,6 +74,7 @@ export const Habilitaciones = () => {
   const [selectedMatch, setSelectedMatch] = useState<ProcessedMatch | null>(null);
   const [requests, setRequests] = useState<Solicitud[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [expandedConsulados, setExpandedConsulados] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     // Fonction pour charger toutes les données depuis le cache local
@@ -1549,116 +1550,174 @@ export const Habilitaciones = () => {
                     </div>
                     <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50 custom-scrollbar">
                         {requests.length > 0 ? (
-                            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                                <table className="w-full text-left">
-                                    <thead className="bg-gray-50 text-[9px] font-black text-gray-400 uppercase tracking-widest border-b">
-                                        <tr>
-                                            <th className="p-4">Socio</th>
-                                            <th className="p-4">Consulado</th>
-                                            <th className="p-4">Estado</th>
-                                            <th className="p-4 text-right">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y">
-                                        {(() => {
-                                            // Grouper les solicitudes par consulado pour les demandes d'annulation en cours
-                                            const consuladosWithCancellation = new Set(
-                                                requests
-                                                    .filter(r => r.cancellation_requested === true)
-                                                    .map(r => r.consulado)
-                                            );
-                                            
-                                            // Filtrer les solicitudes à afficher : exclure celles avec demande d'annulation en cours
-                                            const regularRequests = requests.filter(r => !r.cancellation_requested);
-                                            
-                                            // Créer les lignes pour les consulados avec demande d'annulation
-                                            const cancellationRows = Array.from(consuladosWithCancellation).map(consulado => {
-                                                const consuladoReqs = requests.filter(r => 
-                                                    r.consulado === consulado && r.cancellation_requested === true
-                                                );
-                                                const firstReq = consuladoReqs[0];
-                                                const cancellationCount = consuladoReqs.length;
-                                                
-                                                return (
-                                                    <tr key={`cancellation-${consulado}`} className="bg-orange-50 hover:bg-orange-100 transition-colors border-t-2 border-orange-300">
-                                                        <td className="p-4" colSpan={2}>
-                                                            <div className="flex items-center gap-2">
-                                                                <AlertCircle size={16} className="text-orange-600 animate-pulse" />
-                                                                <div>
-                                                                    <p className="font-black text-orange-700 uppercase text-xs">
-                                                                        Solicitud de Anulación
-                                                                    </p>
-                                                                    <p className="text-[10px] font-bold text-[#003B94] uppercase mt-0.5">
-                                                                        Consulado: {consulado}
-                                                                    </p>
-                                                                    <p className="text-[9px] text-orange-600 font-bold mt-0.5">
-                                                                        {cancellationCount} socio{cancellationCount > 1 ? 's' : ''} afectado{cancellationCount > 1 ? 's' : ''}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="p-4">
-                                                            <span className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest bg-orange-100 text-orange-600 animate-pulse">
-                                                                ⚠️ Anulación Solicitada
+                            <div className="space-y-3">
+                                {(() => {
+                                    // Grouper les solicitudes par consulado
+                                    const consuladoGroups = requests.reduce((acc, req) => {
+                                        const consulado = req.consulado || 'Sin Consulado';
+                                        if (!acc[consulado]) acc[consulado] = [];
+                                        acc[consulado].push(req);
+                                        return acc;
+                                    }, {} as Record<string, Solicitud[]>);
+                                    
+                                    // Trier les consulados par nombre de solicitudes pendientes (desc)
+                                    const sortedConsulados = Object.entries(consuladoGroups).sort((a, b) => {
+                                        const pendingA = a[1].filter(r => r.status === 'PENDING' && !r.cancellation_requested).length;
+                                        const pendingB = b[1].filter(r => r.status === 'PENDING' && !r.cancellation_requested).length;
+                                        return pendingB - pendingA;
+                                    });
+                                    
+                                    return sortedConsulados.map(([consulado, consuladoReqs]) => {
+                                        const isExpanded = expandedConsulados.has(consulado);
+                                        const pendingCount = consuladoReqs.filter(r => r.status === 'PENDING' && !r.cancellation_requested).length;
+                                        const approvedCount = consuladoReqs.filter(r => r.status === 'APPROVED').length;
+                                        const rejectedCount = consuladoReqs.filter(r => r.status === 'REJECTED').length;
+                                        const hasCancellation = consuladoReqs.some(r => r.cancellation_requested === true);
+                                        const cancellationReqs = consuladoReqs.filter(r => r.cancellation_requested === true);
+                                        const regularReqs = consuladoReqs.filter(r => !r.cancellation_requested);
+                                        
+                                        return (
+                                            <div key={consulado} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                                                {/* Header dépliant */}
+                                                <button
+                                                    onClick={() => {
+                                                        const newExpanded = new Set(expandedConsulados);
+                                                        if (isExpanded) {
+                                                            newExpanded.delete(consulado);
+                                                        } else {
+                                                            newExpanded.add(consulado);
+                                                        }
+                                                        setExpandedConsulados(newExpanded);
+                                                    }}
+                                                    className={`w-full p-4 flex items-center justify-between transition-colors ${
+                                                        hasCancellation ? 'bg-orange-50 hover:bg-orange-100' : 'bg-gray-50 hover:bg-gray-100'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        {isExpanded ? (
+                                                            <ChevronDown size={18} className="text-gray-400" />
+                                                        ) : (
+                                                            <ChevronRight size={18} className="text-gray-400" />
+                                                        )}
+                                                        <Building2 size={18} className={hasCancellation ? 'text-orange-600' : 'text-[#003B94]'} />
+                                                        <div className="text-left">
+                                                            <p className={`font-black uppercase text-sm ${hasCancellation ? 'text-orange-700' : 'text-[#001d4a]'}`}>
+                                                                {consulado}
+                                                            </p>
+                                                            <p className="text-[10px] text-gray-500 font-bold">
+                                                                {consuladoReqs.length} socio{consuladoReqs.length > 1 ? 's' : ''}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {hasCancellation && (
+                                                            <span className="px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest bg-orange-100 text-orange-600 border border-orange-200 animate-pulse">
+                                                                ⚠️ Anulación
                                                             </span>
-                                                        </td>
-                                                        <td className="p-4 text-right">
-                                                            <div className="flex justify-end gap-2">
-                                                                <button 
-                                                                    onClick={() => handleAcceptCancellation(firstReq.id)} 
-                                                                    className="px-3 py-2 rounded-lg transition-all bg-emerald-500 text-white hover:bg-emerald-600 shadow-md text-[10px] font-black uppercase flex items-center gap-1"
-                                                                    title={`Aceptar anulación de ${cancellationCount} solicitud(es) del consulado ${consulado}`}
-                                                                >
-                                                                    <CheckCircle2 size={14}/> Aceptar Cancelación
-                                                                </button>
-                                                                <button 
-                                                                    onClick={() => handleRejectCancellation(firstReq.id)} 
-                                                                    className="px-3 py-2 rounded-lg transition-all bg-red-500 text-white hover:bg-red-600 shadow-md text-[10px] font-black uppercase flex items-center gap-1"
-                                                                    title={`Rechazar anulación de ${cancellationCount} solicitud(es) del consulado ${consulado}`}
-                                                                >
-                                                                    <XCircle size={14}/> Rechazar Cancelación
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            });
-                                            
-                                            // Afficher d'abord les demandes d'annulation, puis les solicitudes régulières
-                                            return (
-                                                <>
-                                                    {cancellationRows}
-                                                    {regularRequests.map(req => (
-                                                        <tr key={req.id} className="hover:bg-gray-50 transition-colors">
-                                                            <td className="p-4">
-                                                                <p className="font-black text-[#001d4a] uppercase text-xs">{req.socio_name}</p>
-                                                                <p className="text-[9px] text-gray-400 font-mono">DNI: {req.socio_dni}</p>
-                                                            </td>
-                                                            <td className="p-4 text-[10px] font-bold text-[#003B94] uppercase">{req.consulado}</td>
-                                                            <td className="p-4">
-                                                                <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest ${
-                                                                    req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-600' :
-                                                                    req.status === 'REJECTED' ? 'bg-red-100 text-red-600' :
-                                                                    'bg-amber-100 text-amber-600'
-                                                                }`}>
-                                                                    {req.status === 'APPROVED' ? 'Aprobada' : 
-                                                                     req.status === 'REJECTED' ? 'Rechazada' : 
-                                                                     'Pendiente'}
-                                                                </span>
-                                                            </td>
-                                                            <td className="p-4 text-right">
-                                                                <div className="flex justify-end gap-2">
-                                                                    <button onClick={() => handleStatusChange(req.id, 'APPROVED')} className={`p-2 rounded-lg transition-all ${req.status === 'APPROVED' ? 'bg-emerald-500 text-white shadow-md' : 'bg-gray-100 text-gray-400 hover:bg-emerald-100 hover:text-emerald-600'}`} title="Aprobar"><UserCheck size={14}/></button>
-                                                                    <button onClick={() => handleStatusChange(req.id, 'REJECTED')} className={`p-2 rounded-lg transition-all ${req.status === 'REJECTED' ? 'bg-red-500 text-white shadow-md' : 'bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600'}`} title="Rechazar"><UserX size={14}/></button>
+                                                        )}
+                                                        {pendingCount > 0 && (
+                                                            <span className="px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest bg-amber-50 text-amber-600 border border-amber-200">
+                                                                {pendingCount} Pendiente{pendingCount > 1 ? 's' : ''}
+                                                            </span>
+                                                        )}
+                                                        {approvedCount > 0 && (
+                                                            <span className="px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-600 border border-emerald-200">
+                                                                {approvedCount} ✓
+                                                            </span>
+                                                        )}
+                                                        {rejectedCount > 0 && (
+                                                            <span className="px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest bg-red-50 text-red-600 border border-red-200">
+                                                                {rejectedCount} ✗
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                                
+                                                {/* Contenu dépliant */}
+                                                {isExpanded && (
+                                                    <div className="border-t border-gray-200">
+                                                        {/* Section annulation si présente */}
+                                                        {hasCancellation && (
+                                                            <div className="p-4 bg-orange-50 border-b border-orange-200">
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <AlertCircle size={16} className="text-orange-600 animate-pulse" />
+                                                                        <div>
+                                                                            <p className="font-black text-orange-700 uppercase text-xs">
+                                                                                Solicitud de Anulación
+                                                                            </p>
+                                                                            <p className="text-[9px] text-orange-600 font-bold">
+                                                                                {cancellationReqs.length} socio{cancellationReqs.length > 1 ? 's' : ''} afectado{cancellationReqs.length > 1 ? 's' : ''}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex gap-2">
+                                                                        <button 
+                                                                            onClick={() => handleAcceptCancellation(cancellationReqs[0].id)} 
+                                                                            className="px-3 py-2 rounded-lg transition-all bg-emerald-500 text-white hover:bg-emerald-600 shadow-md text-[10px] font-black uppercase flex items-center gap-1"
+                                                                        >
+                                                                            <CheckCircle2 size={14}/> Aceptar
+                                                                        </button>
+                                                                        <button 
+                                                                            onClick={() => handleRejectCancellation(cancellationReqs[0].id)} 
+                                                                            className="px-3 py-2 rounded-lg transition-all bg-red-500 text-white hover:bg-red-600 shadow-md text-[10px] font-black uppercase flex items-center gap-1"
+                                                                        >
+                                                                            <XCircle size={14}/> Rechazar
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </>
-                                            );
-                                        })()}
-                                    </tbody>
-                                </table>
+                                                            </div>
+                                                        )}
+                                                        
+                                                        {/* Liste des socios */}
+                                                        <div className="divide-y divide-gray-100">
+                                                            {regularReqs.map(req => (
+                                                                <div key={req.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="w-10 h-10 rounded-full bg-[#003B94]/10 text-[#003B94] flex items-center justify-center text-xs font-black">
+                                                                            {req.socio_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || '??'}
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="font-black text-[#001d4a] uppercase text-xs">{req.socio_name}</p>
+                                                                            <p className="text-[9px] text-gray-400 font-mono">DNI: {req.socio_dni}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-3">
+                                                                        <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${
+                                                                            req.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
+                                                                            req.status === 'REJECTED' ? 'bg-red-50 text-red-600 border border-red-200' :
+                                                                            'bg-amber-50 text-amber-600 border border-amber-200'
+                                                                        }`}>
+                                                                            {req.status === 'APPROVED' ? 'Aprobada' : 
+                                                                             req.status === 'REJECTED' ? 'Rechazada' : 
+                                                                             'Pendiente'}
+                                                                        </span>
+                                                                        <div className="flex gap-1">
+                                                                            <button 
+                                                                                onClick={() => handleStatusChange(req.id, 'APPROVED')} 
+                                                                                className={`p-2 rounded-lg transition-all ${req.status === 'APPROVED' ? 'bg-emerald-500 text-white shadow-md' : 'bg-gray-100 text-gray-400 hover:bg-emerald-100 hover:text-emerald-600'}`} 
+                                                                                title="Aprobar"
+                                                                            >
+                                                                                <UserCheck size={14}/>
+                                                                            </button>
+                                                                            <button 
+                                                                                onClick={() => handleStatusChange(req.id, 'REJECTED')} 
+                                                                                className={`p-2 rounded-lg transition-all ${req.status === 'REJECTED' ? 'bg-red-500 text-white shadow-md' : 'bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600'}`} 
+                                                                                title="Rechazar"
+                                                                            >
+                                                                                <UserX size={14}/>
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    });
+                                })()}
                             </div>
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center text-gray-300">

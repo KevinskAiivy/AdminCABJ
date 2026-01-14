@@ -400,20 +400,18 @@ export const DashboardPresident = ({ consulado_id }: { consulado_id: string }) =
                                         const age = calculateAge(socio.birth_date, selectedDayDetails.date);
                                         return (
                                         <div key={socio.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-50 transition-colors">
-                                            <div className="relative">
-                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-black">
-                                                    {socio.first_name[0]}{socio.last_name[0]}
-                                                </div>
-                                                {age > 0 && (
-                                                    <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-pink-500 text-white flex items-center justify-center text-[7px] font-black border-2 border-white shadow-sm">
-                                                        {age}
-                                                    </div>
-                                                )}
+                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-black">
+                                                {socio.first_name[0]}{socio.last_name[0]}
                                             </div>
-                                            <div>
+                                            <div className="flex-1">
                                                 <p className="text-[10px] font-bold text-[#001d4a] uppercase">{socio.name}</p>
                                                 <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider">{socio.category}</p>
                                             </div>
+                                            {age > 0 && (
+                                                <span className="px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-pink-50 text-pink-600 border border-pink-200 shadow-sm whitespace-nowrap">
+                                                    {age} años
+                                                </span>
+                                            )}
                                         </div>
                                         );
                                     }) : <p className="text-[10px] text-gray-400 italic">No hay cumpleaños de socios.</p>}

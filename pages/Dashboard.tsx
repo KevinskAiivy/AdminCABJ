@@ -423,15 +423,8 @@ export const Dashboard = () => {
                                           const age = calculateAge(socio.birth_date, selectedDay.date);
                                           return (
                                           <div key={socio.id} className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-colors">
-                                              <div className="relative">
-                                                  <div className="w-10 h-10 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center text-xs font-black shrink-0">
-                                                      {socio.first_name?.[0]?.toUpperCase() || ''}{socio.last_name?.[0]?.toUpperCase() || ''}
-                                                  </div>
-                                                  {age > 0 && (
-                                                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-pink-500 text-white flex items-center justify-center text-[8px] font-black border-2 border-white shadow-sm">
-                                                          {age}
-                                                      </div>
-                                                  )}
+                                              <div className="w-10 h-10 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center text-xs font-black shrink-0">
+                                                  {socio.first_name?.[0]?.toUpperCase() || ''}{socio.last_name?.[0]?.toUpperCase() || ''}
                                               </div>
                                               <div className="flex-1 min-w-0">
                                                   <p className="text-[10px] font-bold text-[#001d4a] uppercase truncate">
@@ -448,6 +441,11 @@ export const Dashboard = () => {
                                                       </p>
                                                   )}
                                               </div>
+                                              {age > 0 && (
+                                                  <span className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-pink-50 text-pink-600 border border-pink-200 shadow-sm whitespace-nowrap">
+                                                      {age} años
+                                                  </span>
+                                              )}
                                           </div>
                                           );
                                       })}
