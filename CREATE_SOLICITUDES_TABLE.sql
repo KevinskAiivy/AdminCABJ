@@ -55,7 +55,7 @@ CREATE POLICY "SUPERADMIN et ADMIN peuvent voir toutes les solicitudes"
     USING (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE users.id = auth.uid()
+            WHERE users.id::text = auth.uid()::text
             AND users.role IN ('SUPERADMIN', 'ADMIN')
             AND users.active = true
         )
@@ -69,7 +69,7 @@ CREATE POLICY "PRESIDENTE et REFERENTE peuvent voir solicitudes de leur consulad
     USING (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE users.id = auth.uid()
+            WHERE users.id::text = auth.uid()::text
             AND users.role IN ('PRESIDENTE', 'REFERENTE')
             AND users.consulado_id IN (
                 SELECT c.id FROM public.consulados c WHERE c.name = solicitudes.consulado
@@ -86,11 +86,11 @@ CREATE POLICY "SOCIO peuvent voir leurs propres solicitudes"
     USING (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE users.id = auth.uid()
+            WHERE users.id::text = auth.uid()::text
             AND users.role = 'SOCIO'
             AND users.active = true
         )
-        AND socio_id = auth.uid()
+        AND socio_id::text = auth.uid()::text
     );
 
 -- Policy: Les SUPERADMIN et ADMIN peuvent insérer des solicitudes
@@ -101,7 +101,7 @@ CREATE POLICY "SUPERADMIN et ADMIN peuvent créer solicitudes"
     WITH CHECK (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE users.id = auth.uid()
+            WHERE users.id::text = auth.uid()::text
             AND users.role IN ('SUPERADMIN', 'ADMIN')
             AND users.active = true
         )
@@ -115,7 +115,7 @@ CREATE POLICY "PRESIDENTE et REFERENTE peuvent créer solicitudes pour leur cons
     WITH CHECK (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE users.id = auth.uid()
+            WHERE users.id::text = auth.uid()::text
             AND users.role IN ('PRESIDENTE', 'REFERENTE')
             AND users.consulado_id IN (
                 SELECT c.id FROM public.consulados c WHERE c.name = consulado
@@ -132,11 +132,11 @@ CREATE POLICY "SOCIO peuvent créer leurs propres solicitudes"
     WITH CHECK (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE users.id = auth.uid()
+            WHERE users.id::text = auth.uid()::text
             AND users.role = 'SOCIO'
             AND users.active = true
         )
-        AND socio_id = auth.uid()
+        AND socio_id::text = auth.uid()::text
     );
 
 -- Policy: Les SUPERADMIN et ADMIN peuvent mettre à jour toutes les solicitudes
@@ -147,7 +147,7 @@ CREATE POLICY "SUPERADMIN et ADMIN peuvent modifier solicitudes"
     USING (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE users.id = auth.uid()
+            WHERE users.id::text = auth.uid()::text
             AND users.role IN ('SUPERADMIN', 'ADMIN')
             AND users.active = true
         )
@@ -161,7 +161,7 @@ CREATE POLICY "PRESIDENTE et REFERENTE peuvent modifier solicitudes de leur cons
     USING (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE users.id = auth.uid()
+            WHERE users.id::text = auth.uid()::text
             AND users.role IN ('PRESIDENTE', 'REFERENTE')
             AND users.consulado_id IN (
                 SELECT c.id FROM public.consulados c WHERE c.name = consulado
@@ -178,11 +178,11 @@ CREATE POLICY "SOCIO peuvent annuler leurs propres solicitudes"
     USING (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE users.id = auth.uid()
+            WHERE users.id::text = auth.uid()::text
             AND users.role = 'SOCIO'
             AND users.active = true
         )
-        AND socio_id = auth.uid()
+        AND socio_id::text = auth.uid()::text
         AND status IN ('PENDING', 'APPROVED')
     )
     WITH CHECK (
@@ -197,7 +197,7 @@ CREATE POLICY "SUPERADMIN et ADMIN peuvent supprimer solicitudes"
     USING (
         EXISTS (
             SELECT 1 FROM public.users
-            WHERE users.id = auth.uid()
+            WHERE users.id::text = auth.uid()::text
             AND users.role IN ('SUPERADMIN', 'ADMIN')
             AND users.active = true
         )
