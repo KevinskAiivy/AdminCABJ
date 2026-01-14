@@ -40,9 +40,9 @@ export const MarcaLogotipos = () => {
     setUploading(assetKey);
     try {
       await dataService.uploadAssetFile(assetKey, file);
-      alert('Logo mis à jour avec succès !');
+      alert('¡Logo actualizado con éxito!');
     } catch (error: any) {
-      alert('Erreur : ' + error.message);
+      alert('Error: ' + error.message);
     } finally {
       setUploading(null);
     }
@@ -74,7 +74,7 @@ export const MarcaLogotipos = () => {
               🎨 Marca & Logotipos
             </h2>
             <p className="text-sm text-gray-600 mb-3">
-              Gérez tous les logos de l'application. Les changements sont appliqués immédiatement.
+              Gestiona todos los logos de la aplicación. Los cambios se aplican inmediatamente.
             </p>
             <div className="flex items-center gap-4 text-xs">
               <div className="flex items-center gap-2 text-green-600">
@@ -90,7 +90,7 @@ export const MarcaLogotipos = () => {
               <div className="flex items-center gap-2 text-purple-600">
                 <CheckCircle2 size={14} />
                 <span className="font-bold">{assets.filter(a => a.file_url).length}/{assets.length}</span>
-                <span>uploadés</span>
+                <span>subidos</span>
               </div>
             </div>
           </div>
@@ -108,7 +108,7 @@ export const MarcaLogotipos = () => {
       <GlassCard className="p-6">
         <h3 className="text-lg font-black text-[#003B94] mb-4 flex items-center gap-2">
           <ImageIcon size={20} />
-          Logos Navigation
+          Logos Navegación
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {assetsByCategory.navbar.map(asset => (
@@ -126,7 +126,7 @@ export const MarcaLogotipos = () => {
       <GlassCard className="p-6">
         <h3 className="text-lg font-black text-[#003B94] mb-4 flex items-center gap-2">
           <ImageIcon size={20} />
-          Logos Généraux
+          Logos Generales
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {assetsByCategory.general.slice(0, 6).map(asset => (
@@ -144,7 +144,7 @@ export const MarcaLogotipos = () => {
       <GlassCard className="p-6">
         <h3 className="text-lg font-black text-[#003B94] mb-4 flex items-center gap-2">
           <ImageIcon size={20} />
-          Icônes & Favicons
+          Iconos & Favicons
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {assetsByCategory.icons.slice(0, 8).map(asset => (
@@ -234,17 +234,17 @@ const AssetCard = ({
           {hasFile && (
             <div className="flex items-center gap-2 text-green-600 font-bold mb-2">
               <HardDrive size={12} />
-              <span>Stocké dans Storage</span>
+              <span>Almacenado en Storage</span>
             </div>
           )}
           {asset.display_size && (
-            <div>📐 Taille affichage: {asset.display_size}px</div>
+            <div>📐 Tamaño visualización: {asset.display_size}px</div>
           )}
           {asset.file_type && (
-            <div>📄 Type: {asset.file_type}</div>
+            <div>📄 Tipo: {asset.file_type}</div>
           )}
           {asset.file_size && (
-            <div>💾 Poids: {(asset.file_size / 1024).toFixed(1)} KB</div>
+            <div>💾 Peso: {(asset.file_size / 1024).toFixed(1)} KB</div>
           )}
           {asset.file_url && (
             <div className="text-[10px] text-gray-400 truncate" title={asset.file_url}>
@@ -283,7 +283,7 @@ const AssetCard = ({
           ) : (
             <>
               <Upload size={14} />
-              {hasFile ? 'Remplacer' : 'Upload'}
+              {hasFile ? 'Reemplazar' : 'Subir'}
             </>
           )}
         </label>

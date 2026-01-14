@@ -9,18 +9,19 @@ export const Login = ({ onLogin }: { onLogin: (session: UserSession) => void }) 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
+  const [logoUrl, setLogoUrl] = useState<string>(dataService.getAssetUrl('login_logo'));
   const [logoError, setLogoError] = useState(false);
-  const [logoSize, setLogoSize] = useState<number>(dataService.getAppSettings().logoLoginSize || 96);
+  const [logoSize, setLogoSize] = useState<number>(96);
 
-  // Charger le logo depuis les settings (priorité à loginLogoUrl, sinon logoUrl)
+  // Charger le logo depuis app_assets
   useEffect(() => {
     const updateLogo = () => {
-      const settings = dataService.getAppSettings();
-      // Utiliser loginLogoUrl en priorité, sinon logoUrl
-      setLogoUrl(settings.loginLogoUrl || settings.logoUrl);
-      setLogoSize(settings.logoLoginSize || 96);
-      setLogoError(false);
+      const loginAsset = dataService.getAssetByKey('login_logo');
+      if (loginAsset) {
+        setLogoUrl(dataService.getAssetUrl('login_logo'));
+        setLogoSize(loginAsset.display_size || 96);
+        setLogoError(false);
+      }
     };
     updateLogo();
     const unsubscribe = dataService.subscribe(updateLogo);
@@ -76,7 +77,7 @@ export const Login = ({ onLogin }: { onLogin: (session: UserSession) => void }) 
             
             <div className="mb-6 relative inline-block group">
                 <div className="absolute inset-0 bg-[#FCB131] blur-2xl opacity-20 group-hover:opacity-40 transition-opacity duration-500 rounded-full"></div>
-                {logoUrl && !logoError ? (
+                {!logoError ? (
                   <img 
                     src={logoUrl} 
                     alt="Logo" 

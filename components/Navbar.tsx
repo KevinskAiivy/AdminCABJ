@@ -28,9 +28,9 @@ export const Navbar = ({
   user: UserSession
 }) => {
   const location = useLocation();
-  const [logoUrl, setLogoUrl] = useState<string | undefined>(dataService.getAppSettings().logoUrl);
+  const [logoUrl, setLogoUrl] = useState<string>(dataService.getAssetUrl('navbar_logo_main'));
   const [logoError, setLogoError] = useState(false);
-  const [logoSize, setLogoSize] = useState<number>(dataService.getAppSettings().logoMenuSize || 40);
+  const [logoSize, setLogoSize] = useState<number>(40);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
@@ -61,13 +61,15 @@ export const Navbar = ({
     return [...unread, ...read].slice(0, 8);
   }, [notifications]);
 
-  // S'abonner aux changements de settings pour mettre à jour le logo
+  // S'abonner aux changements de assets pour mettre à jour le logo
   useEffect(() => {
     const updateLogo = () => {
-      const settings = dataService.getAppSettings();
-      setLogoUrl(settings.logoUrl);
-      setLogoSize(settings.logoMenuSize || 40);
-      setLogoError(false); // Réinitialiser l'erreur quand les settings changent
+      const navbarAsset = dataService.getAssetByKey('navbar_logo_main');
+      if (navbarAsset) {
+        setLogoUrl(dataService.getAssetUrl('navbar_logo_main'));
+        setLogoSize(navbarAsset.display_size || 40);
+        setLogoError(false); // Réinitialiser l'erreur quand les assets changent
+      }
     };
     updateLogo();
     const unsubscribe = dataService.subscribe(updateLogo);
@@ -124,7 +126,7 @@ export const Navbar = ({
         <div className="flex items-center gap-4 shrink-0">
           <div className="relative group cursor-pointer">
              <div className="absolute inset-0 bg-[#FCB131] blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-500 rounded-full"></div>
-             {logoUrl && !logoError ? (
+             {!logoError ? (
                <img 
                  src={logoUrl} 
                  alt="Logo" 
