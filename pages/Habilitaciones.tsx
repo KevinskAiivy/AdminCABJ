@@ -311,9 +311,22 @@ export const Habilitaciones = () => {
   };
 
   const handleStatusChange = async (reqId: string, status: any) => {
-    await dataService.updateSolicitudStatus(reqId, status);
-    // Recharger les requests pour avoir les données à jour
-    await reloadRequestsForSelectedMatch();
+    try {
+      // Mettre à jour le statut
+      await dataService.updateSolicitudStatus(reqId, status);
+      
+      // Mettre à jour localement immédiatement pour un feedback visuel instantané
+      setRequests(prevRequests => 
+        prevRequests.map(r => r.id === reqId ? { ...r, status } : r)
+      );
+      
+      // Recharger depuis Supabase pour confirmer
+      await reloadRequestsForSelectedMatch();
+    } catch (error) {
+      console.error('Erreur lors du changement de statut:', error);
+      // Recharger en cas d'erreur pour avoir l'état correct
+      await reloadRequestsForSelectedMatch();
+    }
   };
   
   // Fonction pour accepter une demande d'annulation (supprimer les solicitudes du consulado pour CE MATCH uniquement)
