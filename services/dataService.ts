@@ -1929,12 +1929,13 @@ class DataService {
 
   // Recharger les solicitudes depuis Supabase
   async reloadSolicitudes() {
+      const isDev = import.meta.env.DEV;
       try {
           const { data, error } = await supabase.from('solicitudes').select('*');
           if (error) {
-              // Si la table n'existe pas (code 42P01), ignorer silencieusement
+              // Si la table n'existe pas (code 42P01 ou PGRST116), ignorer silencieusement
               if (error.code === '42P01' || error.code === 'PGRST116') {
-                  if (isDevelopment) console.log("ℹ️ Table solicitudes non disponible");
+                  if (isDev) console.log("ℹ️ Table solicitudes non disponible");
                   return; // Ne pas lever d'erreur
               }
               console.error("❌ Erreur lors du rechargement des solicitudes:", error);
@@ -1944,7 +1945,7 @@ class DataService {
           if (data) {
               this.solicitudes = data.map(mapSolicitudFromDB);
               this.notify();
-              if (isDevelopment) console.log(`✅ ${this.solicitudes.length} solicitudes rechargées depuis Supabase`);
+              if (isDev) console.log(`✅ ${this.solicitudes.length} solicitudes rechargées depuis Supabase`);
 
               // Supprimer les solicitudes des matchs passés
               await this.cleanupPastMatchesSolicitudes();
@@ -1952,7 +1953,7 @@ class DataService {
       } catch (error: any) {
           // Ignorer les erreurs de table non existante
           if (error?.code === '42P01' || error?.code === 'PGRST116') {
-              if (isDevelopment) console.log("ℹ️ Table solicitudes non disponible");
+              if (isDev) console.log("ℹ️ Table solicitudes non disponible");
               return;
           }
           console.error("❌ Erreur lors du rechargement des solicitudes:", error);
@@ -1962,6 +1963,7 @@ class DataService {
   
   // Fonction pour supprimer les solicitudes des matchs passés
   async cleanupPastMatchesSolicitudes() {
+      const isDev = import.meta.env.DEV;
       try {
           const now = new Date();
           const solicitudesToDelete: string[] = [];
@@ -2016,7 +2018,7 @@ class DataService {
               
               console.log(`✅ ${solicitudesToDelete.length} solicitudes supprimées avec succès`);
           } else {
-              if (isDevelopment) console.log('ℹ️ Aucune solicitude de match passé à supprimer');
+              if (isDev) console.log('ℹ️ Aucune solicitude de match passé à supprimer');
           }
       } catch (error: any) {
           console.error("❌ Erreur lors du nettoyage des solicitudes des matchs passés:", error);
