@@ -361,42 +361,117 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
     }
 
     try {
+      // Recharger d'abord les solicitudes depuis la base de données
+      console.log('📥 Rechargement des solicitudes depuis Supabase...');
+      await dataService.reloadSolicitudes();
+      
       // Utiliser currentConsuladoName qui est maintenant garanti d'être valide
       console.log('🏛️ Filtrage avec consulado:', currentConsuladoName);
-      const reqs = dataService.getSolicitudes(solicitudesMatchId, currentConsuladoName);
+      console.log('🔑 Match ID pour filtrage:', solicitudesMatchId);
+      console.log('🔍 UUID match:', isMatchUUID);
+      
+      // Pour compatibilité : si c'est un UUID, chercher avec le hash ET avec 0 (anciennes solicitudes)
+      let matchRequests: Solicitud[] = [];
+      
+      if (isMatchUUID) {
+        // Chercher avec le hash (nouvelles solicitudes)
+        const reqsWithHash = dataService.getSolicitudes(solicitudesMatchId, currentConsuladoName);
+        console.log('📋 Solicitudes avec hash:', Array.isArray(reqsWithHash) ? reqsWithHash.length : 0);
+        
+        // Aussi chercher avec 0 pour compatibilité avec anciennes solicitudes
+        const reqsWithZero = dataService.getSolicitudes(0, currentConsuladoName);
+        console.log('📋 Solicitudes avec match_id=0:', Array.isArray(reqsWithZero) ? reqsWithZero.length : 0);
+        
+        // Combiner et dédupliquer par id
+        const allReqs = [
+          ...(Array.isArray(reqsWithHash) ? reqsWithHash : []), 
+          ...(Array.isArray(reqsWithZero) ? reqsWithZero : [])
+        ];
+        const uniqueReqs = Array.from(new Map(allReqs.map(r => [r.id, r])).values());
+        matchRequests = uniqueReqs;
+      } else {
+        // Pour les matches normaux (non-UUID), utiliser match.id directement
+        matchRequests = dataService.getSolicitudes(solicitudesMatchId, currentConsuladoName);
+        matchRequests = Array.isArray(matchRequests) ? matchRequests : [];
+      }
+      
+      console.log('📊 Total solicitudes avant filtrage additionnel:', matchRequests.length);
       
       // FILTRAGE ADDITIONNEL: S'assurer que les solicitudes correspondent bien à ce match spécifique
-      const filteredReqs = Array.isArray(reqs) ? reqs.filter(req => {
-        // Vérifier que match_id correspond (avec hash si UUID)
-        if (req.match_id !== solicitudesMatchId) return false;
+      const filteredReqs = matchRequests.filter(req => {
+        // Pour UUID, accepter soit le hash, soit 0 (anciennes solicitudes)
+        if (isMatchUUID) {
+          if (req.match_id !== solicitudesMatchId && req.match_id !== 0) {
+            console.log('🔍 Rejet: match_id', req.match_id, 'ne correspond pas à', solicitudesMatchId, 'ou 0');
+            return false;
+          }
+        } else {
+          // Pour les matches normaux, vérifier l'égalité exacte
+          if (req.match_id !== solicitudesMatchId) {
+            console.log('🔍 Rejet: match_id', req.match_id, 'ne correspond pas à', solicitudesMatchId);
+            return false;
+          }
+        }
+        
         // Vérifier que consulado correspond
-        if (req.consulado !== currentConsuladoName.trim()) return false;
+        if (req.consulado?.trim() !== currentConsuladoName.trim()) {
+          console.log('🔍 Rejet: consulado', req.consulado, 'ne correspond pas à', currentConsuladoName);
+          return false;
+        }
+        
+        console.log('✅ Accepté:', req.id, '- Socio:', req.socio_name, '- Status:', req.status);
         return true;
-      }) : [];
+      });
       
-      if (!filteredReqs || filteredReqs.length === 0) {
-        console.warn('⚠️ Aucune requête trouvée pour matchId:', solicitudesMatchId, 'et consulado:', currentConsuladoName);
-        alert('No se encontraron solicitudes para cancelar.');
+      console.log('📊 Total solicitudes après filtrage:', filteredReqs.length);
+      
+      if (filteredReqs.length === 0) {
+        console.warn('⚠️ Aucune solicitude trouvée pour ce match et ce consulado');
+        console.warn('⚠️ Détails:', { 
+          matchId: solicitudesMatchId, 
+          consulado: currentConsuladoName,
+          isUUID: isMatchUUID,
+          totalSolicitudesInDataService: dataService.getSolicitudes().length
+        });
+        alert('No se encontraron solicitudes para cancelar. Asegúrese de haber enviado solicitudes primero.');
         return;
       }
 
       console.log(`✅ ${filteredReqs.length} solicitudes trouvées, marquage en cours...`);
+      
+      // Marquer chaque solicitude comme ayant une demande d'annulation
+      let successCount = 0;
+      let errorCount = 0;
+      
       for (const req of filteredReqs) {
         if (req && req.id) {
-          // Marquer la solicitude comme ayant une demande d'annulation (sans changer le status)
-          await dataService.updateCancellationRequested(req.id, true);
+          try {
+            console.log('🔄 Marquage cancellation_requested=true pour:', req.id);
+            await dataService.updateCancellationRequested(req.id, true);
+            successCount++;
+            console.log('✅ Marqué:', req.socio_name);
+          } catch (err) {
+            errorCount++;
+            console.error('❌ Erreur pour:', req.id, err);
+          }
         }
       }
       
-      console.log('✅ Cancellation demandée avec succès');
+      console.log(`✅ Marquage terminé: ${successCount} réussies, ${errorCount} erreurs`);
       
       // Recharger les solicitudes pour mettre à jour l'affichage
       await dataService.reloadSolicitudes();
+      console.log('✅ Solicitudes rechargées');
       
       // Message de confirmation
-      alert('Solicitud de cancelación enviada con éxito. Los administradores revisarán su solicitud.');
+      if (successCount > 0) {
+        alert(`Solicitud de cancelación enviada con éxito para ${successCount} socio(s). Los administradores revisarán su solicitud.`);
+      } else {
+        alert('Error: No se pudo marcar ninguna solicitud para cancelación.');
+      }
     } catch (error) {
       console.error('❌ Erreur lors de la demande d\'annulation:', error);
+      console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack');
       alert('Error al solicitar la cancelación. Por favor, intente nuevamente.');
     }
   };
@@ -576,8 +651,10 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                     const canSolicitarAgain = hasListSent && !hasCancellationRequest && 
                         filteredMatchRequests.length === 0;
                     
-                    // Afficher le bouton de cancelación seulement si toutes les demandes sont PENDING (pas encore traitées)
-                    const shouldShowCancelButton = hasListSent && !hasCancellationRequest && allPending;
+                    // ✅ CORRECTION: Afficher le bouton de cancelación dès qu'une liste est envoyée, 
+                    // PEU IMPORTE le statut (PENDING, APPROVED, REJECTED)
+                    // La demande d'annulation peut avoir lieu même après traitement par les admins
+                    const shouldShowCancelButton = hasListSent && !hasCancellationRequest;
                     
                     // Afficher le bouton "Ver Resultados" si les admins ont traité les demandes
                     const shouldShowViewResults = hasListSent && !hasCancellationRequest && hasProcessedRequests;
