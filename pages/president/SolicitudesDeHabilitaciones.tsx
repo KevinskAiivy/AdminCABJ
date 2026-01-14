@@ -452,8 +452,16 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
         setSubmittedRequests(filteredReqs);
       };
       await loadData();
+      
+      // Fermer le modal de confirmation et vider la liste des socios staged
+      setShowConfirmSubmit(false);
+      setStagedSocios([]);
+      
+      // Message de succès
+      alert(`✅ ${sociosToSend.length} solicitud(es) enviada(s) con éxito.\n\nLos administradores revisarán las solicitudes.`);
     } catch (error) {
       console.error('❌ Erreur lors de l\'envoi des demandes:', error);
+      alert('❌ Error al enviar las solicitudes. Por favor, intente nuevamente.');
       setShowConfirmSubmit(false);
     }
   };

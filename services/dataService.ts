@@ -568,9 +568,11 @@ const mapSolicitudFromDB = (db: any): Solicitud => ({
     socio_dni: db.socio_dni || '',
     socio_category: db.socio_category || '',
     consulado: db.consulado || '',
-    status: (db.status === 'PENDING' || db.status === 'APPROVED' || db.status === 'REJECTED' || db.status === 'CANCELLATION_REQUESTED')
+    status: (db.status === 'PENDING' || db.status === 'APPROVED' || db.status === 'REJECTED')
         ? db.status
         : 'PENDING',
+    cancellation_requested: db.cancellation_requested === true,
+    cancellation_rejected: db.cancellation_rejected === true,
     timestamp: db.timestamp || db.created_at || new Date().toISOString()
 });
 
