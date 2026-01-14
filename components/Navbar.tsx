@@ -158,8 +158,8 @@ export const Navbar = ({
               <NavItem to="/habilitaciones" icon={Ticket} label="Habilitaciones" isActive={location.pathname === '/habilitaciones'} />
           </div>
           
-          {/* Admin Mega Menu Trigger - Seulement pour SUPERADMIN */}
-          { user.role === 'SUPERADMIN' &&
+          {/* Admin Mega Menu Trigger - Pour SUPERADMIN et ADMIN */}
+          { (user.role === 'SUPERADMIN' || user.role === 'ADMIN') &&
             <div className="relative ml-2" ref={dropdownRef}>
                 <button
                 onClick={() => setIsAdminOpen(!isAdminOpen)}
