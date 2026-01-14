@@ -643,70 +643,75 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                             </div>
                           </div>
                           
-                          {/* Bouton d'action */}
+                          {/* Boutons d'action */}
                           {match.status !== 'CLOSED' && match.status !== 'SCHEDULED' && typeof matchId === 'number' && !isNaN(matchId) && routeIdentifier && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                console.log('🔘 Bouton "Solicitar Habilitaciones" cliqué');
-                                console.log('   - match.id (original):', match.id);
-                                console.log('   - matchId (calculé):', matchId);
-                                console.log('   - routeIdentifier (pour URL):', routeIdentifier);
-                                console.log('   - hasOriginalId:', hasOriginalId);
-                                console.log('   - shouldShowCancelButton:', shouldShowCancelButton);
-                                console.log('   - shouldShowViewResults:', shouldShowViewResults);
-                                console.log('   - match object complet:', match);
-                                
-                                if (shouldShowViewResults) {
-                                  // Ouvrir le modal pour voir les résultats
-                                  console.log('   → Appel handleViewRequests');
-                                  handleViewRequests(match);
-                                } else if (shouldShowCancelButton) {
-                                  console.log('   → Appel handleSolicitarCancelacion');
-                                  handleSolicitarCancelacion(match);
-                                } else {
-                                  // Navigation directe vers la page de solicitudes
-                                  // Utiliser routeIdentifier qui gère les UUIDs (_originalId si match.id === 0)
-                                  const routePath = `/habilitaciones/solicitudes/${routeIdentifier}`;
-                                  console.log('   → Navigation vers:', routePath);
-                                  try {
-                                    navigate(routePath);
-                                    console.log('   ✅ Navigate appelé avec succès vers:', routePath);
-                                  } catch (error) {
-                                    console.error('   ❌ Erreur lors de navigate:', error);
-                                    alert('Erreur lors de la navigation. Veuillez réessayer.');
-                                  }
-                                }
-                              }}
-                              className={`w-full py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 ${
-                                isOpen
-                                  ? shouldShowViewResults
-                                    ? 'bg-emerald-500 text-white hover:bg-emerald-600 hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transform hover:scale-[1.02]'
-                                    : shouldShowCancelButton
-                                      ? 'bg-amber-500 text-white hover:bg-amber-600 hover:shadow-[0_0_30px_rgba(245,158,11,0.5)] transform hover:scale-[1.02]'
-                                      : 'bg-[#FCB131] text-[#001d4a] hover:bg-white hover:shadow-[0_0_30px_rgba(252,177,49,0.5)] transform hover:scale-[1.02]'
-                                  : shouldShowViewResults
-                                    ? 'bg-emerald-500 text-white hover:bg-emerald-600 hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transform hover:scale-[1.02]'
-                                    : 'bg-[#003B94] text-white hover:bg-[#001d4a] hover:shadow-[0_0_20px_rgba(0,59,148,0.4)] transform hover:scale-[1.02]'
-                              }`}
-                            >
+                            <div className="flex gap-1.5">
+                              {/* Si résultats disponibles : bouton Ver Resultados */}
                               {shouldShowViewResults ? (
-                                <>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleViewRequests(match);
+                                  }}
+                                  className="w-full py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 bg-emerald-500 text-white hover:bg-emerald-600 hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transform hover:scale-[1.02]"
+                                >
                                   <CheckCircle2 size={13} strokeWidth={2.5} /> Ver Resultados
-                                </>
+                                </button>
                               ) : shouldShowCancelButton ? (
                                 <>
-                                  <XCircle size={13} strokeWidth={2.5} /> Solicitar Cancelación
+                                  {/* Bouton Lista Enviada (désactivé) */}
+                                  <button
+                                    type="button"
+                                    disabled
+                                    className="flex-1 py-2 rounded-xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-1.5 bg-emerald-100 text-emerald-700 border-2 border-emerald-300 cursor-not-allowed opacity-80"
+                                  >
+                                    <CheckCircle2 size={13} strokeWidth={2.5} /> Lista Enviada
+                                  </button>
+                                  {/* Bouton Solicitar Cancelación */}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleSolicitarCancelacion(match);
+                                    }}
+                                    className={`flex-1 py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                                      isOpen
+                                        ? 'bg-amber-500 text-white hover:bg-amber-600 hover:shadow-[0_0_30px_rgba(245,158,11,0.5)] transform hover:scale-[1.02]'
+                                        : 'bg-amber-500 text-white hover:bg-amber-600 hover:shadow-[0_0_30px_rgba(245,158,11,0.5)] transform hover:scale-[1.02]'
+                                    }`}
+                                  >
+                                    <XCircle size={13} strokeWidth={2.5} /> Cancelar
+                                  </button>
                                 </>
                               ) : (
-                                <>
+                                /* Bouton Solicitar Habilitaciones (état initial) */
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const routePath = `/habilitaciones/solicitudes/${routeIdentifier}`;
+                                    try {
+                                      navigate(routePath);
+                                    } catch (error) {
+                                      console.error('❌ Erreur lors de navigate:', error);
+                                      alert('Erreur lors de la navigation. Veuillez réessayer.');
+                                    }
+                                  }}
+                                  className={`w-full py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                                    isOpen
+                                      ? 'bg-[#FCB131] text-[#001d4a] hover:bg-white hover:shadow-[0_0_30px_rgba(252,177,49,0.5)] transform hover:scale-[1.02]'
+                                      : 'bg-[#003B94] text-white hover:bg-[#001d4a] hover:shadow-[0_0_20px_rgba(0,59,148,0.4)] transform hover:scale-[1.02]'
+                                  }`}
+                                >
                                   <Ticket size={13} strokeWidth={2.5} /> 
                                   {isOpen ? 'Solicitar Habilitaciones' : 'Ver Detalles'}
-                                </>
+                                </button>
                               )}
-                            </button>
+                            </div>
                           )}
                         </div>
                       </GlassCard>
