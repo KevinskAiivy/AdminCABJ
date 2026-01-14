@@ -296,18 +296,29 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
 
   // Gérer la demande de cancellation
   const handleSolicitarCancelacion = async (match: ProcessedMatch) => {
-    console.log('🔄 handleSolicitarCancelacion appelé avec:', match);
+    console.log('🔴🔴🔴 ========================================');
+    console.log('🔴 DÉBUT handleSolicitarCancelacion');
+    console.log('🔴 Match reçu:', JSON.stringify(match, null, 2));
+    console.log('🔴 consulado_id:', consulado_id);
+    console.log('🔴 localConsuladoName:', localConsuladoName);
+    console.log('🔴🔴🔴 ========================================');
+    
     if (!match) {
       console.error('❌ Match est null/undefined dans handleSolicitarCancelacion');
       alert('Error: Partido no disponible. Por favor, recargue la página.');
       return;
     }
+    
+    console.log('✅ Match valide, type match.id:', typeof match.id, 'valeur:', match.id);
+    
     // match.id est de type number selon l'interface Match, mais peut être 0 (valide pour UUIDs)
     if (typeof match.id !== 'number' || isNaN(match.id)) {
       console.error('❌ match.id est invalide dans handleSolicitarCancelacion:', match.id);
       alert('Error: ID del partido inválido. Por favor, recargue la página.');
       return;
     }
+    
+    console.log('✅ match.id valide');
 
     // ✅ Vérifier que localConsuladoName est disponible AVANT de continuer
     let currentConsuladoName = localConsuladoName;
@@ -356,14 +367,22 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
       solicitudesMatchId = match.id;
     }
 
-    if (!window.confirm('¿Está seguro que desea solicitar la cancelación de todas las solicitudes enviadas para este partido? Esta solicitud será revisada por los administradores.')) {
+    console.log('🔔 Affichage de la confirmation...');
+    const confirmed = window.confirm('¿Está seguro que desea solicitar la cancelación de todas las solicitudes enviadas para este partido? Esta solicitud será revisada por los administradores.');
+    console.log('🔔 Utilisateur a confirmé:', confirmed);
+    
+    if (!confirmed) {
+      console.log('❌ Utilisateur a annulé');
       return;
     }
+
+    console.log('✅ Confirmation OK, début du traitement...');
 
     try {
       // Recharger d'abord les solicitudes depuis la base de données
       console.log('📥 Rechargement des solicitudes depuis Supabase...');
       await dataService.reloadSolicitudes();
+      console.log('✅ Solicitudes rechargées');
       
       // Utiliser currentConsuladoName qui est maintenant garanti d'être valide
       console.log('🏛️ Filtrage avec consulado:', currentConsuladoName);
@@ -833,19 +852,7 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                           {match.status !== 'CLOSED' && match.status !== 'SCHEDULED' && typeof matchId === 'number' && !isNaN(matchId) && routeIdentifier && (
                             <div className="flex gap-1.5">
                               {/* Si résultats disponibles : bouton Ver Resultados */}
-                              {shouldShowViewResults ? (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleViewRequests(match);
-                                  }}
-                                  className="w-full py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 bg-emerald-500 text-white hover:bg-emerald-600 hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transform hover:scale-[1.02]"
-                                >
-                                  <CheckCircle2 size={13} strokeWidth={2.5} /> Ver Resultados
-                                </button>
-                              ) : hasCancellationRequest ? (
+                            {hasCancellationRequest ? (
                                 /* Bouton Cancelación Pendiente (désactivé) quand annulation en cours */
                                 <button
                                   type="button"
@@ -855,32 +862,45 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                                   <Clock size={13} strokeWidth={2.5} /> Cancelación Pendiente
                                 </button>
                               ) : shouldShowCancelButton ? (
-                                <>
-                                  {/* Bouton Lista Enviada (désactivé) */}
-                                  <button
-                                    type="button"
-                                    disabled
-                                    className="flex-1 py-2 rounded-xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-1.5 bg-emerald-100 text-emerald-700 border-2 border-emerald-300 cursor-not-allowed opacity-80"
-                                  >
-                                    <CheckCircle2 size={13} strokeWidth={2.5} /> Lista Enviada
-                                  </button>
-                                  {/* Bouton Solicitar Cancelación */}
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleSolicitarCancelacion(match);
-                                    }}
-                                    className={`flex-1 py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 ${
-                                      isOpen
-                                        ? 'bg-amber-500 text-white hover:bg-amber-600 hover:shadow-[0_0_30px_rgba(245,158,11,0.5)] transform hover:scale-[1.02]'
-                                        : 'bg-amber-500 text-white hover:bg-amber-600 hover:shadow-[0_0_30px_rgba(245,158,11,0.5)] transform hover:scale-[1.02]'
-                                    }`}
-                                  >
-                                    <XCircle size={13} strokeWidth={2.5} /> Cancelar
-                                  </button>
-                                </>
+                                <div className="flex flex-col gap-2 w-full">
+                                  {/* Bouton Ver Resultados si résultats disponibles */}
+                                  {shouldShowViewResults && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleViewRequests(match);
+                                      }}
+                                      className="w-full py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 bg-emerald-500 text-white hover:bg-emerald-600 hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transform hover:scale-[1.02]"
+                                    >
+                                      <CheckCircle2 size={13} strokeWidth={2.5} /> Ver Resultados
+                                    </button>
+                                  )}
+                                  {/* Boutons Lista Enviada + Cancelar */}
+                                  <div className="flex gap-2 w-full">
+                                    <button
+                                      type="button"
+                                      disabled
+                                      className="flex-1 py-2 rounded-xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-1.5 bg-emerald-100 text-emerald-700 border-2 border-emerald-300 cursor-not-allowed opacity-80"
+                                    >
+                                      <CheckCircle2 size={13} strokeWidth={2.5} /> Lista Enviada
+                                    </button>
+                                    {/* Bouton Solicitar Cancelación - TOUJOURS visible si liste envoyée */}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        console.log('🔴 CLIC Cancelar - Match:', match);
+                                        handleSolicitarCancelacion(match);
+                                      }}
+                                      className="flex-1 py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 bg-amber-500 text-white hover:bg-amber-600 hover:shadow-[0_0_30px_rgba(245,158,11,0.5)] transform hover:scale-[1.02]"
+                                    >
+                                      <XCircle size={13} strokeWidth={2.5} /> Cancelar
+                                    </button>
+                                  </div>
+                                </div>
                               ) : (
                                 /* Bouton Solicitar Habilitaciones (état initial) */
                                 <button
