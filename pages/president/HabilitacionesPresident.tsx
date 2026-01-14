@@ -773,30 +773,80 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                       </div>
                     </div>
                     
-                    {/* Liste des demandes */}
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                      <div className="divide-y">
-                        {matchRequests
-                          .filter(r => r.status !== 'CANCELLATION_REQUESTED')
-                          .map(req => (
-                            <div key={req.id} className="p-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                              <div className="flex-1">
-                                <p className="font-black text-[#001d4a] uppercase text-xs">{req.socio_name}</p>
-                                <p className="text-[9px] text-gray-400 font-mono">DNI: {req.socio_dni}</p>
-                              </div>
-                              <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
-                                req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' :
-                                req.status === 'REJECTED' ? 'bg-red-100 text-red-700 border border-red-300' :
-                                'bg-blue-100 text-blue-700 border border-blue-300'
-                              }`}>
-                                {req.status === 'APPROVED' ? '✓ Aprobada' : 
-                                 req.status === 'REJECTED' ? '✗ Rechazada' : 
-                                 '⏳ Pendiente'}
-                              </span>
-                            </div>
-                          ))}
+                    {/* Socios Aprobados */}
+                    {matchRequests.filter(r => r.status === 'APPROVED').length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-xs font-black uppercase text-emerald-700 flex items-center gap-2 px-2">
+                          <CheckCircle2 size={14} />
+                          Socios Aprobados ({matchRequests.filter(r => r.status === 'APPROVED').length})
+                        </h3>
+                        <div className="bg-emerald-50/50 rounded-xl border border-emerald-200 overflow-hidden shadow-sm">
+                          <div className="divide-y divide-emerald-100">
+                            {matchRequests
+                              .filter(r => r.status === 'APPROVED')
+                              .map(req => (
+                                <div key={req.id} className="p-3 flex items-center justify-between hover:bg-emerald-100/50 transition-colors">
+                                  <div className="flex-1">
+                                    <p className="font-black text-emerald-900 uppercase text-xs">{req.socio_name}</p>
+                                    <p className="text-[9px] text-emerald-600 font-mono">DNI: {req.socio_dni}</p>
+                                  </div>
+                                  <CheckCircle2 size={20} className="text-emerald-600" />
+                                </div>
+                              ))}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
+                    
+                    {/* Socios Rechazados */}
+                    {matchRequests.filter(r => r.status === 'REJECTED').length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-xs font-black uppercase text-red-700 flex items-center gap-2 px-2">
+                          <XCircle size={14} />
+                          Socios Rechazados ({matchRequests.filter(r => r.status === 'REJECTED').length})
+                        </h3>
+                        <div className="bg-red-50/50 rounded-xl border border-red-200 overflow-hidden shadow-sm">
+                          <div className="divide-y divide-red-100">
+                            {matchRequests
+                              .filter(r => r.status === 'REJECTED')
+                              .map(req => (
+                                <div key={req.id} className="p-3 flex items-center justify-between hover:bg-red-100/50 transition-colors">
+                                  <div className="flex-1">
+                                    <p className="font-black text-red-900 uppercase text-xs">{req.socio_name}</p>
+                                    <p className="text-[9px] text-red-600 font-mono">DNI: {req.socio_dni}</p>
+                                  </div>
+                                  <XCircle size={20} className="text-red-600" />
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Socios Pendientes */}
+                    {matchRequests.filter(r => r.status === 'PENDING').length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-xs font-black uppercase text-blue-700 flex items-center gap-2 px-2">
+                          <Clock size={14} />
+                          Socios Pendientes ({matchRequests.filter(r => r.status === 'PENDING').length})
+                        </h3>
+                        <div className="bg-blue-50/50 rounded-xl border border-blue-200 overflow-hidden shadow-sm">
+                          <div className="divide-y divide-blue-100">
+                            {matchRequests
+                              .filter(r => r.status === 'PENDING')
+                              .map(req => (
+                                <div key={req.id} className="p-3 flex items-center justify-between hover:bg-blue-100/50 transition-colors">
+                                  <div className="flex-1">
+                                    <p className="font-black text-blue-900 uppercase text-xs">{req.socio_name}</p>
+                                    <p className="text-[9px] text-blue-600 font-mono">DNI: {req.socio_dni}</p>
+                                  </div>
+                                  <Clock size={20} className="text-blue-600" />
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center py-12">
