@@ -316,80 +316,92 @@ export const Habilitaciones = () => {
     await reloadRequestsForSelectedMatch();
   };
   
-  // Fonction pour accepter une demande d'annulation (supprimer TOUTES les solicitudes du consulado)
+  // Fonction pour accepter une demande d'annulation (supprimer les solicitudes du consulado pour CE MATCH uniquement)
   const handleAcceptCancellation = async (reqId: string) => {
-    // Trouver la solicitude pour obtenir le consulado
+    // Trouver la solicitude pour obtenir le consulado et le match_id
     const req = requests.find(r => r.id === reqId);
     if (!req) {
       alert('Error: Solicitud no encontrada.');
       return;
     }
     
-    // Trouver toutes les solicitudes du même consulado avec CANCELLATION_REQUESTED
-    const consuladoRequests = requests.filter(r => 
-      r.consulado === req.consulado && 
-      r.status === 'CANCELLATION_REQUESTED'
-    );
-    
-    if (consuladoRequests.length === 0) {
-      alert('No hay solicitudes de anulación para este consulado.');
+    if (!selectedMatch) {
+      alert('Error: No hay match seleccionado.');
       return;
     }
     
-    const confirmMessage = `¿Está seguro de aceptar la solicitud de anulación del consulado ${req.consulado}?\n\nSe eliminarán ${consuladoRequests.length} solicitud(es) definitivamente.`;
+    // Trouver toutes les solicitudes du même consulado avec CANCELLATION_REQUESTED pour CE MATCH uniquement
+    const consuladoRequests = requests.filter(r => 
+      r.consulado === req.consulado && 
+      r.status === 'CANCELLATION_REQUESTED' &&
+      r.match_id === req.match_id // ✅ FILTRE PAR MATCH
+    );
+    
+    if (consuladoRequests.length === 0) {
+      alert('No hay solicitudes de anulación para este consulado en este partido.');
+      return;
+    }
+    
+    const confirmMessage = `¿Está seguro de aceptar la solicitud de anulación del consulado ${req.consulado} para este partido?\n\nSe eliminarán ${consuladoRequests.length} solicitud(es) definitivamente.`;
     if (!confirm(confirmMessage)) {
       return;
     }
     
     try {
-      // Supprimer toutes les solicitudes du consulado avec CANCELLATION_REQUESTED
+      // Supprimer toutes les solicitudes du consulado avec CANCELLATION_REQUESTED pour ce match
       for (const request of consuladoRequests) {
         await dataService.deleteSolicitud(request.id);
       }
       
       // Recharger les requests
       await reloadRequestsForSelectedMatch();
-      alert(`Solicitud de anulación aceptada. ${consuladoRequests.length} solicitud(es) eliminada(s) del consulado ${req.consulado}.`);
+      alert(`Solicitud de anulación aceptada. ${consuladoRequests.length} solicitud(es) eliminada(s) del consulado ${req.consulado} para este partido.`);
     } catch (error) {
       console.error('Erreur lors de l\'acceptation de l\'annulation:', error);
       alert('Error al aceptar la anulación. Por favor, intente nuevamente.');
     }
   };
   
-  // Fonction pour refuser une demande d'annulation (remettre TOUTES les solicitudes du consulado en APPROVED)
+  // Fonction pour refuser une demande d'annulation (remettre les solicitudes du consulado pour CE MATCH en APPROVED)
   const handleRejectCancellation = async (reqId: string) => {
-    // Trouver la solicitude pour obtenir le consulado
+    // Trouver la solicitude pour obtenir le consulado et le match_id
     const req = requests.find(r => r.id === reqId);
     if (!req) {
       alert('Error: Solicitud no encontrada.');
       return;
     }
     
-    // Trouver toutes les solicitudes du même consulado avec CANCELLATION_REQUESTED
-    const consuladoRequests = requests.filter(r => 
-      r.consulado === req.consulado && 
-      r.status === 'CANCELLATION_REQUESTED'
-    );
-    
-    if (consuladoRequests.length === 0) {
-      alert('No hay solicitudes de anulación para este consulado.');
+    if (!selectedMatch) {
+      alert('Error: No hay match seleccionado.');
       return;
     }
     
-    const confirmMessage = `¿Está seguro de rechazar la solicitud de anulación del consulado ${req.consulado}?\n\nSe mantendrán ${consuladoRequests.length} solicitud(es) en estado APROBADO.`;
+    // Trouver toutes les solicitudes du même consulado avec CANCELLATION_REQUESTED pour CE MATCH uniquement
+    const consuladoRequests = requests.filter(r => 
+      r.consulado === req.consulado && 
+      r.status === 'CANCELLATION_REQUESTED' &&
+      r.match_id === req.match_id // ✅ FILTRE PAR MATCH
+    );
+    
+    if (consuladoRequests.length === 0) {
+      alert('No hay solicitudes de anulación para este consulado en este partido.');
+      return;
+    }
+    
+    const confirmMessage = `¿Está seguro de rechazar la solicitud de anulación del consulado ${req.consulado} para este partido?\n\nSe mantendrán ${consuladoRequests.length} solicitud(es) en estado APROBADO.`;
     if (!confirm(confirmMessage)) {
       return;
     }
     
     try {
-      // Remettre toutes les solicitudes du consulado en APPROVED
+      // Remettre toutes les solicitudes du consulado pour ce match en APPROVED
       for (const request of consuladoRequests) {
         await dataService.updateSolicitudStatus(request.id, 'APPROVED');
       }
       
       // Recharger les requests
       await reloadRequestsForSelectedMatch();
-      alert(`Solicitud de anulación rechazada. ${consuladoRequests.length} solicitud(es) del consulado ${req.consulado} vuelven al estado APROBADO.`);
+      alert(`Solicitud de anulación rechazada. ${consuladoRequests.length} solicitud(es) del consulado ${req.consulado} para este partido vuelven al estado APROBADO.`);
     } catch (error) {
       console.error('Erreur lors du refus de l\'annulation:', error);
       alert('Error al rechazar la anulación. Por favor, intente nuevamente.');
