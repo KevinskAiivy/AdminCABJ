@@ -76,12 +76,13 @@ export const Habilitaciones = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
+    // Fonction pour charger toutes les données depuis le cache local
     const load = () => {
         setMatches(dataService.getMatches());
         setAllSocios(dataService.getSocios());
         setTeams(dataService.getTeams());
         setSettings(dataService.getAppSettings());
-        setRequests(dataService.getSolicitudes()); // Charger toutes les solicitudes
+        setRequests(dataService.getSolicitudes());
     };
     
     // Fonction pour recharger les solicitudes depuis Supabase
@@ -89,20 +90,30 @@ export const Habilitaciones = () => {
         try {
             await dataService.reloadSolicitudes();
             setRequests(dataService.getSolicitudes());
+            setNow(new Date()); // Forcer le recalcul des processedMatches
         } catch (error) {
             console.error("Erreur lors du rechargement des solicitudes:", error);
         }
     };
     
-    load();
+    // Fonction d'initialisation complète au chargement de la page
+    const initializePage = async () => {
+        // Charger d'abord les données en cache
+        load();
+        
+        // Puis recharger immédiatement depuis Supabase pour avoir les données les plus récentes
+        await reloadSolicitudesFromDB();
+    };
+    
+    // Lancer l'initialisation
+    initializePage();
+    
+    // S'abonner aux changements
     const unsub = dataService.subscribe(load);
     const clock = setInterval(() => setNow(new Date()), 30000);
     
     // Recharger les solicitudes depuis Supabase toutes les 10 secondes pour un affichage en temps réel
     const reloadInterval = setInterval(reloadSolicitudesFromDB, 10000);
-    
-    // Recharger immédiatement au démarrage
-    reloadSolicitudesFromDB();
     
     return () => { 
         unsub(); 
