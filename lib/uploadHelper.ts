@@ -53,27 +53,34 @@ export const uploadFileWithTracking = async (options: UploadOptions): Promise<Up
       throw new Error('Impossible de récupérer l\'URL publique');
     }
 
-    // 4. Enregistrer dans la table uploaded_files
-    const { error: dbError } = await supabase
-      .from('uploaded_files')
-      .insert({
-        file_path: fileName,
-        file_name: file.name,
-        bucket_name: bucket,
-        file_type: file.type,
-        file_size: file.size,
-        uploaded_by: userId || null,
-        entity_type: entityType,
-        entity_id: entityId,
-        field_name: fieldName,
-        public_url: urlData.publicUrl,
-        is_active: true,
-        uploaded_at: new Date().toISOString()
-      });
+    // 4. Enregistrer dans la table uploaded_files (optionnel)
+    try {
+      const { error: dbError } = await supabase
+        .from('uploaded_files')
+        .insert({
+          file_path: fileName,
+          file_name: file.name,
+          bucket_name: bucket,
+          file_type: file.type,
+          file_size: file.size,
+          uploaded_by: userId || null,
+          entity_type: entityType,
+          entity_id: entityId,
+          field_name: fieldName,
+          public_url: urlData.publicUrl,
+          is_active: true,
+          uploaded_at: new Date().toISOString()
+        });
 
-    if (dbError) {
-      console.error('Erreur enregistrement DB:', dbError);
-      // On ne bloque pas l'upload si l'enregistrement échoue
+      if (dbError) {
+        console.warn('⚠️ Table uploaded_files non disponible (optionnel):', dbError.message);
+        // On ne bloque pas l'upload si l'enregistrement échoue
+      } else {
+        console.log('✅ Fichier enregistré dans uploaded_files');
+      }
+    } catch (dbError: any) {
+      console.warn('⚠️ Impossible d\'enregistrer dans uploaded_files:', dbError.message);
+      // On continue quand même
     }
 
     return {

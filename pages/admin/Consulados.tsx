@@ -320,8 +320,9 @@ export const Consulados = () => {
       try {
           // Upload du logo UNIQUEMENT si un fichier a été sélectionné (pas si c'est juste une URL)
           if (selectedLogoFile && selectedLogoFile instanceof File) {
+              console.log('📤 Upload logo...', selectedLogoFile.name);
               const consuladoId = editingConsulado.id || crypto.randomUUID();
-              
+
               // Upload avec tracking automatique
               const result = await uploadFileWithTracking({
                   bucket: 'Logo',
@@ -336,13 +337,16 @@ export const Consulados = () => {
                   throw new Error(`Error al subir el logo: ${result.error}`);
               }
 
+              console.log('✅ Logo subido:', result.filePath);
+              // Utiliser le chemin du fichier (pas l'URL complète) pour la DB
               logoUrl = result.filePath || '';
           }
 
           // Upload de la bannière UNIQUEMENT si un fichier a été sélectionné (pas si c'est juste une URL)
           if (selectedBannerFile && selectedBannerFile instanceof File) {
+              console.log('📤 Upload banner...', selectedBannerFile.name);
               const consuladoId = editingConsulado.id || crypto.randomUUID();
-              
+
               // Upload avec tracking automatique
               const result = await uploadFileWithTracking({
                   bucket: 'Logo',
@@ -357,6 +361,7 @@ export const Consulados = () => {
                   throw new Error(`Error al subir la bannière: ${result.error}`);
               }
 
+              console.log('✅ Banner subido:', result.filePath);
               bannerUrl = result.filePath || '';
           }
 
@@ -366,14 +371,19 @@ export const Consulados = () => {
               logo: logoUrl,
               banner: bannerUrl
           };
-          
+
+          console.log('💾 Guardando consulado...', { logo: logoUrl, banner: bannerUrl });
+
           // Sauvegarder le consulado
           if (isUpdate) {
-              dataService.updateConsulado(consuladoToSave as Consulado);
+              await dataService.updateConsulado(consuladoToSave as Consulado);
+              console.log('✅ Consulado actualizado');
           } else {
-              dataService.addConsulado(consuladoToSave as Consulado);
+              await dataService.addConsulado(consuladoToSave as Consulado);
+              console.log('✅ Consulado creado');
           }
       } catch (error) {
+          console.error('❌ Error:', error);
           alert(error instanceof Error ? error.message : 'Error al subir las imágenes');
           return;
       }
