@@ -309,6 +309,13 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
       return;
     }
     
+    // Bloquer l'envoi si une demande d'annulation est en cours
+    if (hasCancellationRequest) {
+      alert('No puede enviar nuevas solicitudes mientras hay una solicitud de anulación pendiente. Por favor, espere la respuesta de los administradores.');
+      setShowConfirmSubmit(false);
+      return;
+    }
+    
     try {
       // Fonction helper pour créer un hash unique d'un UUID string en nombre
       const hashUUID = (uuid: string): number => {
