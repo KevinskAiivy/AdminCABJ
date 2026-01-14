@@ -1845,10 +1845,134 @@ class DataService {
               this.solicitudes = data.map(mapSolicitudFromDB);
               this.notify();
               if (isDevelopment) console.log(`✅ ${this.solicitudes.length} solicitudes rechargées depuis Supabase`);
+              
+              // Supprimer les solicitudes des matchs passés
+              await this.cleanupPastMatchesSolicitudes();
           }
       } catch (error: any) {
           console.error("❌ Erreur lors du rechargement des solicitudes:", error);
           throw error;
+      }
+  }
+  
+  // Fonction pour supprimer les solicitudes des matchs passés
+  async cleanupPastMatchesSolicitudes() {
+      try {
+          const now = new Date();
+          const solicitudesToDelete: string[] = [];
+          
+          // Parcourir toutes les solicitudes
+          for (const solicitud of this.solicitudes) {
+              // Trouver le match correspondant
+              const match = this.matches.find(m => {
+                  // Gérer les matchs avec UUID (match_id = 0 ou hash)
+                  const matchAny = m as any;
+                  const hasOriginalId = matchAny._originalId !== undefined && matchAny._originalId !== null;
+                  const matchId = typeof m.id === 'string' ? parseInt(m.id, 10) : m.id;
+                  const isMatchUUID = typeof matchId === 'number' && matchId === 0 && hasOriginalId;
+                  
+                  if (isMatchUUID && typeof matchAny._originalId === 'string') {
+                      // Pour les matchs avec UUID, vérifier avec le hash
+                      const hashUUID = (uuid: string): number => {
+                          let hash = 0;
+                          for (let i = 0; i < uuid.length; i++) {
+                              const char = uuid.charCodeAt(i);
+                              hash = ((hash << 5) - hash) + char;
+                              hash = hash & hash;
+                          }
+                          return Math.abs(hash) % 2147483647;
+                      };
+                      const solicitudesMatchId = hashUUID(matchAny._originalId);
+                      return solicitud.match_id === solicitudesMatchId || (isMatchUUID && solicitud.match_id === 0);
+                  } else {
+                      // Pour les matchs normaux
+                      return solicitud.match_id === matchId;
+                  }
+              });
+              
+              if (match) {
+                  // Vérifier si le match est passé (date + heure du match dépassée)
+                  const matchDate = this.parseMatchDate(match.date, match.hour);
+                  
+                  if (matchDate && matchDate < now) {
+                      // Le match est passé, marquer la solicitude pour suppression
+                      solicitudesToDelete.push(solicitud.id);
+                  }
+              }
+          }
+          
+          // Supprimer les solicitudes des matchs passés
+          if (solicitudesToDelete.length > 0) {
+              console.log(`🗑️ Suppression de ${solicitudesToDelete.length} solicitudes de matchs passés...`);
+              
+              for (const solicitudId of solicitudesToDelete) {
+                  await this.deleteSolicitud(solicitudId);
+              }
+              
+              console.log(`✅ ${solicitudesToDelete.length} solicitudes supprimées avec succès`);
+          } else {
+              if (isDevelopment) console.log('ℹ️ Aucune solicitude de match passé à supprimer');
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors du nettoyage des solicitudes des matchs passés:", error);
+          // Ne pas throw pour ne pas bloquer le rechargement des solicitudes
+      }
+  }
+  
+  // Fonction helper pour parser la date d'un match
+  private parseMatchDate(dateStr: string, hourStr: string): Date | null {
+      try {
+          if (!dateStr) return null;
+          
+          let day: number, month: number, year: number;
+          
+          // Gérer les différents formats de date
+          if (dateStr.includes('/')) {
+              const parts = dateStr.split('/').map(Number);
+              if (parts.length === 3) {
+                  [day, month, year] = parts;
+              } else {
+                  return null;
+              }
+          } else if (dateStr.includes('-')) {
+              const parts = dateStr.split('-').map(Number);
+              if (parts.length === 3) {
+                  // Format YYYY-MM-DD ou DD-MM-YYYY
+                  if (parts[0] > 1000) {
+                      [year, month, day] = parts;
+                  } else {
+                      [day, month, year] = parts;
+                  }
+              } else {
+                  return null;
+              }
+          } else {
+              return null;
+          }
+          
+          // Parser l'heure
+          let hours = 0;
+          let minutes = 0;
+          if (hourStr) {
+              const cleaned = hourStr.replace(/\s*hs\s*/i, '').trim();
+              const timeParts = cleaned.split(':').map(Number);
+              if (timeParts.length >= 2) {
+                  [hours, minutes] = timeParts;
+              }
+          }
+          
+          // Créer la date
+          const matchDate = new Date(year, month - 1, day, hours, minutes);
+          
+          // Vérifier que la date est valide
+          if (isNaN(matchDate.getTime())) {
+              return null;
+          }
+          
+          return matchDate;
+      } catch (error) {
+          console.error("❌ Erreur lors du parsing de la date du match:", error);
+          return null;
       }
   }
 
