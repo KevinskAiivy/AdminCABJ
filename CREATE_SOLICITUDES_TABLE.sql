@@ -90,7 +90,7 @@ CREATE POLICY "SOCIO peuvent voir leurs propres solicitudes"
             AND users.role = 'SOCIO'
             AND users.active = true
         )
-        AND socio_id::text = auth.uid()::text
+        AND socio_id = auth.uid()
     );
 
 -- Policy: Les SUPERADMIN et ADMIN peuvent insérer des solicitudes
@@ -136,7 +136,7 @@ CREATE POLICY "SOCIO peuvent créer leurs propres solicitudes"
             AND users.role = 'SOCIO'
             AND users.active = true
         )
-        AND socio_id::text = auth.uid()::text
+        AND socio_id = auth.uid()
     );
 
 -- Policy: Les SUPERADMIN et ADMIN peuvent mettre à jour toutes les solicitudes
@@ -182,7 +182,7 @@ CREATE POLICY "SOCIO peuvent annuler leurs propres solicitudes"
             AND users.role = 'SOCIO'
             AND users.active = true
         )
-        AND socio_id::text = auth.uid()::text
+        AND socio_id = auth.uid()
         AND status IN ('PENDING', 'APPROVED')
     )
     WITH CHECK (
