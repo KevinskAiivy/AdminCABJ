@@ -1814,7 +1814,7 @@ class DataService {
           // Supprimer localement
           this.solicitudes = this.solicitudes.filter(s => s.id !== id);
           this.notify();
-          
+
           // Supprimer de Supabase (si la table existe)
           try {
               const { error } = await supabase.from('solicitudes').delete().eq('id', id);
@@ -1829,6 +1829,25 @@ class DataService {
           }
       } catch (error: any) {
           console.error("❌ Erreur lors de la suppression de la solicitud:", error);
+          throw error;
+      }
+  }
+
+  // Recharger les solicitudes depuis Supabase
+  async reloadSolicitudes() {
+      try {
+          const { data, error } = await supabase.from('solicitudes').select('*');
+          if (error) {
+              console.error("❌ Erreur lors du rechargement des solicitudes:", error);
+              throw error;
+          }
+          if (data) {
+              this.solicitudes = data.map(mapSolicitudFromDB);
+              this.notify();
+              if (isDevelopment) console.log(`✅ ${this.solicitudes.length} solicitudes rechargées depuis Supabase`);
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors du rechargement des solicitudes:", error);
           throw error;
       }
   }

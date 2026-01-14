@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { GlassCard } from '../components/GlassCard';
-import { Ticket, CheckCircle2, XCircle, Calendar, MapPin, X, UserCheck, UserX, Filter, Timer, Archive, Home, Plane, FileText } from 'lucide-react';
+import { Ticket, CheckCircle2, XCircle, Calendar, MapPin, X, UserCheck, UserX, Filter, Timer, Archive, Home, Plane, FileText, RefreshCw } from 'lucide-react';
 import { Match, Solicitud, Socio, Team } from '../types';
 import { dataService } from '../services/dataService';
 import { BocaLogoSVG } from '../constants';
@@ -82,10 +82,32 @@ export const Habilitaciones = () => {
         setSettings(dataService.getAppSettings());
         setRequests(dataService.getSolicitudes()); // Charger toutes les solicitudes
     };
+    
+    // Fonction pour recharger les solicitudes depuis Supabase
+    const reloadSolicitudesFromDB = async () => {
+        try {
+            await dataService.reloadSolicitudes();
+            setRequests(dataService.getSolicitudes());
+        } catch (error) {
+            console.error("Erreur lors du rechargement des solicitudes:", error);
+        }
+    };
+    
     load();
     const unsub = dataService.subscribe(load);
     const clock = setInterval(() => setNow(new Date()), 30000);
-    return () => { unsub(); clearInterval(clock); };
+    
+    // Recharger les solicitudes depuis Supabase toutes les 30 secondes
+    const reloadInterval = setInterval(reloadSolicitudesFromDB, 30000);
+    
+    // Recharger immédiatement au démarrage
+    reloadSolicitudesFromDB();
+    
+    return () => { 
+        unsub(); 
+        clearInterval(clock); 
+        clearInterval(reloadInterval);
+    };
   }, []);
 
   const processedMatches = useMemo<ProcessedMatch[]>(() => {
@@ -937,6 +959,16 @@ export const Habilitaciones = () => {
       return 'bg-[#FCB131] border-[#FFD23F] text-[#001d4a] shadow-lg';
   };
 
+  // Fonction pour rafraîchir manuellement les solicitudes
+  const handleRefreshSolicitudes = async () => {
+    try {
+      await dataService.reloadSolicitudes();
+      setRequests(dataService.getSolicitudes());
+    } catch (error) {
+      console.error("Erreur lors du rafraîchissement:", error);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6 px-4 animate-boca-entrance pb-20">
         <div className="liquid-glass-dark p-8 rounded-xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
@@ -949,6 +981,14 @@ export const Habilitaciones = () => {
               <p className="text-[#FCB131] text-[10px] font-black uppercase tracking-[0.4em] mt-1">Control de Acceso al Estadio</p>
             </div>
           </div>
+          <button
+            onClick={handleRefreshSolicitudes}
+            className="flex items-center gap-2 px-4 py-2 bg-[#FCB131] text-[#001d4a] rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-[#FFD23F] transition-all shadow-lg relative z-10"
+            title="Actualizar solicitudes desde la base de datos"
+          >
+            <RefreshCw size={16} />
+            Actualizar
+          </button>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
