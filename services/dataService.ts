@@ -1859,18 +1859,18 @@ class DataService {
               const { error } = await supabase.from('solicitudes').update({ 
                   cancellation_requested: cancellationRequested 
               }).eq('id', id);
-              if (error && error.code !== '42P01') {
+              if (error && error.code !== '42P01' && error.code !== 'PGRST116') {
                   console.error("❌ Erreur lors de la mise à jour de cancellation_requested:", error);
               }
           } catch (dbError: any) {
               // Ignorer si la table n'existe pas
-              if (dbError.code !== '42P01') {
-                  throw dbError;
+              if (dbError?.code !== '42P01' && dbError?.code !== 'PGRST116') {
+                  console.error("❌ Erreur BDD cancellation_requested:", dbError);
               }
           }
       } catch (error: any) {
           console.error("❌ Erreur lors de la mise à jour de cancellation_requested:", error);
-          throw error;
+          // Ne pas lever d'erreur pour ne pas bloquer l'UI
       }
   }
 
@@ -1888,20 +1888,21 @@ class DataService {
               const { error } = await supabase.from('solicitudes').update({ 
                   cancellation_rejected: cancellationRejected 
               }).eq('id', id);
-              if (error && error.code !== '42P01') {
+              if (error && error.code !== '42P01' && error.code !== 'PGRST116') {
                   console.error("❌ Erreur lors de la mise à jour de cancellation_rejected:", error);
               }
           } catch (dbError: any) {
               // Ignorer si la table n'existe pas
-              if (dbError.code !== '42P01') {
-                  throw dbError;
+              if (dbError?.code !== '42P01' && dbError?.code !== 'PGRST116') {
+                  console.error("❌ Erreur BDD cancellation_rejected:", dbError);
               }
           }
       } catch (error: any) {
           console.error("❌ Erreur lors de la mise à jour de cancellation_rejected:", error);
-          throw error;
+          // Ne pas lever d'erreur pour ne pas bloquer l'UI
       }
   }
+  
   async deleteSolicitud(id: string) {
       try {
           // Supprimer localement
@@ -1911,18 +1912,18 @@ class DataService {
           // Supprimer de Supabase (si la table existe)
           try {
               const { error } = await supabase.from('solicitudes').delete().eq('id', id);
-              if (error && error.code !== '42P01') {
+              if (error && error.code !== '42P01' && error.code !== 'PGRST116') {
                   console.error("❌ Erreur lors de la suppression de la solicitud:", error);
               }
           } catch (dbError: any) {
               // Ignorer si la table n'existe pas
-              if (dbError.code !== '42P01') {
-                  throw dbError;
+              if (dbError?.code !== '42P01' && dbError?.code !== 'PGRST116') {
+                  console.error("❌ Erreur BDD deletion solicitud:", dbError);
               }
           }
       } catch (error: any) {
           console.error("❌ Erreur lors de la suppression de la solicitud:", error);
-          throw error;
+          // Ne pas lever d'erreur pour ne pas bloquer l'UI
       }
   }
 
@@ -1931,20 +1932,31 @@ class DataService {
       try {
           const { data, error } = await supabase.from('solicitudes').select('*');
           if (error) {
+              // Si la table n'existe pas (code 42P01), ignorer silencieusement
+              if (error.code === '42P01' || error.code === 'PGRST116') {
+                  if (isDevelopment) console.log("ℹ️ Table solicitudes non disponible");
+                  return; // Ne pas lever d'erreur
+              }
               console.error("❌ Erreur lors du rechargement des solicitudes:", error);
-              throw error;
+              // Ne pas lever d'erreur pour ne pas bloquer l'UI
+              return;
           }
           if (data) {
               this.solicitudes = data.map(mapSolicitudFromDB);
               this.notify();
               if (isDevelopment) console.log(`✅ ${this.solicitudes.length} solicitudes rechargées depuis Supabase`);
-              
+
               // Supprimer les solicitudes des matchs passés
               await this.cleanupPastMatchesSolicitudes();
           }
       } catch (error: any) {
+          // Ignorer les erreurs de table non existante
+          if (error?.code === '42P01' || error?.code === 'PGRST116') {
+              if (isDevelopment) console.log("ℹ️ Table solicitudes non disponible");
+              return;
+          }
           console.error("❌ Erreur lors du rechargement des solicitudes:", error);
-          throw error;
+          // Ne pas lever d'erreur pour ne pas bloquer l'UI
       }
   }
   
