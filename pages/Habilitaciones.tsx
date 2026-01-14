@@ -80,6 +80,7 @@ export const Habilitaciones = () => {
         setAllSocios(dataService.getSocios());
         setTeams(dataService.getTeams());
         setSettings(dataService.getAppSettings());
+        setRequests(dataService.getSolicitudes()); // Charger toutes les solicitudes
     };
     load();
     const unsub = dataService.subscribe(load);
