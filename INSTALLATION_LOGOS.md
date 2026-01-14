@@ -131,6 +131,18 @@ AND schemaname = 'storage';
 
 ## 🐛 Dépannage
 
+### Erreur : "new row violates row-level security policy"
+
+**Cause** : Les politiques RLS du bucket sont trop restrictives.
+
+**Solution** : Exécutez le script `FIX_RLS_STORAGE_POLICIES.sql` dans Supabase SQL Editor.
+
+Ce script :
+- ✅ Supprime les anciennes politiques restrictives
+- ✅ Crée 4 nouvelles politiques permissives
+- ✅ Vérifie que le bucket est public
+- ✅ Permet l'upload pour tous les utilisateurs authentifiés
+
 ### Le script échoue avec "permission denied"
 
 **Cause** : Vous n'avez pas les droits d'admin.
