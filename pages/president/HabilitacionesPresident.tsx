@@ -853,8 +853,8 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                               ) : shouldShowCancelRejected ? (
                                 /* Bouton Anulación Rechazada (grisé) quand demande d'annulation a été refusée */
                                 <div className="flex flex-col gap-2 w-full">
-                                  {/* Bouton Ver Resultados si résultats disponibles */}
-                                  {shouldShowViewResults && (
+                                  {/* Boutons Ver Lista + Anulación Rechazada */}
+                                  <div className="flex gap-2 w-full">
                                     <button
                                       type="button"
                                       onClick={(e) => {
@@ -862,18 +862,9 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                                         e.stopPropagation();
                                         handleViewRequests(match);
                                       }}
-                                      className="w-full py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 bg-emerald-500 text-white hover:bg-emerald-600 hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transform hover:scale-[1.02]"
+                                      className="flex-1 py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 bg-[#003B94] text-white hover:bg-[#001d4a] hover:shadow-[0_0_20px_rgba(0,59,148,0.4)] transform hover:scale-[1.02]"
                                     >
-                                      <CheckCircle2 size={13} strokeWidth={2.5} /> Ver Resultados
-                                    </button>
-                                  )}
-                                  <div className="flex gap-2 w-full">
-                                    <button
-                                      type="button"
-                                      disabled
-                                      className="flex-1 py-2 rounded-xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-1.5 bg-emerald-100 text-emerald-700 border-2 border-emerald-300 cursor-not-allowed opacity-80"
-                                    >
-                                      <CheckCircle2 size={13} strokeWidth={2.5} /> Lista Enviada
+                                      <CheckCircle2 size={13} strokeWidth={2.5} /> Ver Lista
                                     </button>
                                     {/* Bouton Cancelar grisé - demande refusée */}
                                     <button
@@ -888,8 +879,8 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                                 </div>
                               ) : shouldShowCancelButton ? (
                                 <div className="flex flex-col gap-2 w-full">
-                                  {/* Bouton Ver Resultados si résultats disponibles */}
-                                  {shouldShowViewResults && (
+                                  {/* Boutons Ver Lista + Cancelar */}
+                                  <div className="flex gap-2 w-full">
                                     <button
                                       type="button"
                                       onClick={(e) => {
@@ -897,21 +888,11 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                                         e.stopPropagation();
                                         handleViewRequests(match);
                                       }}
-                                      className="w-full py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 bg-emerald-500 text-white hover:bg-emerald-600 hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transform hover:scale-[1.02]"
+                                      className="flex-1 py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 bg-[#003B94] text-white hover:bg-[#001d4a] hover:shadow-[0_0_20px_rgba(0,59,148,0.4)] transform hover:scale-[1.02]"
                                     >
-                                      <CheckCircle2 size={13} strokeWidth={2.5} /> Ver Resultados
+                                      <CheckCircle2 size={13} strokeWidth={2.5} /> Ver Lista
                                     </button>
-                                  )}
-                                  {/* Boutons Lista Enviada + Cancelar */}
-                                  <div className="flex gap-2 w-full">
-                                    <button
-                                      type="button"
-                                      disabled
-                                      className="flex-1 py-2 rounded-xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-1.5 bg-emerald-100 text-emerald-700 border-2 border-emerald-300 cursor-not-allowed opacity-80"
-                                    >
-                                      <CheckCircle2 size={13} strokeWidth={2.5} /> Lista Enviada
-                                    </button>
-                                    {/* Bouton Solicitar Cancelación - TOUJOURS visible si liste envoyée */}
+                                    {/* Bouton Solicitar Cancelación */}
                                     <button
                                       type="button"
                                       onClick={(e) => {
