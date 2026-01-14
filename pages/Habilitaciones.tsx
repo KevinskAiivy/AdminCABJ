@@ -243,66 +243,107 @@ export const Habilitaciones = () => {
     }
     
     // Pour les admins, afficher TOUTES les solicitudes du match (tous consulados confondus)
-    // Exclure seulement CANCELLATION_REQUESTED car les admins doivent voir les solicitudes actives
-    const activeRequests = allRequests.filter(r => r.status !== 'CANCELLATION_REQUESTED');
-    console.log('✅ Solicitudes actives (hors CANCELLATION_REQUESTED) pour les admins:', activeRequests.length);
-    setRequests(activeRequests);
+    // INCLURE CANCELLATION_REQUESTED car les admins doivent traiter les demandes d'annulation
+    console.log('✅ Toutes les solicitudes pour les admins (y compris CANCELLATION_REQUESTED):', allRequests.length);
+    setRequests(allRequests);
     setSelectedMatch(match);
   };
 
   const handleStatusChange = async (reqId: string, status: any) => {
     await dataService.updateSolicitudStatus(reqId, status);
     // Recharger les requests pour avoir les données à jour
-    if (selectedMatch) {
-      // Fonction helper pour créer un hash unique d'un UUID string en nombre
-      const hashUUID = (uuid: string): number => {
-        let hash = 0;
-        for (let i = 0; i < uuid.length; i++) {
-          const char = uuid.charCodeAt(i);
-          hash = ((hash << 5) - hash) + char;
-          hash = hash & hash; // Convertir en 32-bit integer
-        }
-        return Math.abs(hash) % 2147483647; // Max safe integer
-      };
-      
-      const matchId = typeof selectedMatch.id === 'string' ? parseInt(selectedMatch.id, 10) : selectedMatch.id;
-      
-      // Pour les matches avec UUID, utiliser le hash pour trouver les solicitudes
-      const matchAny = selectedMatch as any;
-      const hasOriginalId = matchAny._originalId !== undefined && matchAny._originalId !== null;
-      const isMatchUUID = typeof matchId === 'number' && matchId === 0 && hasOriginalId;
-      
-      let allRequests: Solicitud[] = [];
-      if (isMatchUUID && typeof matchAny._originalId === 'string') {
-        // Utiliser le même hash que lors de la création des solicitudes
-        const solicitudesMatchId = hashUUID(matchAny._originalId);
-        // Pour compatibilité, aussi chercher avec 0 (anciennes solicitudes)
-        const reqsWithHash = dataService.getSolicitudes(solicitudesMatchId);
-        const reqsWithZero = dataService.getSolicitudes(0);
-        const allReqs = [...(Array.isArray(reqsWithHash) ? reqsWithHash : []), ...(Array.isArray(reqsWithZero) ? reqsWithZero : [])];
-        const uniqueReqs = Array.from(new Map(allReqs.map(r => [r.id, r])).values());
-        // Filtrer pour ce match spécifique (hash OU 0 pour compatibilité)
-        allRequests = uniqueReqs.filter(r => {
-          return r.match_id === solicitudesMatchId || (isMatchUUID && r.match_id === 0);
-        });
-      } else {
-        // Pour les matches normaux, chercher normalement
-        const reqs = dataService.getSolicitudes(matchId);
-        allRequests = Array.isArray(reqs) ? reqs : [];
-      }
-      
-      // Exclure CANCELLATION_REQUESTED pour que les admins voient seulement les solicitudes actives
-      const activeRequests = allRequests.filter(r => r.status !== 'CANCELLATION_REQUESTED');
-      setRequests(activeRequests);
-    } else {
-      setRequests(prev => prev.map(r => r.id === reqId ? { ...r, status } : r));
+    await reloadRequestsForSelectedMatch();
+  };
+  
+  // Fonction pour accepter une demande d'annulation (supprimer la solicitude)
+  const handleAcceptCancellation = async (reqId: string) => {
+    if (!confirm('¿Está seguro de aceptar esta solicitud de anulación? La solicitud será eliminada definitivamente.')) {
+      return;
+    }
+    try {
+      // Supprimer la solicitude de la base de données
+      await dataService.deleteSolicitud(reqId);
+      // Recharger les requests
+      await reloadRequestsForSelectedMatch();
+      alert('Solicitud de anulación aceptada. La solicitud ha sido eliminada.');
+    } catch (error) {
+      console.error('Erreur lors de l\'acceptation de l\'annulation:', error);
+      alert('Error al aceptar la anulación. Por favor, intente nuevamente.');
     }
   };
   
-  // Vérifier si toutes les sollicitations ont été traitées (pas de PENDING)
+  // Fonction pour refuser une demande d'annulation (remettre en APPROVED)
+  const handleRejectCancellation = async (reqId: string) => {
+    if (!confirm('¿Está seguro de rechazar esta solicitud de anulación? La solicitud volverá al estado APROBADO.')) {
+      return;
+    }
+    try {
+      // Remettre la solicitude en APPROVED
+      await dataService.updateSolicitudStatus(reqId, 'APPROVED');
+      // Recharger les requests
+      await reloadRequestsForSelectedMatch();
+      alert('Solicitud de anulación rechazada. La solicitud vuelve al estado APROBADO.');
+    } catch (error) {
+      console.error('Erreur lors du refus de l\'annulation:', error);
+      alert('Error al rechazar la anulación. Por favor, intente nuevamente.');
+    }
+  };
+  
+  // Fonction helper pour recharger les requests du match sélectionné
+  const reloadRequestsForSelectedMatch = async () => {
+    if (!selectedMatch) return;
+    
+    // Recharger depuis Supabase
+    await dataService.reloadSolicitudes();
+    
+    // Fonction helper pour créer un hash unique d'un UUID string en nombre
+    const hashUUID = (uuid: string): number => {
+      let hash = 0;
+      for (let i = 0; i < uuid.length; i++) {
+        const char = uuid.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convertir en 32-bit integer
+      }
+      return Math.abs(hash) % 2147483647; // Max safe integer
+    };
+    
+    const matchId = typeof selectedMatch.id === 'string' ? parseInt(selectedMatch.id, 10) : selectedMatch.id;
+    
+    // Pour les matches avec UUID, utiliser le hash pour trouver les solicitudes
+    const matchAny = selectedMatch as any;
+    const hasOriginalId = matchAny._originalId !== undefined && matchAny._originalId !== null;
+    const isMatchUUID = typeof matchId === 'number' && matchId === 0 && hasOriginalId;
+    
+    let allRequests: Solicitud[] = [];
+    if (isMatchUUID && typeof matchAny._originalId === 'string') {
+      // Utiliser le même hash que lors de la création des solicitudes
+      const solicitudesMatchId = hashUUID(matchAny._originalId);
+      // Pour compatibilité, aussi chercher avec 0 (anciennes solicitudes)
+      const reqsWithHash = dataService.getSolicitudes(solicitudesMatchId);
+      const reqsWithZero = dataService.getSolicitudes(0);
+      const allReqs = [...(Array.isArray(reqsWithHash) ? reqsWithHash : []), ...(Array.isArray(reqsWithZero) ? reqsWithZero : [])];
+      const uniqueReqs = Array.from(new Map(allReqs.map(r => [r.id, r])).values());
+      // Filtrer pour ce match spécifique (hash OU 0 pour compatibilité)
+      allRequests = uniqueReqs.filter(r => {
+        return r.match_id === solicitudesMatchId || (isMatchUUID && r.match_id === 0);
+      });
+    } else {
+      // Pour les matches normaux, chercher normalement
+      const reqs = dataService.getSolicitudes(matchId);
+      allRequests = Array.isArray(reqs) ? reqs : [];
+    }
+    
+    // INCLURE CANCELLATION_REQUESTED pour que les admins puissent traiter les demandes d'annulation
+    setRequests(allRequests);
+  };
+  
+  // Vérifier si toutes les sollicitations ont été traitées (pas de PENDING ni CANCELLATION_REQUESTED)
   const allRequestsProcessed = useMemo(() => {
     if (!selectedMatch || requests.length === 0) return false;
-    return requests.every(req => req.status === 'APPROVED' || req.status === 'REJECTED');
+    // Exclure les CANCELLATION_REQUESTED de la vérification
+    const nonCancellationRequests = requests.filter(req => req.status !== 'CANCELLATION_REQUESTED');
+    if (nonCancellationRequests.length === 0) return false;
+    return nonCancellationRequests.every(req => req.status === 'APPROVED' || req.status === 'REJECTED');
   }, [selectedMatch, requests]);
   
   // Fonction helper pour générer le PDF avec des données spécifiques (utilisée depuis la carte)
@@ -364,6 +405,9 @@ export const Habilitaciones = () => {
       const logoUrl = settings.logoUrl || settings.loginLogoUrl;
       
       // Trouver les équipes pour les logos
+      console.log('🔍 Recherche des équipes dans la liste de', teams.length, 'équipes');
+      console.log('🔍 Match rival:', match.rival, ', rival_id:', match.rival_id);
+      
       const localTeam = teams.find(t => 
         t.name && (
           t.name.toLowerCase().includes('boca') || 
@@ -377,9 +421,15 @@ export const Habilitaciones = () => {
         (match.rival && t.name?.toLowerCase().includes(match.rival?.toLowerCase() || ''))
       );
       
+      console.log('🏟️ Équipe locale trouvée:', localTeam?.name || 'Non trouvée');
+      console.log('🏟️ Équipe adverse trouvée:', rivalTeam?.name || 'Non trouvée');
+      
       // Utiliser le logo de Boca depuis la table teams
       const bocaLogo = localTeam?.logo || null;
       const rivalLogo = rivalTeam?.logo;
+      
+      console.log('🖼️ Logo Boca disponible:', bocaLogo ? 'Oui (' + bocaLogo.substring(0, 50) + '...)' : 'Non');
+      console.log('🖼️ Logo rival disponible:', rivalLogo ? 'Oui (' + rivalLogo.substring(0, 50) + '...)' : 'Non');
       
       // Header compact mais avec texte plus grand (hauteur ajustée pour éviter les superpositions)
       // Calcul: logo(5-12mm) + titre(6mm) + compétition(4.5mm) + date(5mm) + logos(16mm) + noms(3mm) + marge(4mm) = ~54mm minimum
@@ -397,7 +447,7 @@ export const Habilitaciones = () => {
       let logoHeight = 0;
       if (logoUrl && logoUrl.length > 50 && (logoUrl.startsWith('data:image') || logoUrl.startsWith('http'))) {
         try {
-          console.log('🖼️ Chargement du logo officiel...');
+          console.log('🖼️ Chargement du logo officiel depuis:', logoUrl.substring(0, 100));
           const logo = await Promise.race([
             loadImage(logoUrl),
             new Promise<HTMLImageElement>((_, reject) => 
@@ -412,17 +462,30 @@ export const Habilitaciones = () => {
               logoHeight = 12;
               logoWidth = (logo.width * logoHeight) / logo.height;
             }
-            doc.addImage(logo, 'PNG', margin + 2, currentY, logoWidth, logoHeight);
-            console.log('✅ Logo officiel chargé avec succès');
+            
+            // Détecter le format de l'image
+            let imageFormat = 'PNG';
+            if (logoUrl.includes('data:image/jpeg') || logoUrl.includes('.jpg') || logoUrl.includes('.jpeg')) {
+              imageFormat = 'JPEG';
+            } else if (logoUrl.includes('data:image/webp') || logoUrl.includes('.webp')) {
+              imageFormat = 'WEBP';
+            }
+            
+            doc.addImage(logo, imageFormat, margin + 2, currentY, logoWidth, logoHeight);
+            console.log('✅ Logo officiel chargé avec succès (format:', imageFormat, ', dimensions:', logoWidth, 'x', logoHeight, 'mm)');
           } else {
             console.warn('⚠️ Logo officiel invalide (dimensions manquantes ou nulles)');
           }
         } catch (error) {
-          console.warn('⚠️ Erreur lors du chargement du logo officiel (non bloquant):', error);
+          console.error('❌ Erreur lors du chargement du logo officiel:', error);
+          console.error('URL du logo:', logoUrl);
           // Continuer sans le logo - ce n'est pas critique pour la génération du PDF
         }
       } else {
-        console.log('ℹ️ Pas de logo officiel disponible');
+        console.log('ℹ️ Pas de logo officiel disponible (URL trop courte ou format invalide)');
+        if (logoUrl) {
+          console.log('URL fournie:', logoUrl);
+        }
       }
       
       // Titre "LISTA DEFINITIVA DE HABILITACIONES" au centre (première ligne) - TEXTE PLUS GRAND
@@ -470,20 +533,30 @@ export const Habilitaciones = () => {
       const leftLogoCenterX = pageWidth / 4; // 1/4 de la largeur
       if (bocaLogo) {
         try {
-          console.log('🖼️ Chargement du logo Boca Juniors...');
+          console.log('🖼️ Chargement du logo Boca Juniors depuis:', bocaLogo.substring(0, 100));
           const logo = await loadImage(bocaLogo);
           if (logo && logo.width && logo.height && logo.width > 0 && logo.height > 0) {
             const logoRatio = logo.width / logo.height;
             const finalLogoHeight = logoSize;
             const finalLogoWidth = finalLogoHeight * logoRatio;
             const leftLogoX = leftLogoCenterX - (finalLogoWidth / 2);
-            doc.addImage(logo, 'PNG', leftLogoX, logosY, finalLogoWidth, finalLogoHeight);
-            console.log('✅ Logo Boca Juniors chargé avec succès');
+            
+            // Détecter le format de l'image
+            let imageFormat = 'PNG';
+            if (bocaLogo.includes('data:image/jpeg') || bocaLogo.includes('.jpg') || bocaLogo.includes('.jpeg')) {
+              imageFormat = 'JPEG';
+            } else if (bocaLogo.includes('data:image/webp') || bocaLogo.includes('.webp')) {
+              imageFormat = 'WEBP';
+            }
+            
+            doc.addImage(logo, imageFormat, leftLogoX, logosY, finalLogoWidth, finalLogoHeight);
+            console.log('✅ Logo Boca Juniors chargé avec succès (format:', imageFormat, ', dimensions:', finalLogoWidth, 'x', finalLogoHeight, 'mm)');
           } else {
             console.warn('⚠️ Logo Boca Juniors invalide (dimensions manquantes ou nulles)');
           }
         } catch (error) {
-          console.warn('⚠️ Erreur lors du chargement du logo Boca Juniors:', error);
+          console.error('❌ Erreur lors du chargement du logo Boca Juniors:', error);
+          console.error('URL du logo:', bocaLogo);
           // Continuer sans le logo
         }
       } else {
@@ -501,20 +574,30 @@ export const Habilitaciones = () => {
       const rightLogoCenterX = (pageWidth * 3) / 4; // 3/4 de la largeur
       if (rivalLogo) {
         try {
-          console.log('🖼️ Chargement du logo équipe adverse...');
+          console.log('🖼️ Chargement du logo équipe adverse depuis:', rivalLogo.substring(0, 100));
           const logo = await loadImage(rivalLogo);
           if (logo && logo.width && logo.height && logo.width > 0 && logo.height > 0) {
             const logoRatio = logo.width / logo.height;
             const finalLogoHeight = logoSize;
             const finalLogoWidth = finalLogoHeight * logoRatio;
             const rightLogoX = rightLogoCenterX - (finalLogoWidth / 2);
-            doc.addImage(logo, 'PNG', rightLogoX, logosY, finalLogoWidth, finalLogoHeight);
-            console.log('✅ Logo équipe adverse chargé avec succès');
+            
+            // Détecter le format de l'image
+            let imageFormat = 'PNG';
+            if (rivalLogo.includes('data:image/jpeg') || rivalLogo.includes('.jpg') || rivalLogo.includes('.jpeg')) {
+              imageFormat = 'JPEG';
+            } else if (rivalLogo.includes('data:image/webp') || rivalLogo.includes('.webp')) {
+              imageFormat = 'WEBP';
+            }
+            
+            doc.addImage(logo, imageFormat, rightLogoX, logosY, finalLogoWidth, finalLogoHeight);
+            console.log('✅ Logo équipe adverse chargé avec succès (format:', imageFormat, ', dimensions:', finalLogoWidth, 'x', finalLogoHeight, 'mm)');
           } else {
             console.warn('⚠️ Logo équipe adverse invalide (dimensions manquantes ou nulles)');
           }
         } catch (error) {
-          console.warn('⚠️ Erreur lors du chargement du logo équipe adverse:', error);
+          console.error('❌ Erreur lors du chargement du logo équipe adverse:', error);
+          console.error('URL du logo:', rivalLogo);
           // Continuer sans le logo
         }
       } else {
@@ -898,35 +981,106 @@ export const Habilitaciones = () => {
   };
   
   // Fonction helper pour charger une image depuis une URL ou base64
-  const loadImage = (url: string): Promise<HTMLImageElement> => {
-    return new Promise((resolve, reject) => {
-      // Timeout de 10 secondes pour le chargement des images
-      const timeout = setTimeout(() => {
-        reject(new Error('Timeout lors du chargement de l\'image'));
-      }, 10000);
-      
-      const img = new Image();
-      if (url.startsWith('http')) {
-        img.crossOrigin = 'anonymous';
+  const loadImage = async (url: string): Promise<HTMLImageElement> => {
+    // Si c'est déjà une image base64, charger directement
+    if (url.startsWith('data:image')) {
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Timeout lors du chargement de l\'image base64'));
+        }, 10000);
+        
+        const img = new Image();
+        img.onload = () => {
+          clearTimeout(timeout);
+          if (img.width > 0 && img.height > 0) {
+            resolve(img);
+          } else {
+            reject(new Error('Image base64 invalide (dimensions nulles)'));
+          }
+        };
+        img.onerror = (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        };
+        img.src = url;
+      });
+    }
+    
+    // Pour les URLs HTTP, essayer de convertir en base64 via fetch pour éviter les problèmes CORS
+    try {
+      console.log('🔄 Conversion de l\'image en base64 pour éviter CORS:', url);
+      const response = await fetch(url, { mode: 'cors' });
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
       }
+      const blob = await response.blob();
       
-      img.onload = () => {
-        clearTimeout(timeout);
-        if (img.width > 0 && img.height > 0) {
-          resolve(img);
-        } else {
-          reject(new Error('Image invalide (dimensions nulles)'));
-        }
-      };
+      // Convertir le blob en base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result);
+          } else {
+            reject(new Error('Erreur de conversion en base64'));
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
       
-      img.onerror = (err) => {
-        clearTimeout(timeout);
-        console.error('Error loading image:', err);
-        reject(err);
-      };
+      // Charger l'image depuis le base64
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Timeout lors du chargement de l\'image convertie'));
+        }, 10000);
+        
+        const img = new Image();
+        img.onload = () => {
+          clearTimeout(timeout);
+          if (img.width > 0 && img.height > 0) {
+            console.log('✅ Image convertie et chargée avec succès');
+            resolve(img);
+          } else {
+            reject(new Error('Image convertie invalide (dimensions nulles)'));
+          }
+        };
+        img.onerror = (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        };
+        img.src = base64;
+      });
+    } catch (fetchError) {
+      console.warn('⚠️ Échec de la conversion via fetch, essai avec crossOrigin:', fetchError);
       
-      img.src = url;
-    });
+      // Fallback: essayer avec crossOrigin comme avant
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Timeout lors du chargement de l\'image'));
+        }, 10000);
+        
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        img.onload = () => {
+          clearTimeout(timeout);
+          if (img.width > 0 && img.height > 0) {
+            resolve(img);
+          } else {
+            reject(new Error('Image invalide (dimensions nulles)'));
+          }
+        };
+        
+        img.onerror = (err) => {
+          clearTimeout(timeout);
+          console.error('❌ Erreur lors du chargement de l\'image:', err);
+          reject(err);
+        };
+        
+        img.src = url;
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -1192,7 +1346,7 @@ export const Habilitaciones = () => {
         </div>
 
         {selectedMatch && (
-            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ height: '200px' }}>
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ height: '500px' }}>
                 <div className="relative w-full max-w-4xl bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-white/60 max-h-[80vh] animate-in zoom-in-95 duration-200">
                     <div className="liquid-glass-dark p-5 text-white flex justify-between items-center shrink-0">
                         <div>
@@ -1228,7 +1382,7 @@ export const Habilitaciones = () => {
                                     </thead>
                                     <tbody className="divide-y">
                                         {requests.map(req => (
-                                            <tr key={req.id} className="hover:bg-gray-50 transition-colors">
+                                            <tr key={req.id} className={`transition-colors ${req.status === 'CANCELLATION_REQUESTED' ? 'bg-orange-50 hover:bg-orange-100' : 'hover:bg-gray-50'}`}>
                                                 <td className="p-4">
                                                     <p className="font-black text-[#001d4a] uppercase text-xs">{req.socio_name}</p>
                                                     <p className="text-[9px] text-gray-400 font-mono">DNI: {req.socio_dni}</p>
@@ -1238,16 +1392,39 @@ export const Habilitaciones = () => {
                                                     <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest ${
                                                         req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-600' :
                                                         req.status === 'REJECTED' ? 'bg-red-100 text-red-600' :
+                                                        req.status === 'CANCELLATION_REQUESTED' ? 'bg-orange-100 text-orange-600 animate-pulse' :
                                                         'bg-amber-100 text-amber-600'
                                                     }`}>
-                                                        {req.status === 'APPROVED' ? 'Aprobada' : req.status === 'REJECTED' ? 'Rechazada' : 'Pendiente'}
+                                                        {req.status === 'APPROVED' ? 'Aprobada' : 
+                                                         req.status === 'REJECTED' ? 'Rechazada' : 
+                                                         req.status === 'CANCELLATION_REQUESTED' ? '⚠️ Anulación Solicitada' :
+                                                         'Pendiente'}
                                                     </span>
                                                 </td>
                                                 <td className="p-4 text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <button onClick={() => handleStatusChange(req.id, 'APPROVED')} className={`p-2 rounded-lg transition-all ${req.status === 'APPROVED' ? 'bg-emerald-500 text-white shadow-md' : 'bg-gray-100 text-gray-400 hover:bg-emerald-100 hover:text-emerald-600'}`} title="Aprobar"><UserCheck size={14}/></button>
-                                                        <button onClick={() => handleStatusChange(req.id, 'REJECTED')} className={`p-2 rounded-lg transition-all ${req.status === 'REJECTED' ? 'bg-red-500 text-white shadow-md' : 'bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600'}`} title="Rechazar"><UserX size={14}/></button>
-                                                    </div>
+                                                    {req.status === 'CANCELLATION_REQUESTED' ? (
+                                                        <div className="flex justify-end gap-2">
+                                                            <button 
+                                                                onClick={() => handleAcceptCancellation(req.id)} 
+                                                                className="px-3 py-2 rounded-lg transition-all bg-emerald-500 text-white hover:bg-emerald-600 shadow-md text-[10px] font-black uppercase flex items-center gap-1"
+                                                                title="Aceptar anulación (eliminar solicitud)"
+                                                            >
+                                                                <CheckCircle2 size={14}/> Aceptar
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleRejectCancellation(req.id)} 
+                                                                className="px-3 py-2 rounded-lg transition-all bg-red-500 text-white hover:bg-red-600 shadow-md text-[10px] font-black uppercase flex items-center gap-1"
+                                                                title="Rechazar anulación (mantener aprobada)"
+                                                            >
+                                                                <XCircle size={14}/> Rechazar
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex justify-end gap-2">
+                                                            <button onClick={() => handleStatusChange(req.id, 'APPROVED')} className={`p-2 rounded-lg transition-all ${req.status === 'APPROVED' ? 'bg-emerald-500 text-white shadow-md' : 'bg-gray-100 text-gray-400 hover:bg-emerald-100 hover:text-emerald-600'}`} title="Aprobar"><UserCheck size={14}/></button>
+                                                            <button onClick={() => handleStatusChange(req.id, 'REJECTED')} className={`p-2 rounded-lg transition-all ${req.status === 'REJECTED' ? 'bg-red-500 text-white shadow-md' : 'bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600'}`} title="Rechazar"><UserX size={14}/></button>
+                                                        </div>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}

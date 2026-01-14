@@ -244,7 +244,8 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
 
   const toggleStageSocio = (socio: Socio) => {
     if (!selectedMatch) return;
-    if (isListSent && !hasCancellationRequest) return;
+    // Bloquer si la liste est envoyée OU si une demande d'annulation est en cours
+    if (isListSent || hasCancellationRequest) return;
     
     // Fonction helper pour créer un hash unique d'un UUID string en nombre (même fonction que dans confirmSubmit)
     const hashUUID = (uuid: string): number => {
@@ -680,6 +681,19 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
           
           {/* Liste des socios */}
           <GlassCard className="overflow-hidden p-0">
+            {/* Bandeau d'information si une demande d'annulation est en cours */}
+            {hasCancellationRequest && (
+              <div className="p-3 bg-orange-50 border-b border-orange-200">
+                <div className="flex items-center gap-2 text-orange-700">
+                  <AlertCircle size={16} className="text-orange-600 animate-pulse" />
+                  <p className="text-xs font-black uppercase">⚠️ Solicitud de Anulación Pendiente</p>
+                </div>
+                <p className="text-[9px] font-bold text-orange-600 mt-1">
+                  Su solicitud de anulación está siendo revisada por los administradores. No puede realizar nuevas solicitudes hasta que sea procesada.
+                </p>
+              </div>
+            )}
+            
             {/* Bandeau d'information si la liste a été envoyée */}
             {isListSent && !hasCancellationRequest && (
               <div className="p-3 bg-emerald-50 border-b border-emerald-200">
@@ -805,19 +819,19 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
                             </button>
                           )
                         ) : (
-                          /* Le socio n'est pas dans stagedSocios - permet de l'ajouter (sauf si liste envoyée) */
+                          /* Le socio n'est pas dans stagedSocios - permet de l'ajouter (sauf si liste envoyée ou annulation en cours) */
                           <button
                             onClick={() => toggleStageSocio(socio)}
-                            disabled={isListSent && !hasCancellationRequest}
+                            disabled={isListSent || hasCancellationRequest}
                             className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all shadow-sm ${
-                              isListSent && !hasCancellationRequest
+                              isListSent || hasCancellationRequest
                                 ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
                                 : 'border-gray-300 hover:bg-blue-50 hover:border-[#003B94] hover:scale-110'
                             }`}
-                            title={isListSent && !hasCancellationRequest ? "Lista ya enviada" : "Agregar a la lista de envío"}
+                            title={hasCancellationRequest ? "Solicitud de anulación pendiente" : (isListSent ? "Lista ya enviada" : "Agregar a la lista de envío")}
                           >
                             <Send size={12} className={`transition-colors ${
-                              isListSent && !hasCancellationRequest
+                              isListSent || hasCancellationRequest
                                 ? 'text-gray-300'
                                 : 'text-gray-400 group-hover:text-[#003B94]'
                             }`} />
@@ -842,9 +856,9 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
           <GlassCard className="p-3">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-[#001d4a] font-black uppercase text-xs tracking-widest flex items-center gap-2">
-                <Send size={14}/> {isListSent && !hasCancellationRequest ? 'Lista Enviada' : 'Lista de Envío'}
+                <Send size={14}/> {hasCancellationRequest ? 'Anulación Pendiente' : (isListSent ? 'Lista Enviada' : 'Lista de Envío')}
               </h3>
-              {stagedSocios.length > 0 && !isListSent && (
+              {stagedSocios.length > 0 && !isListSent && !hasCancellationRequest && (
                 <button 
                   onClick={() => setShowCancelAllModal(true)} 
                   className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all"
@@ -863,7 +877,29 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
               )}
             </div>
 
-            {isListSent && !hasCancellationRequest ? (
+            {hasCancellationRequest ? (
+              <div className="text-center py-8">
+                <AlertCircle size={32} className="mx-auto mb-2 text-orange-500 animate-pulse" />
+                <p className="text-xs font-black uppercase text-orange-600 mb-1">⚠️ Solicitud de Anulación Pendiente</p>
+                <p className="text-[9px] text-orange-600 mt-2 max-w-xs mx-auto">
+                  Los administradores están revisando su solicitud de anulación. No puede realizar cambios hasta que sea procesada.
+                </p>
+                <div className="grid grid-cols-3 gap-2 mt-3">
+                  <div className="bg-blue-50 p-2 rounded border border-blue-200">
+                    <div className="text-lg font-black text-blue-600">{stats?.pending ?? 0}</div>
+                    <div className="text-[8px] font-bold text-blue-500 uppercase">Pendientes</div>
+                  </div>
+                  <div className="bg-emerald-50 p-2 rounded border border-emerald-200">
+                    <div className="text-lg font-black text-emerald-600">{stats?.approved ?? 0}</div>
+                    <div className="text-[8px] font-bold text-emerald-500 uppercase">Aprobados</div>
+                  </div>
+                  <div className="bg-red-50 p-2 rounded border border-red-200">
+                    <div className="text-lg font-black text-red-600">{stats?.rejected ?? 0}</div>
+                    <div className="text-[8px] font-bold text-red-500 uppercase">Rechazados</div>
+                  </div>
+                </div>
+              </div>
+            ) : isListSent ? (
               <div className="text-center py-8">
                 <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-500" />
                 <p className="text-xs font-black uppercase text-[#001d4a] mb-1">Lista Enviada</p>
