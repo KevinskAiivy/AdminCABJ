@@ -147,56 +147,71 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
     console.log('🚀 handleViewRequests appelé avec:', match);
     if (!match) {
       console.error('❌ Match est null/undefined dans handleViewRequests');
+      alert('Error: Match no válido');
       return;
     }
     
-    // Fonction helper pour créer un hash unique d'un UUID string en nombre
-    const hashUUID = (uuid: string): number => {
-      let hash = 0;
-      for (let i = 0; i < uuid.length; i++) {
-        const char = uuid.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash;
+    try {
+      // Fonction helper pour créer un hash unique d'un UUID string en nombre
+      const hashUUID = (uuid: string): number => {
+        let hash = 0;
+        for (let i = 0; i < uuid.length; i++) {
+          const char = uuid.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash;
+        }
+        return Math.abs(hash) % 2147483647;
+      };
+      
+      // Accéder à _originalId pour les UUIDs
+      const matchAny = match as any;
+      const hasOriginalId = matchAny._originalId !== undefined && matchAny._originalId !== null;
+      const isMatchUUID = typeof match.id === 'number' && match.id === 0 && hasOriginalId;
+      
+      // Calculer le matchId pour getSolicitudes
+      let solicitudesMatchId: number;
+      if (isMatchUUID && typeof matchAny._originalId === 'string') {
+        solicitudesMatchId = hashUUID(matchAny._originalId);
+        console.log('🔑 UUID hash calculé:', solicitudesMatchId);
+      } else {
+        solicitudesMatchId = match.id;
+        console.log('🔑 Match ID normal:', solicitudesMatchId);
       }
-      return Math.abs(hash) % 2147483647;
-    };
-    
-    // Accéder à _originalId pour les UUIDs
-    const matchAny = match as any;
-    const hasOriginalId = matchAny._originalId !== undefined && matchAny._originalId !== null;
-    const isMatchUUID = typeof match.id === 'number' && match.id === 0 && hasOriginalId;
-    
-    // Calculer le matchId pour getSolicitudes
-    let solicitudesMatchId: number;
-    if (isMatchUUID && typeof matchAny._originalId === 'string') {
-      solicitudesMatchId = hashUUID(matchAny._originalId);
-    } else {
-      solicitudesMatchId = match.id;
-    }
-    
-    // Charger les solicitudes depuis la base de données
-    await dataService.reloadSolicitudes();
-    
-    // Récupérer les solicitudes pour ce match et ce consulado
-    const allSolicitudes = dataService.getSolicitudes(solicitudesMatchId);
-    const filteredRequests = Array.isArray(allSolicitudes) 
-      ? allSolicitudes.filter(r => r.consulado === consuladoName)
-      : [];
-    
-    // Pour compatibilité avec les anciennes solicitudes (match_id = 0)
-    if (isMatchUUID) {
-      const oldSolicitudes = dataService.getSolicitudes(0);
-      const oldFiltered = Array.isArray(oldSolicitudes)
-        ? oldSolicitudes.filter(r => r.consulado === consuladoName)
+      
+      // Charger les solicitudes depuis la base de données
+      console.log('📥 Rechargement des solicitudes depuis Supabase...');
+      await dataService.reloadSolicitudes();
+      
+      // Récupérer les solicitudes pour ce match et ce consulado
+      const allSolicitudes = dataService.getSolicitudes(solicitudesMatchId);
+      console.log('📋 Solicitudes trouvées:', Array.isArray(allSolicitudes) ? allSolicitudes.length : 0);
+      
+      const filteredRequests = Array.isArray(allSolicitudes) 
+        ? allSolicitudes.filter(r => r.consulado === consuladoName)
         : [];
-      filteredRequests.push(...oldFiltered);
+      console.log('🔍 Solicitudes filtrées par consulado:', filteredRequests.length);
+      
+      // Pour compatibilité avec les anciennes solicitudes (match_id = 0)
+      if (isMatchUUID) {
+        const oldSolicitudes = dataService.getSolicitudes(0);
+        const oldFiltered = Array.isArray(oldSolicitudes)
+          ? oldSolicitudes.filter(r => r.consulado === consuladoName)
+          : [];
+        filteredRequests.push(...oldFiltered);
+        console.log('📋 + anciennes solicitudes:', oldFiltered.length);
+      }
+      
+      // Dédupliquer par ID
+      const uniqueRequests = Array.from(new Map(filteredRequests.map(r => [r.id, r])).values());
+      console.log('✅ Solicitudes uniques:', uniqueRequests.length);
+      
+      setMatchRequests(uniqueRequests);
+      setSelectedMatch(match);
+      console.log('✅ Modal ouvert avec', uniqueRequests.length, 'solicitudes');
+    } catch (error) {
+      console.error('❌ Erreur dans handleViewRequests:', error);
+      alert('Error al cargar los resultados. Por favor, intente nuevamente.');
     }
-    
-    // Dédupliquer par ID
-    const uniqueRequests = Array.from(new Map(filteredRequests.map(r => [r.id, r])).values());
-    
-    setMatchRequests(uniqueRequests);
-    setSelectedMatch(match);
   };
   
   // Gérer la navigation vers la page de solicitudes (fonction conservée pour compatibilité mais non utilisée directement)
@@ -467,10 +482,9 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                       return true;
                     }) : [];
                     
-                    // Vérifier si la liste a été envoyée (PENDING, APPROVED, REJECTED, mais pas CANCELLATION_REQUESTED)
+                    // Vérifier si la liste a été envoyée (PENDING, APPROVED, REJECTED)
                     const hasListSent = filteredMatchRequests.some(r => 
-                        r && r.status !== 'CANCELLATION_REQUESTED' && 
-                        (r.status === 'PENDING' || r.status === 'APPROVED' || r.status === 'REJECTED')
+                        r && (r.status === 'PENDING' || r.status === 'APPROVED' || r.status === 'REJECTED')
                     );
                     
                     // Vérifier si une cancellation est en cours
@@ -724,12 +738,23 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
+                                    
+                                    if (!routeIdentifier) {
+                                      console.error('❌ routeIdentifier est null/undefined');
+                                      alert('Error: ID del partido no válido');
+                                      return;
+                                    }
+                                    
                                     const routePath = `/habilitaciones/solicitudes/${routeIdentifier}`;
+                                    console.log('🔄 Navigation vers:', routePath);
+                                    console.log('Match:', { id: match.id, rival: match.rival, routeIdentifier });
+                                    
                                     try {
                                       navigate(routePath);
+                                      console.log('✅ Navigation réussie');
                                     } catch (error) {
                                       console.error('❌ Erreur lors de navigate:', error);
-                                      alert('Erreur lors de la navigation. Veuillez réessayer.');
+                                      alert('Error al navegar. Por favor, intente nuevamente.');
                                     }
                                   }}
                                   className={`w-full py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 ${
