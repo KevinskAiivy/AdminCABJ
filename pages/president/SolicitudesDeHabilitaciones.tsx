@@ -518,12 +518,14 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
   const filteredSocios = useMemo(() => {
     if (!Array.isArray(socios)) return [];
     
-    // IMPORTANT: Ne pas filtrer les socios qui sont déjà dans stagedSocios ou submittedRequests
-    // Tous les socios doivent rester visibles dans la liste, même s'ils sont déjà sélectionnés
     return socios.filter(s => {
       if (!s || !s.id) return false;
       
       try {
+        // Exclure les socios qui sont déjà dans la lista de envío (stagedSocios)
+        const isInStaged = stagedSocios.some(staged => staged && staged.id === s.id);
+        if (isInStaged) return false;
+        
         const searchLower = (searchQuery || '').toLowerCase();
         const matchesSearch = (s.name && s.name.toLowerCase().includes(searchLower)) || 
                              (s.numero_socio && s.numero_socio.includes(searchQuery)) ||
@@ -531,14 +533,12 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
         const matchesStatus = statusFilter === 'ALL' || s.status === statusFilter;
         const matchesCategory = categoryFilter === 'ALL' || (s.category && s.category === categoryFilter);
         return matchesSearch && matchesStatus && matchesCategory;
-        // NOTE: On ne filtre PAS les socios qui sont dans stagedSocios ou submittedRequests
-        // Ils doivent tous être visibles dans la liste de sélection
       } catch (error) {
         console.error('❌ Erreur lors du filtrage d\'un socio:', error, s);
         return false;
       }
     });
-  }, [socios, searchQuery, statusFilter, categoryFilter]);
+  }, [socios, searchQuery, statusFilter, categoryFilter, stagedSocios]);
 
   // Catégories uniques pour le filtre
   const uniqueCategories = useMemo(() => {
