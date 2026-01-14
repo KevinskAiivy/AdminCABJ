@@ -1065,20 +1065,7 @@ class DataService {
   // --- AUTH LOGIC ---
 
   public async authenticateUser(u: string, p: string): Promise<UserSession | null> {
-      if (u === 'admin' && p === 'admin') {
-          return { 
-              role: 'SUPERADMIN', 
-              name: 'Admin Système', 
-              email: 'admin@bocajuniors.com.ar',
-              gender: 'M' 
-          };
-      }
-
-      const user = this.users.find(usr => usr.username.toLowerCase() === u.toLowerCase() && usr.active);
-      if (user && user.password === p) {
-          return { role: user.role, name: user.full_name, email: user.email, consulado_id: user.consulado_id, gender: user.gender };
-      }
-
+      // Authentification uniquement depuis la base de données
       try {
           const { data, error } = await supabase.from('users')
               .select('*')
@@ -1090,7 +1077,9 @@ class DataService {
           if (data) {
               return { role: data.role, name: data.full_name, email: data.email, consulado_id: data.consulado_id, gender: data.gender };
           }
-      } catch (e) {}
+      } catch (e) {
+          console.error('Erreur authentification:', e);
+      }
 
       return null;
   }
