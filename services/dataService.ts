@@ -684,6 +684,9 @@ class DataService {
   constructor() {
       const savedSettings = localStorage.getItem('cabj_settings');
       if (savedSettings) try { this.appSettings = JSON.parse(savedSettings); } catch (e) {}
+      
+      // Charger les assets au démarrage
+      this.loadAppAssets().catch(err => console.error('Erreur chargement assets:', err));
   }
 
   public subscribe(listener: () => void) {

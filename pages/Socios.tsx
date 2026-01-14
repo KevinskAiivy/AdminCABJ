@@ -17,6 +17,7 @@ import { formatDateDisplay, formatDateToDB, formatDateFromDB } from '../utils/da
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { supabase } from '../lib/supabase';
+import { uploadFileWithTracking } from '../lib/uploadHelper';
 
 export const Socios = ({ user }: { user?: any }) => {
   console.log('🔵 Socios component starting to render', { user: user?.name || 'no user' });
@@ -404,34 +405,23 @@ export const Socios = ({ user }: { user?: any }) => {
             // Photo supprimée explicitement
             photoUrl = undefined;
         } else if (selectedPhotoFile) {
-            // Générer un nom de fichier unique : dni_timestamp.extension
-            const dni = formData.dni || 'socio';
-            const timestamp = Date.now();
-            const fileExtension = selectedPhotoFile.name.split('.').pop() || 'jpg';
-            const fileName = `${dni}_${timestamp}.${fileExtension}`;
+            // Upload avec tracking automatique
+            const socioId = editingSocio?.id || crypto.randomUUID();
             
-            // Upload du fichier dans Supabase Storage
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('Logo')
-                .upload(fileName, selectedPhotoFile, {
-                    cacheControl: '3600',
-                    upsert: false
-                });
+            const result = await uploadFileWithTracking({
+                bucket: 'Logo',
+                folder: 'socios',
+                entityType: 'socio',
+                entityId: socioId,
+                fieldName: 'avatar',
+                file: selectedPhotoFile
+            });
             
-            if (uploadError) {
-                throw new Error(`Error al subir la foto: ${uploadError.message}`);
+            if (!result.success) {
+                throw new Error(`Error al subir la foto: ${result.error}`);
             }
             
-            // Récupérer l'URL publique de l'image
-            const { data: urlData } = supabase.storage
-                .from('Logo')
-                .getPublicUrl(fileName);
-            
-            if (!urlData?.publicUrl) {
-                throw new Error('No se pudo obtener la URL pública de la imagen');
-            }
-            
-            photoUrl = urlData.publicUrl;
+            photoUrl = result.filePath || undefined;
         } else {
             // Pas de nouveau fichier : garder l'URL existante si elle existe
             photoUrl = formData.foto && formData.foto !== '' ? formData.foto : undefined;

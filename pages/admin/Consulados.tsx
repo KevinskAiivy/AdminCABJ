@@ -7,6 +7,7 @@ import { dataService } from '../../services/dataService';
 import { Consulado, Socio } from '../../types';
 import { COUNTRIES, TIMEZONES, WORLD_CITIES } from '../../constants';
 import { supabase } from '../../lib/supabase';
+import { uploadFileWithTracking } from '../../lib/uploadHelper';
 
 // ... CustomSelect component remains unchanged ...
 // ... existing CustomSelect code ...
@@ -320,59 +321,43 @@ export const Consulados = () => {
           // Upload du logo UNIQUEMENT si un fichier a été sélectionné (pas si c'est juste une URL)
           if (selectedLogoFile && selectedLogoFile instanceof File) {
               const consuladoId = editingConsulado.id || crypto.randomUUID();
-              const timestamp = Date.now();
-              const fileExtension = selectedLogoFile.name.split('.').pop() || 'jpg';
-              const fileName = `consulados/consulado_${consuladoId}_logo_${timestamp}.${fileExtension}`;
+              
+              // Upload avec tracking automatique
+              const result = await uploadFileWithTracking({
+                  bucket: 'Logo',
+                  folder: 'consulados',
+                  entityType: 'consulado',
+                  entityId: consuladoId,
+                  fieldName: 'logo',
+                  file: selectedLogoFile
+              });
 
-              const { data: uploadData, error: uploadError } = await supabase.storage
-                  .from('Logo')
-                  .upload(fileName, selectedLogoFile, {
-                      cacheControl: '3600',
-                      upsert: false
-                  });
-
-              if (uploadError) {
-                  throw new Error(`Error al subir el logo: ${uploadError.message}`);
+              if (!result.success) {
+                  throw new Error(`Error al subir el logo: ${result.error}`);
               }
 
-              const { data: urlData } = supabase.storage
-                  .from('logo')
-                  .getPublicUrl(fileName);
-
-              if (!urlData?.publicUrl) {
-                  throw new Error('No se pudo obtener la URL pública del logo');
-              }
-
-              logoUrl = urlData.publicUrl;
+              logoUrl = result.filePath || '';
           }
 
           // Upload de la bannière UNIQUEMENT si un fichier a été sélectionné (pas si c'est juste une URL)
           if (selectedBannerFile && selectedBannerFile instanceof File) {
               const consuladoId = editingConsulado.id || crypto.randomUUID();
-              const timestamp = Date.now();
-              const fileExtension = selectedBannerFile.name.split('.').pop() || 'jpg';
-              const fileName = `consulados/consulado_${consuladoId}_banner_${timestamp}.${fileExtension}`;
+              
+              // Upload avec tracking automatique
+              const result = await uploadFileWithTracking({
+                  bucket: 'Logo',
+                  folder: 'consulados',
+                  entityType: 'consulado',
+                  entityId: consuladoId,
+                  fieldName: 'banner',
+                  file: selectedBannerFile
+              });
 
-              const { data: uploadData, error: uploadError } = await supabase.storage
-                  .from('Logo')
-                  .upload(fileName, selectedBannerFile, {
-                      cacheControl: '3600',
-                      upsert: false
-                  });
-
-              if (uploadError) {
-                  throw new Error(`Error al subir la bannière: ${uploadError.message}`);
+              if (!result.success) {
+                  throw new Error(`Error al subir la bannière: ${result.error}`);
               }
 
-              const { data: urlData } = supabase.storage
-                  .from('logo')
-                  .getPublicUrl(fileName);
-
-              if (!urlData?.publicUrl) {
-                  throw new Error('No se pudo obtener la URL pública de la bannière');
-              }
-
-              bannerUrl = urlData.publicUrl;
+              bannerUrl = result.filePath || '';
           }
 
           // Mettre à jour les URLs dans editingConsulado
