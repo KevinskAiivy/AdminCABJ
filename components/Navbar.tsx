@@ -195,8 +195,8 @@ export const Navbar = ({
                             </Link>
                         </div>
 
-                        {/* Section: System - Seulement pour SUPERADMIN */}
-                        {user.role === 'SUPERADMIN' && (
+                        {/* Section: System - Pour SUPERADMIN et ADMIN */}
+                        {(user.role === 'SUPERADMIN' || user.role === 'ADMIN') && (
                           <>
                         <div className="px-4 py-2 bg-white/5 border-y border-white/5 flex items-center gap-2 mt-1">
                             <Shield size={10} className="text-blue-400" />

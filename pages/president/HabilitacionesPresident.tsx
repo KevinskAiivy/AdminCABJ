@@ -158,108 +158,47 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
   
   // Gérer l'ouverture du modal pour voir les demandes
   const handleViewRequests = async (match: ProcessedMatch) => {
-    console.log('🚀 handleViewRequests appelé avec:', match);
     if (!match) {
-      console.error('❌ Match est null/undefined dans handleViewRequests');
       alert('Error: Match no válido');
       return;
     }
     
     try {
-      // ✅ Vérifier que localConsuladoName est disponible, sinon le récupérer
+      // Récupérer le nom du consulado
       let currentConsuladoName = localConsuladoName;
       if (!currentConsuladoName || currentConsuladoName.trim() === '') {
-        console.log('⚠️ localConsuladoName vide, tentative de récupération...');
         if (consulado_id) {
           const consulado = dataService.getConsuladoById(consulado_id);
           if (consulado?.name) {
             currentConsuladoName = consulado.name;
             setLocalConsuladoName(currentConsuladoName);
-            console.log('✅ Nom du consulado récupéré:', currentConsuladoName);
           } else {
-            console.error('❌ Impossible de récupérer le nom du consulado');
             alert('Error: Nombre del consulado no disponible. Por favor, recargue la página.');
             return;
           }
         } else {
-          console.error('❌ consulado_id manquant');
           alert('Error: ID del consulado no disponible. Por favor, recargue la página.');
           return;
         }
       }
       
-      console.log('🏛️ Consulado:', currentConsuladoName);
-      
-      // Fonction helper pour créer un hash unique d'un UUID string en nombre
-      const hashUUID = (uuid: string): number => {
-        let hash = 0;
-        for (let i = 0; i < uuid.length; i++) {
-          const char = uuid.charCodeAt(i);
-          hash = ((hash << 5) - hash) + char;
-          hash = hash & hash;
-        }
-        return Math.abs(hash) % 2147483647;
-      };
-      
-      // Accéder à _originalId pour les UUIDs
-      const matchAny = match as any;
-      const hasOriginalId = matchAny._originalId !== undefined && matchAny._originalId !== null;
-      const isMatchUUID = typeof match.id === 'number' && match.id === 0 && hasOriginalId;
-      
-      // Calculer le matchId pour getSolicitudes
-      let solicitudesMatchId: number;
-      if (isMatchUUID && typeof matchAny._originalId === 'string') {
-        solicitudesMatchId = hashUUID(matchAny._originalId);
-        console.log('🔑 UUID hash calculé:', solicitudesMatchId);
-      } else {
-        solicitudesMatchId = match.id;
-        console.log('🔑 Match ID normal:', solicitudesMatchId);
-      }
-      
-      // Charger les solicitudes depuis la base de données
-      console.log('📥 Rechargement des solicitudes depuis Supabase...');
+      // Recharger les solicitudes depuis Supabase
       await dataService.reloadSolicitudes();
       
-      // Récupérer les solicitudes pour ce match
-      const allSolicitudes = dataService.getSolicitudes(solicitudesMatchId);
-      console.log('📋 Solicitudes trouvées pour match_id', solicitudesMatchId, ':', Array.isArray(allSolicitudes) ? allSolicitudes.length : 0);
+      // Récupérer TOUTES les solicitudes du consulado (sans filtrer par match_id d'abord)
+      const allSolicitudes = dataService.getSolicitudes();
       
-      // Filtrer par consulado (utiliser currentConsuladoName qui est garanti d'être valide)
-      let filteredRequests = Array.isArray(allSolicitudes) 
-        ? allSolicitudes.filter(r => {
-            const matches = r.consulado && r.consulado.trim() === currentConsuladoName.trim();
-            if (!matches && r.consulado) {
-              console.log('🔍 Consulado ne correspond pas:', r.consulado, 'vs', currentConsuladoName);
-            }
-            return matches;
-          })
+      // Filtrer uniquement par consulado
+      const consuladoRequests = Array.isArray(allSolicitudes) 
+        ? allSolicitudes.filter(r => r.consulado && r.consulado.trim() === currentConsuladoName.trim())
         : [];
-      console.log('🔍 Solicitudes filtrées par consulado:', filteredRequests.length);
       
-      // Pour compatibilité avec les anciennes solicitudes (match_id = 0)
-      if (isMatchUUID) {
-        const oldSolicitudes = dataService.getSolicitudes(0);
-        const oldFiltered = Array.isArray(oldSolicitudes)
-          ? oldSolicitudes.filter(r => r.consulado && r.consulado.trim() === currentConsuladoName.trim())
-          : [];
-        filteredRequests.push(...oldFiltered);
-        console.log('📋 + anciennes solicitudes:', oldFiltered.length);
-      }
-      
-      // Dédupliquer par ID
-      const uniqueRequests = Array.from(new Map(filteredRequests.map(r => [r.id, r])).values());
-      console.log('✅ Solicitudes uniques:', uniqueRequests.length);
-      
-      if (uniqueRequests.length === 0) {
-        console.warn('⚠️ Aucune solicitude trouvée pour ce match et ce consulado');
-      }
-      
-      setMatchRequests(uniqueRequests);
+      // Ouvrir le modal avec toutes les solicitudes du consulado pour ce match
+      // (le filtrage par match sera fait dans l'affichage si nécessaire)
+      setMatchRequests(consuladoRequests);
       setSelectedMatch(match);
-      console.log('✅ Modal ouvert avec', uniqueRequests.length, 'solicitudes');
     } catch (error) {
       console.error('❌ Erreur dans handleViewRequests:', error);
-      console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack');
       alert('Error al cargar los resultados. Por favor, intente nuevamente.');
     }
   };

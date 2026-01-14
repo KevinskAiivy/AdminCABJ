@@ -22,6 +22,48 @@ const EVENT_TYPE_CONFIG: Record<string, { label: string, icon: any, color: strin
     'CUMPLEAÑOS': { label: 'Cumpleaños', icon: Gift, color: 'text-pink-500', bg: 'bg-pink-50', border: 'border-pink-100' }
 };
 
+// Fonction pour calculer l'âge à partir de la date de naissance
+const calculateAge = (birthDate: string, targetDate: Date): number => {
+  if (!birthDate) return 0;
+  
+  let birthDay: number, birthMonth: number, birthYear: number;
+  
+  if (birthDate.includes('/')) {
+    const parts = birthDate.split('/').map(Number);
+    birthDay = parts[0];
+    birthMonth = parts[1];
+    birthYear = parts[2];
+  } else if (birthDate.includes('-')) {
+    const parts = birthDate.split('-');
+    if (parts[0].length === 4) {
+      // Format YYYY-MM-DD
+      birthYear = parseInt(parts[0], 10);
+      birthMonth = parseInt(parts[1], 10);
+      birthDay = parseInt(parts[2], 10);
+    } else {
+      // Format DD-MM-YYYY
+      birthDay = parseInt(parts[0], 10);
+      birthMonth = parseInt(parts[1], 10);
+      birthYear = parseInt(parts[2], 10);
+    }
+  } else {
+    return 0;
+  }
+  
+  const targetYear = targetDate.getFullYear();
+  let age = targetYear - birthYear;
+  
+  // Vérifier si l'anniversaire est déjà passé cette année
+  const targetMonth = targetDate.getMonth() + 1;
+  const targetDay = targetDate.getDate();
+  
+  if (targetMonth < birthMonth || (targetMonth === birthMonth && targetDay < birthDay)) {
+    age--;
+  }
+  
+  return age;
+};
+
 export const Dashboard = () => {
   const [weeklyEvents, setWeeklyEvents] = useState<AgendaEvent[]>([]);
   const [allBirthdays, setAllBirthdays] = useState<Socio[]>([]);
@@ -377,10 +419,19 @@ export const Dashboard = () => {
                                       <Cake size={16} /> Cumpleaños ({selectedDay.birthdays.length})
                                   </h4>
                                   <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                      {selectedDay.birthdays.map(socio => (
+                                      {selectedDay.birthdays.map(socio => {
+                                          const age = calculateAge(socio.birth_date, selectedDay.date);
+                                          return (
                                           <div key={socio.id} className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-colors">
-                                              <div className="w-10 h-10 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center text-xs font-black shrink-0">
-                                                  {socio.first_name?.[0]?.toUpperCase() || ''}{socio.last_name?.[0]?.toUpperCase() || ''}
+                                              <div className="relative">
+                                                  <div className="w-10 h-10 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center text-xs font-black shrink-0">
+                                                      {socio.first_name?.[0]?.toUpperCase() || ''}{socio.last_name?.[0]?.toUpperCase() || ''}
+                                                  </div>
+                                                  {age > 0 && (
+                                                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-pink-500 text-white flex items-center justify-center text-[8px] font-black border-2 border-white shadow-sm">
+                                                          {age}
+                                                      </div>
+                                                  )}
                                               </div>
                                               <div className="flex-1 min-w-0">
                                                   <p className="text-[10px] font-bold text-[#001d4a] uppercase truncate">
@@ -398,7 +449,8 @@ export const Dashboard = () => {
                                                   )}
                                               </div>
                                           </div>
-                                      ))}
+                                          );
+                                      })}
                                   </div>
                               </div>
                           )}

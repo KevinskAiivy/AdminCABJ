@@ -15,6 +15,45 @@ interface Notification {
     read: boolean;
 }
 
+// Fonction pour calculer l'âge à partir de la date de naissance
+const calculateAge = (birthDate: string, targetDate: Date): number => {
+  if (!birthDate) return 0;
+  
+  let birthDay: number, birthMonth: number, birthYear: number;
+  
+  if (birthDate.includes('/')) {
+    const parts = birthDate.split('/').map(Number);
+    birthDay = parts[0];
+    birthMonth = parts[1];
+    birthYear = parts[2];
+  } else if (birthDate.includes('-')) {
+    const parts = birthDate.split('-');
+    if (parts[0].length === 4) {
+      birthYear = parseInt(parts[0], 10);
+      birthMonth = parseInt(parts[1], 10);
+      birthDay = parseInt(parts[2], 10);
+    } else {
+      birthDay = parseInt(parts[0], 10);
+      birthMonth = parseInt(parts[1], 10);
+      birthYear = parseInt(parts[2], 10);
+    }
+  } else {
+    return 0;
+  }
+  
+  const targetYear = targetDate.getFullYear();
+  let age = targetYear - birthYear;
+  
+  const targetMonth = targetDate.getMonth() + 1;
+  const targetDay = targetDate.getDate();
+  
+  if (targetMonth < birthMonth || (targetMonth === birthMonth && targetDay < birthDay)) {
+    age--;
+  }
+  
+  return age;
+};
+
 export const DashboardPresident = ({ consulado_id }: { consulado_id: string }) => {
   const [nextMatch, setNextMatch] = useState<any>(null);
   const [messages, setMessages] = useState<Mensaje[]>([]);
@@ -357,17 +396,27 @@ export const DashboardPresident = ({ consulado_id }: { consulado_id: string }) =
                                     <Cake size={16} /> Cumpleaños ({selectedDayDetails.birthdays.length})
                                 </h4>
                                 <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                    {selectedDayDetails.birthdays.length > 0 ? selectedDayDetails.birthdays.map(socio => (
+                                    {selectedDayDetails.birthdays.length > 0 ? selectedDayDetails.birthdays.map(socio => {
+                                        const age = calculateAge(socio.birth_date, selectedDayDetails.date);
+                                        return (
                                         <div key={socio.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-50 transition-colors">
-                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-black">
-                                                {socio.first_name[0]}{socio.last_name[0]}
+                                            <div className="relative">
+                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-black">
+                                                    {socio.first_name[0]}{socio.last_name[0]}
+                                                </div>
+                                                {age > 0 && (
+                                                    <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-pink-500 text-white flex items-center justify-center text-[7px] font-black border-2 border-white shadow-sm">
+                                                        {age}
+                                                    </div>
+                                                )}
                                             </div>
                                             <div>
                                                 <p className="text-[10px] font-bold text-[#001d4a] uppercase">{socio.name}</p>
                                                 <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider">{socio.category}</p>
                                             </div>
                                         </div>
-                                    )) : <p className="text-[10px] text-gray-400 italic">No hay cumpleaños de socios.</p>}
+                                        );
+                                    }) : <p className="text-[10px] text-gray-400 italic">No hay cumpleaños de socios.</p>}
                                     
                                     {/* Also show generic birthday events from agenda if any */}
                                     {selectedDayDetails.agenda.filter(e => e.type === 'CUMPLEAÑOS').map(evt => (
