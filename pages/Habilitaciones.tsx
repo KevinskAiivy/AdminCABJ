@@ -345,7 +345,8 @@ export const Habilitaciones = () => {
         (match.rival && t.name?.toLowerCase().includes(match.rival?.toLowerCase() || ''))
       );
       
-      const bocaLogo = settings.matchLogoUrl || null;
+      // Utiliser le logo de Boca depuis la table teams
+      const bocaLogo = localTeam?.logo || null;
       const rivalLogo = rivalTeam?.logo;
       
       // Header compact mais avec texte plus grand (hauteur ajustée pour éviter les superpositions)

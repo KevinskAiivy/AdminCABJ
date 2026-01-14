@@ -287,7 +287,12 @@ export const Partidos = () => {
                const isHome = m.is_home && !m.is_neutral;
                const rivalTeam = teams.find(t => t.id === m.rival_id || t.name === m.rival);
                const rivalLogo = rivalTeam?.logo;
-               const bocaLogo = settings.matchLogoUrl || null;
+               // Chercher le logo de Boca dans la table teams
+               const bocaTeam = teams.find(t => 
+                 t.name?.toLowerCase().includes('boca') ||
+                 t.name?.toLowerCase().includes('junior')
+               );
+               const bocaLogo = bocaTeam?.logo || null;
                // Réduire la taille des logos pour que tout rentre dans la carte
                const logoMatchSize = Math.min(settings.logoMatchSize || 48, 48);
                const logoRivalSize = Math.min(settings.logoRivalSize || 48, 48);

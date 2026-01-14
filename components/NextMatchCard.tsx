@@ -54,7 +54,7 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
   const [rivalLogo, setRivalLogo] = useState<string | null>(null);
   const [compLogo, setCompLogo] = useState<string | null>(null);
-  const [bocaLogo, setBocaLogo] = useState<string>(dataService.getAssetUrl('match_logo'));
+  const [bocaLogo, setBocaLogo] = useState<string | null>(null);
   const [displayTime, setDisplayTime] = useState(match.hour);
   const [displayFlag, setDisplayFlag] = useState('🇦🇷');
   const [logoMatchSize, setLogoMatchSize] = useState<number>(128);
@@ -65,15 +65,29 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
 
     // Fonction pour mettre à jour les logos
     const updateLogos = () => {
-        // Charger le logo de Boca depuis app_assets
+        const teams = dataService.getTeams();
+        
+        // Chercher le logo de Boca dans la table teams
+        const bocaTeam = teams.find(t => 
+          t.name && (
+            t.name.toLowerCase().includes('boca') ||
+            t.name.toLowerCase().includes('club atlético boca juniors')
+          )
+        );
+        
+        if (bocaTeam?.logo) {
+          setBocaLogo(bocaTeam.logo);
+        } else {
+          // Fallback vers app_assets si Boca n'est pas dans teams
+          setBocaLogo(dataService.getAssetUrl('match_logo'));
+        }
+        
+        // Taille depuis app_assets
         const matchAsset = dataService.getAssetByKey('match_logo');
         if (matchAsset) {
-          setBocaLogo(dataService.getAssetUrl('match_logo'));
           setLogoMatchSize(matchAsset.display_size || 128);
           setLogoRivalSize(matchAsset.display_size || 128);
         }
-        
-        const teams = dataService.getTeams();
         // Recherche plus robuste : par ID d'abord, puis par nom (insensible à la casse et trim)
         const foundTeam = teams.find(t => 
             (match.rival_id && t.id === match.rival_id) || 
@@ -249,20 +263,23 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
               {/* Boca Logic */}
               <div className="flex-1 flex flex-col items-center justify-start gap-2 text-center group/team -mt-24">
                   <div className="relative drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] group-hover/team:scale-110 transition-transform duration-500 flex items-center justify-center">
-                      <img 
-                          src={bocaLogo} 
-                          alt="Boca" 
-                          style={{ width: `${logoMatchSize}px`, height: `${logoMatchSize}px` }}
-                          className="object-contain filter brightness-110"
-                          onError={(e) => {
-                            // Fallback vers SVG si erreur
-                            (e.target as HTMLImageElement).style.display = 'none';
-                            const parent = (e.target as HTMLImageElement).parentElement;
-                            if (parent) {
-                              parent.innerHTML = `<div style="width: ${logoMatchSize}px; height: ${logoMatchSize}px;" class="filter brightness-110"></div>`;
-                            }
-                          }}
-                      />
+                      {bocaLogo ? (
+                        <img 
+                            src={bocaLogo} 
+                            alt="Boca" 
+                            style={{ width: `${logoMatchSize}px`, height: `${logoMatchSize}px` }}
+                            className="object-contain filter brightness-110"
+                            onError={() => {
+                              // Fallback vers SVG si erreur
+                              setBocaLogo(null);
+                            }}
+                        />
+                      ) : (
+                        <BocaLogoSVG 
+                            style={{ width: `${logoMatchSize}px`, height: `${logoMatchSize}px` }}
+                            className="filter brightness-110" 
+                        />
+                      )}
                   </div>
                   <h3 className="oswald text-base md:text-base font-black uppercase text-white tracking-tight drop-shadow-md">Boca Juniors</h3>
               </div>
