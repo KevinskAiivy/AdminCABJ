@@ -44,7 +44,6 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
   const [submittedRequests, setSubmittedRequests] = useState<Solicitud[]>([]);
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
   const [showCancelAllModal, setShowCancelAllModal] = useState(false);
-  const [showCancelRequestModal, setShowCancelRequestModal] = useState(false);
   const [teams, setTeams] = useState<Team[]>([]);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [settings, setSettings] = useState(dataService.getAppSettings());
@@ -456,53 +455,6 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
     } catch (error) {
       console.error('❌ Erreur lors de l\'envoi des demandes:', error);
       setShowConfirmSubmit(false);
-    }
-  };
-
-  const requestCancellation = async () => {
-    if (!selectedMatch || submittedRequests.length === 0) {
-      setShowCancelRequestModal(false);
-      return;
-    }
-    
-    try {
-      for (const req of submittedRequests) {
-        if (req && req.id) {
-          // Marquer la solicitude comme ayant une demande d'annulation (sans changer le status)
-          await dataService.updateCancellationRequested(req.id, true);
-        }
-      }
-      
-      // Utiliser match.id directement (peut être 0 pour UUIDs, ce qui est valide)
-      const matchIdNum = typeof selectedMatch.id === 'string' ? parseInt(selectedMatch.id, 10) : selectedMatch.id;
-      if (typeof matchIdNum !== 'number' || isNaN(matchIdNum)) {
-        console.error('❌ Match ID invalide dans requestCancellation:', selectedMatch.id);
-        setShowCancelRequestModal(false);
-        return;
-      }
-      
-      // Filtrer les requêtes POUR CE MATCH ET CE CONSULADO UNIQUEMENT
-      if (!consuladoName || !consuladoName.trim()) {
-        console.error('❌ consuladoName manquant pour filtrer les solicitudes lors de la cancellation');
-        setShowCancelRequestModal(false);
-        return;
-      }
-      const reqs = dataService.getSolicitudes(matchIdNum, consuladoName);
-      
-      // FILTRAGE ADDITIONNEL: S'assurer que les solicitudes correspondent bien à ce match spécifique
-      const filteredReqs = Array.isArray(reqs) ? reqs.filter(req => {
-        // Vérifier que match_id correspond exactement
-        if (req.match_id !== matchIdNum) return false;
-        // Vérifier que consulado correspond
-        if (req.consulado !== consuladoName.trim()) return false;
-        return true;
-      }) : [];
-      
-      setSubmittedRequests(filteredReqs);
-      setShowCancelRequestModal(false);
-    } catch (error) {
-      console.error('❌ Erreur lors de la demande d\'annulation:', error);
-      setShowCancelRequestModal(false);
     }
   };
 
@@ -940,14 +892,6 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
                   <Trash2 size={16}/>
                 </button>
               )}
-              {isListSent && !hasCancellationRequest && (
-                <button 
-                  onClick={() => setShowCancelRequestModal(true)} 
-                  className="text-amber-600 hover:bg-amber-50 px-3 py-1 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest border border-amber-300"
-                >
-                  Cancelar
-                </button>
-              )}
             </div>
 
             {hasCancellationRequest ? (
@@ -1151,34 +1095,6 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
         </div>
       )}
 
-      {showCancelRequestModal && (
-        <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md bg-white rounded-2xl p-8 shadow-2xl text-center border-2 border-gray-100 animate-in zoom-in-95 duration-300">
-            <div className="w-20 h-20 bg-gradient-to-br from-amber-100 to-orange-200 rounded-2xl flex items-center justify-center mx-auto mb-6 text-amber-600 shadow-inner">
-              <AlertCircle size={36} />
-            </div>
-            <h2 className="oswald text-3xl font-black text-[#001d4a] uppercase mb-3">Solicitar Cancelación</h2>
-            <p className="text-gray-600 text-sm font-bold uppercase tracking-wide mb-6 leading-relaxed">
-              ¿Está seguro que desea solicitar la cancelación de todas las solicitudes enviadas?<br/>
-              Esta solicitud será <strong className="text-amber-600">revisada por los administradores</strong> antes de ser aprobada.
-            </p>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setShowCancelRequestModal(false)} 
-                className="flex-1 py-3.5 rounded-xl bg-gray-100 text-gray-600 text-xs font-black uppercase tracking-widest hover:bg-gray-200 transition-all shadow-sm"
-              >
-                Revisar
-              </button>
-              <button 
-                onClick={requestCancellation} 
-                className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-black uppercase tracking-widest shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02]"
-              >
-                Confirmar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
