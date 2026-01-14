@@ -182,20 +182,55 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
         }
       }
       
+      // Fonction helper pour créer un hash unique d'un UUID
+      const hashUUID = (uuid: string): number => {
+        let hash = 0;
+        for (let i = 0; i < uuid.length; i++) {
+          const char = uuid.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash;
+        }
+        return Math.abs(hash) % 2147483647;
+      };
+      
+      // Déterminer le type de match (UUID ou normal)
+      const matchAny = match as any;
+      const hasOriginalId = matchAny._originalId !== undefined && matchAny._originalId !== null;
+      const isMatchUUID = typeof match.id === 'number' && match.id === 0 && hasOriginalId;
+      
+      // Calculer le matchId pour les solicitudes
+      let solicitudesMatchId: number;
+      if (isMatchUUID && typeof matchAny._originalId === 'string') {
+        solicitudesMatchId = hashUUID(matchAny._originalId);
+      } else {
+        solicitudesMatchId = match.id;
+      }
+      
       // Recharger les solicitudes depuis Supabase
       await dataService.reloadSolicitudes();
       
-      // Récupérer TOUTES les solicitudes du consulado (sans filtrer par match_id d'abord)
+      // Récupérer les solicitudes pour ce consulado
       const allSolicitudes = dataService.getSolicitudes();
       
-      // Filtrer uniquement par consulado
-      const consuladoRequests = Array.isArray(allSolicitudes) 
-        ? allSolicitudes.filter(r => r.consulado && r.consulado.trim() === currentConsuladoName.trim())
+      // Filtrer par consulado ET par match_id
+      const filteredRequests = Array.isArray(allSolicitudes) 
+        ? allSolicitudes.filter(r => {
+            // Vérifier le consulado
+            if (!r.consulado || r.consulado.trim() !== currentConsuladoName.trim()) {
+              return false;
+            }
+            // Vérifier le match_id
+            if (isMatchUUID) {
+              // Pour UUID, accepter soit le hash, soit 0 (anciennes solicitudes)
+              return r.match_id === solicitudesMatchId || r.match_id === 0;
+            } else {
+              // Pour matches normaux, égalité stricte
+              return r.match_id === solicitudesMatchId;
+            }
+          })
         : [];
       
-      // Ouvrir le modal avec toutes les solicitudes du consulado pour ce match
-      // (le filtrage par match sera fait dans l'affichage si nécessaire)
-      setMatchRequests(consuladoRequests);
+      setMatchRequests(filteredRequests);
       setSelectedMatch(match);
     } catch (error) {
       console.error('❌ Erreur dans handleViewRequests:', error);
