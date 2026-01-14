@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { GlassCard } from '../components/GlassCard';
-import { Ticket, CheckCircle2, XCircle, Calendar, MapPin, X, UserCheck, UserX, Filter, Timer, Archive, Home, Plane, FileText, RefreshCw } from 'lucide-react';
+import { Ticket, CheckCircle2, XCircle, Calendar, MapPin, X, UserCheck, UserX, Filter, Timer, Archive, Home, Plane, FileText, RefreshCw, AlertCircle } from 'lucide-react';
 import { Match, Solicitud, Socio, Team } from '../types';
 import { dataService } from '../services/dataService';
 import { BocaLogoSVG } from '../constants';
@@ -255,34 +255,80 @@ export const Habilitaciones = () => {
     await reloadRequestsForSelectedMatch();
   };
   
-  // Fonction pour accepter une demande d'annulation (supprimer la solicitude)
+  // Fonction pour accepter une demande d'annulation (supprimer TOUTES les solicitudes du consulado)
   const handleAcceptCancellation = async (reqId: string) => {
-    if (!confirm('¿Está seguro de aceptar esta solicitud de anulación? La solicitud será eliminada definitivamente.')) {
+    // Trouver la solicitude pour obtenir le consulado
+    const req = requests.find(r => r.id === reqId);
+    if (!req) {
+      alert('Error: Solicitud no encontrada.');
       return;
     }
+    
+    // Trouver toutes les solicitudes du même consulado avec CANCELLATION_REQUESTED
+    const consuladoRequests = requests.filter(r => 
+      r.consulado === req.consulado && 
+      r.status === 'CANCELLATION_REQUESTED'
+    );
+    
+    if (consuladoRequests.length === 0) {
+      alert('No hay solicitudes de anulación para este consulado.');
+      return;
+    }
+    
+    const confirmMessage = `¿Está seguro de aceptar la solicitud de anulación del consulado ${req.consulado}?\n\nSe eliminarán ${consuladoRequests.length} solicitud(es) definitivamente.`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+    
     try {
-      // Supprimer la solicitude de la base de données
-      await dataService.deleteSolicitud(reqId);
+      // Supprimer toutes les solicitudes du consulado avec CANCELLATION_REQUESTED
+      for (const request of consuladoRequests) {
+        await dataService.deleteSolicitud(request.id);
+      }
+      
       // Recharger les requests
       await reloadRequestsForSelectedMatch();
-      alert('Solicitud de anulación aceptada. La solicitud ha sido eliminada.');
+      alert(`Solicitud de anulación aceptada. ${consuladoRequests.length} solicitud(es) eliminada(s) del consulado ${req.consulado}.`);
     } catch (error) {
       console.error('Erreur lors de l\'acceptation de l\'annulation:', error);
       alert('Error al aceptar la anulación. Por favor, intente nuevamente.');
     }
   };
   
-  // Fonction pour refuser une demande d'annulation (remettre en APPROVED)
+  // Fonction pour refuser une demande d'annulation (remettre TOUTES les solicitudes du consulado en APPROVED)
   const handleRejectCancellation = async (reqId: string) => {
-    if (!confirm('¿Está seguro de rechazar esta solicitud de anulación? La solicitud volverá al estado APROBADO.')) {
+    // Trouver la solicitude pour obtenir le consulado
+    const req = requests.find(r => r.id === reqId);
+    if (!req) {
+      alert('Error: Solicitud no encontrada.');
       return;
     }
+    
+    // Trouver toutes les solicitudes du même consulado avec CANCELLATION_REQUESTED
+    const consuladoRequests = requests.filter(r => 
+      r.consulado === req.consulado && 
+      r.status === 'CANCELLATION_REQUESTED'
+    );
+    
+    if (consuladoRequests.length === 0) {
+      alert('No hay solicitudes de anulación para este consulado.');
+      return;
+    }
+    
+    const confirmMessage = `¿Está seguro de rechazar la solicitud de anulación del consulado ${req.consulado}?\n\nSe mantendrán ${consuladoRequests.length} solicitud(es) en estado APROBADO.`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+    
     try {
-      // Remettre la solicitude en APPROVED
-      await dataService.updateSolicitudStatus(reqId, 'APPROVED');
+      // Remettre toutes les solicitudes du consulado en APPROVED
+      for (const request of consuladoRequests) {
+        await dataService.updateSolicitudStatus(request.id, 'APPROVED');
+      }
+      
       // Recharger les requests
       await reloadRequestsForSelectedMatch();
-      alert('Solicitud de anulación rechazada. La solicitud vuelve al estado APROBADO.');
+      alert(`Solicitud de anulación rechazada. ${consuladoRequests.length} solicitud(es) del consulado ${req.consulado} vuelven al estado APROBADO.`);
     } catch (error) {
       console.error('Erreur lors du refus de l\'annulation:', error);
       alert('Error al rechazar la anulación. Por favor, intente nuevamente.');
@@ -1346,7 +1392,7 @@ export const Habilitaciones = () => {
         </div>
 
         {selectedMatch && (
-            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" style={{ height: '500px' }}>
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300">
                 <div className="relative w-full max-w-4xl bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-white/60 max-h-[80vh] animate-in zoom-in-95 duration-200">
                     <div className="liquid-glass-dark p-5 text-white flex justify-between items-center shrink-0">
                         <div>
@@ -1381,53 +1427,90 @@ export const Habilitaciones = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
-                                        {requests.map(req => (
-                                            <tr key={req.id} className={`transition-colors ${req.status === 'CANCELLATION_REQUESTED' ? 'bg-orange-50 hover:bg-orange-100' : 'hover:bg-gray-50'}`}>
-                                                <td className="p-4">
-                                                    <p className="font-black text-[#001d4a] uppercase text-xs">{req.socio_name}</p>
-                                                    <p className="text-[9px] text-gray-400 font-mono">DNI: {req.socio_dni}</p>
-                                                </td>
-                                                <td className="p-4 text-[10px] font-bold text-[#003B94] uppercase">{req.consulado}</td>
-                                                <td className="p-4">
-                                                    <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest ${
-                                                        req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-600' :
-                                                        req.status === 'REJECTED' ? 'bg-red-100 text-red-600' :
-                                                        req.status === 'CANCELLATION_REQUESTED' ? 'bg-orange-100 text-orange-600 animate-pulse' :
-                                                        'bg-amber-100 text-amber-600'
-                                                    }`}>
-                                                        {req.status === 'APPROVED' ? 'Aprobada' : 
-                                                         req.status === 'REJECTED' ? 'Rechazada' : 
-                                                         req.status === 'CANCELLATION_REQUESTED' ? '⚠️ Anulación Solicitada' :
-                                                         'Pendiente'}
-                                                    </span>
-                                                </td>
-                                                <td className="p-4 text-right">
-                                                    {req.status === 'CANCELLATION_REQUESTED' ? (
-                                                        <div className="flex justify-end gap-2">
-                                                            <button 
-                                                                onClick={() => handleAcceptCancellation(req.id)} 
-                                                                className="px-3 py-2 rounded-lg transition-all bg-emerald-500 text-white hover:bg-emerald-600 shadow-md text-[10px] font-black uppercase flex items-center gap-1"
-                                                                title="Aceptar anulación (eliminar solicitud)"
-                                                            >
-                                                                <CheckCircle2 size={14}/> Aceptar
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => handleRejectCancellation(req.id)} 
-                                                                className="px-3 py-2 rounded-lg transition-all bg-red-500 text-white hover:bg-red-600 shadow-md text-[10px] font-black uppercase flex items-center gap-1"
-                                                                title="Rechazar anulación (mantener aprobada)"
-                                                            >
-                                                                <XCircle size={14}/> Rechazar
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex justify-end gap-2">
-                                                            <button onClick={() => handleStatusChange(req.id, 'APPROVED')} className={`p-2 rounded-lg transition-all ${req.status === 'APPROVED' ? 'bg-emerald-500 text-white shadow-md' : 'bg-gray-100 text-gray-400 hover:bg-emerald-100 hover:text-emerald-600'}`} title="Aprobar"><UserCheck size={14}/></button>
-                                                            <button onClick={() => handleStatusChange(req.id, 'REJECTED')} className={`p-2 rounded-lg transition-all ${req.status === 'REJECTED' ? 'bg-red-500 text-white shadow-md' : 'bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600'}`} title="Rechazar"><UserX size={14}/></button>
-                                                        </div>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {requests.map((req, index) => {
+                                            // Vérifier si c'est la première solicitude d'un consulado avec CANCELLATION_REQUESTED
+                                            const isFirstCancellationOfConsulado = req.status === 'CANCELLATION_REQUESTED' && 
+                                                requests.findIndex(r => r.consulado === req.consulado && r.status === 'CANCELLATION_REQUESTED') === index;
+                                            
+                                            // Compter le nombre de solicitudes en annulation pour ce consulado
+                                            const cancellationCount = requests.filter(r => 
+                                                r.consulado === req.consulado && r.status === 'CANCELLATION_REQUESTED'
+                                            ).length;
+                                            
+                                            return (
+                                            <React.Fragment key={req.id}>
+                                                {/* Bandeau d'information pour le premier socio d'un consulado en annulation */}
+                                                {isFirstCancellationOfConsulado && (
+                                                    <tr className="bg-orange-100 border-t-2 border-orange-300">
+                                                        <td colSpan={4} className="p-3">
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex items-center gap-2">
+                                                                    <AlertCircle size={16} className="text-orange-600 animate-pulse" />
+                                                                    <p className="text-xs font-black text-orange-700 uppercase">
+                                                                        Solicitud de Anulación - Consulado {req.consulado}
+                                                                    </p>
+                                                                </div>
+                                                                <p className="text-[9px] font-bold text-orange-600">
+                                                                    {cancellationCount} socio{cancellationCount > 1 ? 's' : ''} afectado{cancellationCount > 1 ? 's' : ''}
+                                                                </p>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                                {/* Ligne de la solicitude */}
+                                                <tr className={`transition-colors ${req.status === 'CANCELLATION_REQUESTED' ? 'bg-orange-50 hover:bg-orange-100' : 'hover:bg-gray-50'}`}>
+                                                    <td className="p-4">
+                                                        <p className="font-black text-[#001d4a] uppercase text-xs">{req.socio_name}</p>
+                                                        <p className="text-[9px] text-gray-400 font-mono">DNI: {req.socio_dni}</p>
+                                                    </td>
+                                                    <td className="p-4 text-[10px] font-bold text-[#003B94] uppercase">{req.consulado}</td>
+                                                    <td className="p-4">
+                                                        <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest ${
+                                                            req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-600' :
+                                                            req.status === 'REJECTED' ? 'bg-red-100 text-red-600' :
+                                                            req.status === 'CANCELLATION_REQUESTED' ? 'bg-orange-100 text-orange-600 animate-pulse' :
+                                                            'bg-amber-100 text-amber-600'
+                                                        }`}>
+                                                            {req.status === 'APPROVED' ? 'Aprobada' : 
+                                                             req.status === 'REJECTED' ? 'Rechazada' : 
+                                                             req.status === 'CANCELLATION_REQUESTED' ? '⚠️ Anulación Solicitada' :
+                                                             'Pendiente'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4 text-right">
+                                                        {req.status === 'CANCELLATION_REQUESTED' ? (
+                                                            // Afficher les boutons seulement pour la première solicitude du consulado
+                                                            isFirstCancellationOfConsulado ? (
+                                                                <div className="flex justify-end gap-2">
+                                                                    <button 
+                                                                        onClick={() => handleAcceptCancellation(req.id)} 
+                                                                        className="px-3 py-2 rounded-lg transition-all bg-emerald-500 text-white hover:bg-emerald-600 shadow-md text-[10px] font-black uppercase flex items-center gap-1"
+                                                                        title={`Aceptar anulación de ${cancellationCount} solicitud(es) del consulado ${req.consulado}`}
+                                                                    >
+                                                                        <CheckCircle2 size={14}/> Aceptar Todas
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={() => handleRejectCancellation(req.id)} 
+                                                                        className="px-3 py-2 rounded-lg transition-all bg-red-500 text-white hover:bg-red-600 shadow-md text-[10px] font-black uppercase flex items-center gap-1"
+                                                                        title={`Rechazar anulación de ${cancellationCount} solicitud(es) del consulado ${req.consulado}`}
+                                                                    >
+                                                                        <XCircle size={14}/> Rechazar Todas
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-[9px] text-orange-600 font-bold">Incluido en anulación</span>
+                                                            )
+                                                        ) : (
+                                                            <div className="flex justify-end gap-2">
+                                                                <button onClick={() => handleStatusChange(req.id, 'APPROVED')} className={`p-2 rounded-lg transition-all ${req.status === 'APPROVED' ? 'bg-emerald-500 text-white shadow-md' : 'bg-gray-100 text-gray-400 hover:bg-emerald-100 hover:text-emerald-600'}`} title="Aprobar"><UserCheck size={14}/></button>
+                                                                <button onClick={() => handleStatusChange(req.id, 'REJECTED')} className={`p-2 rounded-lg transition-all ${req.status === 'REJECTED' ? 'bg-red-500 text-white shadow-md' : 'bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600'}`} title="Rechazar"><UserX size={14}/></button>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            </React.Fragment>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
