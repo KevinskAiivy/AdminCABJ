@@ -48,13 +48,17 @@ export const MarcaLogotipos = () => {
     }
   };
 
-  // Grouper les assets par catégorie
-  const assetsByCategory = {
-    navbar: assets.filter(a => a.category === 'navbar'),
-    general: assets.filter(a => a.category === 'general'),
-    icons: assets.filter(a => a.category === 'icons'),
-    footer: assets.filter(a => a.category === 'footer')
-  };
+  // Filtrer uniquement les logos utiles
+  const usefulLogos = [
+    'navbar_logo_main',
+    'login_logo',
+    'loading_logo',
+    'app_logo_main',
+    'match_logo',
+    'favicon'
+  ];
+
+  const displayedAssets = assets.filter(a => usefulLogos.includes(a.asset_key));
 
   if (loading) {
     return (
@@ -89,7 +93,7 @@ export const MarcaLogotipos = () => {
               </div>
               <div className="flex items-center gap-2 text-purple-600">
                 <CheckCircle2 size={14} />
-                <span className="font-bold">{assets.filter(a => a.file_url).length}/{assets.length}</span>
+                <span className="font-bold">{displayedAssets.filter(a => a.file_url).length}/{displayedAssets.length}</span>
                 <span>subidos</span>
               </div>
             </div>
@@ -104,32 +108,14 @@ export const MarcaLogotipos = () => {
         </div>
       </GlassCard>
 
-      {/* Navbar Logos */}
+      {/* Logos Principales */}
       <GlassCard className="p-6">
         <h3 className="text-lg font-black text-[#003B94] mb-4 flex items-center gap-2">
           <ImageIcon size={20} />
-          Logos Navegación
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {assetsByCategory.navbar.map(asset => (
-            <AssetCard
-              key={asset.id}
-              asset={asset}
-              onUpload={handleUpload}
-              uploading={uploading === asset.asset_key}
-            />
-          ))}
-        </div>
-      </GlassCard>
-
-      {/* General Logos */}
-      <GlassCard className="p-6">
-        <h3 className="text-lg font-black text-[#003B94] mb-4 flex items-center gap-2">
-          <ImageIcon size={20} />
-          Logos Generales
+          Logos de la Aplicación
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {assetsByCategory.general.slice(0, 6).map(asset => (
+          {displayedAssets.map(asset => (
             <AssetCard
               key={asset.id}
               asset={asset}
@@ -138,43 +124,15 @@ export const MarcaLogotipos = () => {
             />
           ))}
         </div>
-      </GlassCard>
-
-      {/* Icons & Favicons */}
-      <GlassCard className="p-6">
-        <h3 className="text-lg font-black text-[#003B94] mb-4 flex items-center gap-2">
-          <ImageIcon size={20} />
-          Iconos & Favicons
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {assetsByCategory.icons.slice(0, 8).map(asset => (
-            <AssetCard
-              key={asset.id}
-              asset={asset}
-              onUpload={handleUpload}
-              uploading={uploading === asset.asset_key}
-              compact
-            />
-          ))}
-        </div>
-      </GlassCard>
-
-      {/* Footer Logos */}
-      <GlassCard className="p-6">
-        <h3 className="text-lg font-black text-[#003B94] mb-4 flex items-center gap-2">
-          <ImageIcon size={20} />
-          Logos Footer
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {assetsByCategory.footer.map(asset => (
-            <AssetCard
-              key={asset.id}
-              asset={asset}
-              onUpload={handleUpload}
-              uploading={uploading === asset.asset_key}
-            />
-          ))}
-        </div>
+        
+        {displayedAssets.length === 0 && (
+          <div className="text-center py-12">
+            <ImageIcon size={48} className="mx-auto mb-4 text-gray-300" />
+            <p className="text-gray-500 text-sm font-bold">
+              No hay logos configurados. Ejecute el script CREATE_APP_ASSETS_TABLE.sql en Supabase.
+            </p>
+          </div>
+        )}
       </GlassCard>
     </div>
   );
