@@ -2904,12 +2904,21 @@ class DataService {
         .eq('is_active', true)
         .order('category', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        // Si la table n'existe pas, ne pas logger d'erreur (c'est normal)
+        if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+          console.log('ℹ️ Table app_assets non trouvée (normal si pas encore créée)');
+        } else {
+          console.error('Erreur lors du chargement des assets:', error);
+        }
+        this.appAssets = [];
+        return;
+      }
 
       this.appAssets = data || [];
       this.notify();
     } catch (error: any) {
-      console.error('Erreur lors du chargement des assets:', error);
+      console.log('ℹ️ Assets non chargés (table probablement non créée)');
       this.appAssets = [];
     }
   }
