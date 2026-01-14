@@ -1873,6 +1873,35 @@ class DataService {
           throw error;
       }
   }
+
+  // Mettre à jour le champ cancellation_rejected (quand admins refusent l'annulation)
+  async updateCancellationRejected(id: string, cancellationRejected: boolean) {
+      try {
+          // Mettre à jour localement
+          this.solicitudes = this.solicitudes.map(s => 
+              s.id === id ? { ...s, cancellation_rejected: cancellationRejected } : s
+          );
+          this.notify();
+          
+          // Sauvegarder dans Supabase (si la table existe)
+          try {
+              const { error } = await supabase.from('solicitudes').update({ 
+                  cancellation_rejected: cancellationRejected 
+              }).eq('id', id);
+              if (error && error.code !== '42P01') {
+                  console.error("❌ Erreur lors de la mise à jour de cancellation_rejected:", error);
+              }
+          } catch (dbError: any) {
+              // Ignorer si la table n'existe pas
+              if (dbError.code !== '42P01') {
+                  throw dbError;
+              }
+          }
+      } catch (error: any) {
+          console.error("❌ Erreur lors de la mise à jour de cancellation_rejected:", error);
+          throw error;
+      }
+  }
   async deleteSolicitud(id: string) {
       try {
           // Supprimer localement

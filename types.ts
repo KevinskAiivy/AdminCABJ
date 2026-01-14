@@ -193,6 +193,7 @@ export interface Solicitud {
   consulado: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   cancellation_requested?: boolean; // TRUE si demande d'annulation en cours, FALSE/undefined sinon
+  cancellation_rejected?: boolean; // TRUE si demande d'annulation refusée par admins
   timestamp: string;
 }
 

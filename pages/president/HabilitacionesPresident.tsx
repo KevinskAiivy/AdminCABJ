@@ -591,6 +591,9 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                     // Vérifier si une cancellation est en cours
                     const hasCancellationRequest = filteredMatchRequests.some(r => r.cancellation_requested === true);
                     
+                    // Vérifier si une demande d'annulation a été REFUSÉE par les admins
+                    const hasCancellationRejected = filteredMatchRequests.some(r => r.cancellation_rejected === true);
+                    
                     // Vérifier si les admins ont traité les demandes (au moins une APPROVED ou REJECTED)
                     const hasProcessedRequests = filteredMatchRequests.some(r => 
                         r.status === 'APPROVED' || r.status === 'REJECTED'
@@ -604,10 +607,14 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                     const canSolicitarAgain = hasListSent && !hasCancellationRequest && 
                         filteredMatchRequests.length === 0;
                     
-                    // ✅ CORRECTION: Afficher le bouton de cancelación dès qu'une liste est envoyée, 
-                    // PEU IMPORTE le statut (PENDING, APPROVED, REJECTED)
-                    // La demande d'annulation peut avoir lieu même après traitement par les admins
-                    const shouldShowCancelButton = hasListSent && !hasCancellationRequest;
+                    // Afficher le bouton de cancelación :
+                    // - Liste envoyée
+                    // - Pas de demande d'annulation en cours
+                    // - Pas de demande d'annulation refusée (bouton devient grisé si refusé)
+                    const shouldShowCancelButton = hasListSent && !hasCancellationRequest && !hasCancellationRejected;
+                    
+                    // Afficher le bouton grisé "Anulación Rechazada" si une demande a été refusée
+                    const shouldShowCancelRejected = hasListSent && !hasCancellationRequest && hasCancellationRejected;
                     
                     // Afficher le bouton "Ver Resultados" si les admins ont traité les demandes
                     const shouldShowViewResults = hasListSent && !hasCancellationRequest && hasProcessedRequests;
@@ -795,6 +802,42 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                                 >
                                   <Clock size={13} strokeWidth={2.5} /> Cancelación Pendiente
                                 </button>
+                              ) : shouldShowCancelRejected ? (
+                                /* Bouton Anulación Rechazada (grisé) quand demande d'annulation a été refusée */
+                                <div className="flex flex-col gap-2 w-full">
+                                  {/* Bouton Ver Resultados si résultats disponibles */}
+                                  {shouldShowViewResults && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleViewRequests(match);
+                                      }}
+                                      className="w-full py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 bg-emerald-500 text-white hover:bg-emerald-600 hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transform hover:scale-[1.02]"
+                                    >
+                                      <CheckCircle2 size={13} strokeWidth={2.5} /> Ver Resultados
+                                    </button>
+                                  )}
+                                  <div className="flex gap-2 w-full">
+                                    <button
+                                      type="button"
+                                      disabled
+                                      className="flex-1 py-2 rounded-xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-1.5 bg-emerald-100 text-emerald-700 border-2 border-emerald-300 cursor-not-allowed opacity-80"
+                                    >
+                                      <CheckCircle2 size={13} strokeWidth={2.5} /> Lista Enviada
+                                    </button>
+                                    {/* Bouton Cancelar grisé - demande refusée */}
+                                    <button
+                                      type="button"
+                                      disabled
+                                      className="flex-1 py-2 rounded-xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-1.5 bg-gray-200 text-gray-500 border-2 border-gray-300 cursor-not-allowed opacity-70"
+                                      title="La solicitud de anulación fue rechazada por los administradores"
+                                    >
+                                      <XCircle size={13} strokeWidth={2.5} /> Anulación Rechazada
+                                    </button>
+                                  </div>
+                                </div>
                               ) : shouldShowCancelButton ? (
                                 <div className="flex flex-col gap-2 w-full">
                                   {/* Bouton Ver Resultados si résultats disponibles */}
@@ -826,7 +869,6 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        console.log('🔴 CLIC Cancelar - Match:', match);
                                         handleSolicitarCancelacion(match);
                                       }}
                                       className="flex-1 py-2 rounded-xl font-black uppercase text-[10px] shadow-lg transition-all duration-300 flex items-center justify-center gap-1.5 bg-amber-500 text-white hover:bg-amber-600 hover:shadow-[0_0_30px_rgba(245,158,11,0.5)] transform hover:scale-[1.02]"

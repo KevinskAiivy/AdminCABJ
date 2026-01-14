@@ -408,14 +408,15 @@ export const Habilitaciones = () => {
     }
     
     try {
-      // Remettre cancellation_requested à false (le status reste inchangé)
+      // Remettre cancellation_requested à false ET marquer cancellation_rejected à true
       for (const request of consuladoRequests) {
         await dataService.updateCancellationRequested(request.id, false);
+        await dataService.updateCancellationRejected(request.id, true);
       }
-      
+
       // Recharger les requests
       await reloadRequestsForSelectedMatch();
-      alert(`Solicitud de anulación rechazada. El proceso de habilitación continuará normalmente para ${consuladoRequests.length} solicitud(es) del consulado ${req.consulado}.`);
+      alert(`Solicitud de anulación rechazada. El proceso de habilitación continuará normalmente para ${consuladoRequests.length} solicitud(es) del consulado ${req.consulado}.\n\nEl consulado será notificado y no podrá solicitar otra anulación para este partido.`);
     } catch (error) {
       console.error('Erreur lors du refus de l\'annulation:', error);
       alert('Error al rechazar la anulación. Por favor, intente nuevamente.');
