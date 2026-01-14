@@ -351,10 +351,18 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
         return;
       }
       
-      for (const socio of stagedSocios) {
+      // Utiliser un Set pour éviter les doublons dans la liste des socios à envoyer
+      const uniqueSocioIds = new Set<string>();
+      const sociosToSend = stagedSocios.filter(socio => {
         if (!socio || !socio.id) {
           console.warn('⚠️ Socio invalide ignoré:', socio);
-          continue;
+          return false;
+        }
+        
+        // Vérifier si le socio est déjà dans le Set (doublon dans stagedSocios)
+        if (uniqueSocioIds.has(socio.id)) {
+          console.warn('⚠️ Socio en double ignoré dans stagedSocios:', socio.id, socio.name);
+          return false;
         }
         
         // Vérifier les requêtes existantes pour ce match (avec hash si UUID) ET ce consulado uniquement
@@ -364,8 +372,19 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
           r.consulado === consuladoName.trim() &&
           r.status !== 'CANCELLATION_REQUESTED'
         );
-        if (existingRequest) continue;
         
+        if (existingRequest) {
+          console.warn('⚠️ Solicitud déjà existante pour socio:', socio.id, socio.name);
+          return false;
+        }
+        
+        // Ajouter au Set et retourner true
+        uniqueSocioIds.add(socio.id);
+        return true;
+      });
+      
+      // Envoyer les solicitudes pour les socios uniques
+      for (const socio of sociosToSend) {
         await dataService.createSolicitud({
           id: crypto.randomUUID(),
           match_id: matchIdNum, // Utiliser le hash pour les UUIDs, match.id normalement
@@ -379,6 +398,8 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
         });
       }
       
+      console.log(`✅ ${sociosToSend.length} solicitudes envoyées (${stagedSocios.length - sociosToSend.length} doublons ignorés)`);
+      
       // Stocker les IDs des socios envoyés dans localStorage pour restauration ultérieure si cancellation approuvée
       // Utiliser le matchId original pour la clé (UUID si disponible, sinon le nombre)
       const matchWithAnyType = selectedMatch as any;
@@ -390,9 +411,20 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
         const storageKey = `habilitaciones_socios_${storedMatchId}_${consulado_id}`;
         localStorage.setItem(storageKey, JSON.stringify(socioIdsToStore));
       }
-      
-      // Rediriger vers le dashboard après envoi réussi
-      navigate('/dashboard');
+
+      // Recharger les données pour afficher la liste envoyée
+      const loadData = async () => {
+        await dataService.reloadSolicitudes();
+        const reqs = dataService.getSolicitudes();
+        const filteredReqs = Array.isArray(reqs) ? reqs.filter(r => {
+          if (isUUID) {
+            return (r.match_id === matchIdNum || r.match_id === 0) && r.consulado === consuladoName;
+          }
+          return r.match_id === matchIdNum && r.consulado === consuladoName;
+        }) : [];
+        setSubmittedRequests(filteredReqs);
+      };
+      await loadData();
     } catch (error) {
       console.error('❌ Erreur lors de l\'envoi des demandes:', error);
       setShowConfirmSubmit(false);
@@ -439,8 +471,6 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
       
       setSubmittedRequests(filteredReqs);
       setShowCancelRequestModal(false);
-      // Rediriger vers le dashboard après demande de cancellation
-      navigate('/dashboard');
     } catch (error) {
       console.error('❌ Erreur lors de la demande d\'annulation:', error);
       setShowCancelRequestModal(false);
