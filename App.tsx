@@ -323,9 +323,11 @@ export const App: React.FC = () => {
   }
 
   const isSuperAdmin = user.role === 'SUPERADMIN';
+  const isAdmin = user.role === 'ADMIN';
   
-  // Le menu admin est réservé uniquement aux SUPERADMIN
-  const shouldShowAdminView = isSuperAdmin;
+  // Les ADMIN et SUPERADMIN ont accès à la vue admin complète (habilitaciones, etc.)
+  // La différence: les ADMIN n'ont pas accès à la section Sistema
+  const shouldShowAdminView = isSuperAdmin || isAdmin;
 
   return (
     <HashRouter>
