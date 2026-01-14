@@ -264,10 +264,10 @@ export const Consulados = () => {
 
   const boardCandidates = useMemo(() => {
       const targetName = editingConsulado.name || '';
-      const isSede = targetName.toLowerCase() === 'sede central' || targetName === '';
+      const isSede = targetName.toLowerCase() === 'consulado central' || targetName === '';
       return allSocios.filter(s => {
           const sConsulado = s.consulado || '';
-          if (isSede) return sConsulado === '' || sConsulado.toLowerCase() === 'sede central';
+          if (isSede) return sConsulado === '' || sConsulado.toLowerCase() === 'consulado central';
           return sConsulado === targetName;
       }).map(s => ({
           value: s.name,

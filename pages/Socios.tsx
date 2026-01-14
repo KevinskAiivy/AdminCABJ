@@ -232,9 +232,9 @@ export const Socios = ({ user }: { user?: any }) => {
           
           const dynamicStatus = calculateSocioStatus(s?.last_month_paid || '')?.label || '';
           const matchesCategory = filterCategory === 'ALL' || s?.category === filterCategory;
-          const matchesConsulado = filterConsulado === 'ALL' || 
-            (filterConsulado === 'SEDE CENTRAL' || filterConsulado?.toUpperCase() === 'SEDE CENTRAL' 
-              ? (!s?.consulado || s.consulado?.toUpperCase() === 'SEDE CENTRAL' || s.consulado?.toUpperCase() === 'SEDE CENTRAL')
+          const matchesConsulado = filterConsulado === 'ALL' ||
+            (filterConsulado === 'CONSULADO CENTRAL' || filterConsulado?.toUpperCase() === 'CONSULADO CENTRAL'
+              ? (!s?.consulado || s.consulado?.toUpperCase() === 'CONSULADO CENTRAL' || s.consulado?.toUpperCase() === 'CONSULADO CENTRAL')
               : s?.consulado === filterConsulado || s?.consulado?.toUpperCase() === filterConsulado?.toUpperCase());
           const matchesRole = filterRole === 'ALL' 
             ? true 
@@ -286,7 +286,7 @@ export const Socios = ({ user }: { user?: any }) => {
 
       const isAll = exportSelection.has('ALL');
       const dataToExport = socios.filter(s => {
-          const cName = s.consulado || 'Sede Central';
+          const cName = s.consulado || 'Consulado Central';
           if (isAll) return true;
           return exportSelection.has(cName);
       }).sort((a,b) => a.last_name.localeCompare(b.last_name));
@@ -298,7 +298,7 @@ export const Socios = ({ user }: { user?: any }) => {
               s.dni,
               s.id,
               s.category,
-              s.consulado || 'Sede Central',
+              s.consulado || 'Consulado Central',
               formatLastPaymentDate(s.last_month_paid),
               status.label
           ];
@@ -621,7 +621,7 @@ export const Socios = ({ user }: { user?: any }) => {
                 <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
             </div>
             <div className="relative min-w-[150px]">
-                <select value={filterConsulado} onChange={(e) => setFilterConsulado(e.target.value)} style={{width: '200px'}} className="bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Consulados</option><option value="SEDE CENTRAL">Sede Central</option>{(consulados || []).sort((a,b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
+                <select value={filterConsulado} onChange={(e) => setFilterConsulado(e.target.value)} style={{width: '200px'}} className="bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Consulados</option><option value="CONSULADO CENTRAL">Consulado Central</option>{(consulados || []).sort((a,b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
                 <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
             </div>
             {/* Filtre Estado de la cuota - visible uniquement pour PRESIDENTE et REFERENTE */}
@@ -779,7 +779,7 @@ export const Socios = ({ user }: { user?: any }) => {
                 <div className="px-5 py-3 space-y-3">
                     <div className={`flex items-center gap-2 ${isPresident ? 'text-[#001d4a] bg-[#001d4a]/5' : isReferente ? 'text-white/90 bg-white/10' : 'text-[#001d4a]/80 bg-white/30'} backdrop-blur-sm rounded-lg px-3 py-2 border ${isPresident ? 'border-[#001d4a]/20' : 'border-white/20'}`}>
                         <MapPin size={14} className={isPresident ? "text-[#001d4a]" : isReferente ? "text-[#FCB131]" : "text-[#FCB131]"} />
-                        <span className={`text-[10px] font-black uppercase tracking-widest truncate ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : ''}`}>{socio.consulado || 'SEDE CENTRAL'}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest truncate">{socio.consulado || 'CONSULADO CENTRAL'}</span>
                     </div>
                     {/* Pastille de statut - déplacée ici */}
                     <div className={`text-[9px] font-bold flex items-center justify-between border-t ${isPresident ? 'border-[#001d4a]/20' : 'border-white/20'} pt-2 ${isPresident ? 'text-[#001d4a] bg-[#001d4a]/5' : isReferente ? 'text-white bg-white/10' : 'text-[#001d4a] bg-white/20'} backdrop-blur-sm rounded-lg px-3 py-2`}>
@@ -1064,7 +1064,7 @@ export const Socios = ({ user }: { user?: any }) => {
                                                 value={consuladoSelection} 
                                                 onChange={e => setConsuladoSelection(e.target.value)}
                                             >
-                                                <option value="" className="text-black">Sede Central</option>
+                                                <option value="" className="text-black">Consulado Central</option>
                                                 {consulados.map(c => <option key={c.id} value={c.name} className="text-black">{c.name}</option>)}
                                             </select>
                                         </div>
@@ -1102,7 +1102,7 @@ export const Socios = ({ user }: { user?: any }) => {
                                     <div className="bg-[#FFFCE4] border border-[#FCB131] rounded-lg p-2 flex items-center justify-between text-[8px] font-bold text-[#001d4a]">
                                         <span className="flex items-center gap-1.5">
                                             <CheckCircle2 size={10} className="text-[#FCB131]" />
-                                            Traslado: <span className="font-black">{(formData.consulado || 'Sede Central')}</span> → <span className="font-black text-[#003B94]">{pendingConsulado || 'Sede Central'}</span>
+                                            Traslado: <span className="font-black">{(formData.consulado || 'Consulado Central')}</span> → <span className="font-black text-[#003B94]">{pendingConsulado || 'Consulado Central'}</span>
                                         </span>
                                         <button 
                                             onClick={() => { 
@@ -1136,7 +1136,7 @@ export const Socios = ({ user }: { user?: any }) => {
                                                     <ArrowRightLeft size={14} className="text-[#003B94]" />
                                                     <div>
                                                         <div className="text-[9px] font-black text-[#001d4a] uppercase">
-                                                            {transfer.from_consulado || 'Sede Central'} → {transfer.to_consulado || 'Sede Central'}
+                                                            {transfer.from_consulado || 'Consulado Central'} → {transfer.to_consulado || 'Consulado Central'}
                                                         </div>
                                                         <div className="text-[8px] text-gray-500 font-bold">
                                                             {formatDateDisplay(transfer.request_date)} - {transfer.status}

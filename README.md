@@ -57,7 +57,7 @@ VITE_SUPABASE_ANON_KEY=votre_clé_anon
 - Création, modification et suppression de consulados
 - Gestion de la directiva (président, vice-président, secrétaire, trésorier, vocales)
 - Gestion des réseaux sociaux et informations de contact
-- Consulado "SEDE CENTRAL" automatique pour les socios sans consulado
+- Consulado "CONSULADO CENTRAL" automatique pour les socios sans consulado
 
 ### Gestion des Socios
 - CRUD complet des socios
@@ -165,8 +165,8 @@ base: '/AdminCABJ/'
 
 ## 📝 Notes
 
-- Le consulado "SEDE CENTRAL" est créé automatiquement s'il n'existe pas
-- Les socios sans consulado sont automatiquement assignés à "SEDE CENTRAL"
+- Le consulado "CONSULADO CENTRAL" est créé automatiquement s'il n'existe pas
+- Les socios sans consulado sont automatiquement assignés à "CONSULADO CENTRAL"
 - Les données sont synchronisées en temps réel avec Supabase
 
 ## 📄 Licence

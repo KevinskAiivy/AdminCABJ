@@ -171,7 +171,7 @@ export const Socios = ({ user }: { user?: any }) => {
       const dynamicStatus = calculateSocioStatus(s.last_month_paid || '').label;
       const matchesStatus = filterStatus === 'ALL' || dynamicStatus === filterStatus;
       const matchesCategory = filterCategory === 'ALL' || s.category === filterCategory;
-      const matchesConsulado = filterConsulado === 'ALL' || (filterConsulado === 'SEDE CENTRAL' ? (!s.consulado || s.consulado === 'Sede Central') : s.consulado === filterConsulado);
+      const matchesConsulado = filterConsulado === 'ALL' || (filterConsulado === 'CONSULADO CENTRAL' ? (!s.consulado || s.consulado === 'Consulado Central') : s.consulado === filterConsulado);
       const matchesRole = filterRole === 'ALL' || s.role === filterRole;
 
       return matchesSearch && matchesStatus && matchesCategory && matchesConsulado && matchesRole;
@@ -214,7 +214,7 @@ export const Socios = ({ user }: { user?: any }) => {
 
       const isAll = exportSelection.has('ALL');
       const dataToExport = socios.filter(s => {
-          const cName = s.consulado || 'Sede Central';
+          const cName = s.consulado || 'Consulado Central';
           if (isAll) return true;
           return exportSelection.has(cName);
       }).sort((a,b) => a.last_name.localeCompare(b.last_name));
@@ -226,7 +226,7 @@ export const Socios = ({ user }: { user?: any }) => {
               s.dni,
               s.id,
               s.category,
-              s.consulado || 'Sede Central',
+              s.consulado || 'Consulado Central',
               formatLastPaymentDate(s.last_month_paid),
               status.label
           ];
@@ -378,7 +378,7 @@ export const Socios = ({ user }: { user?: any }) => {
                 <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
             </div>
             <div className="relative min-w-[150px]">
-                <select value={filterConsulado} onChange={(e) => setFilterConsulado(e.target.value)} className="w-full bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Consulados</option><option value="SEDE CENTRAL">Sede Central</option>{consulados.sort((a,b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
+                <select value={filterConsulado} onChange={(e) => setFilterConsulado(e.target.value)} className="w-full bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Consulados</option><option value="CONSULADO CENTRAL">Consulado Central</option>{consulados.sort((a,b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
                 <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
             </div>
         </div>
@@ -416,7 +416,7 @@ export const Socios = ({ user }: { user?: any }) => {
                 <div className="px-5 py-3 space-y-3">
                     <div className="flex items-center gap-2 text-[#001d4a]/80">
                         <MapPin size={14} className="text-[#FCB131]" />
-                        <span className="text-[10px] font-black uppercase tracking-widest truncate">{socio.consulado || 'SEDE CENTRAL'}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest truncate">{socio.consulado || 'CONSULADO CENTRAL'}</span>
                     </div>
                     <div className="text-[9px] font-bold flex items-center justify-between border-t border-[#003B94]/5 pt-2 text-[#001d4a]">
                         <span className="uppercase opacity-70">Ultimo Pago:</span>
@@ -541,7 +541,7 @@ export const Socios = ({ user }: { user?: any }) => {
                                 <div className="flex gap-2">
                                     <div className="relative flex-1">
                                         <select className="w-full bg-white/10 border border-white/20 text-white rounded-xl py-3 px-4 font-bold text-xs outline-none focus:border-[#FCB131] transition-all appearance-none cursor-pointer" value={consuladoSelection} onChange={e => setConsuladoSelection(e.target.value)}>
-                                            <option value="" className="text-black">Sede Central</option>
+                                            <option value="" className="text-black">Consulado Central</option>
                                             {consulados.map(c => <option key={c.id} value={c.name} className="text-black">{c.name}</option>)}
                                         </select>
                                     </div>

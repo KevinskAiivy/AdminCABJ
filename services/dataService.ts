@@ -781,9 +781,9 @@ class DataService {
                   // Notifier les listeners après le chargement
                   this.notify();
                   
-                  // Créer SEDE CENTRAL de manière asynchrone (ne bloque pas)
+                  // Créer CONSULADO CENTRAL de manière asynchrone (ne bloque pas)
                   this.ensureSedeCentralExists().catch(err => {
-                      console.error("Erreur lors de la création de SEDE CENTRAL:", err);
+                      console.error("Erreur lors de la création de CONSULADO CENTRAL:", err);
                   });
               } else {
                   console.warn("⚠️ consuladosResult.data n'est pas un tableau:", typeof consuladosResult.data, consuladosResult.data);
@@ -794,9 +794,9 @@ class DataService {
               console.warn("⚠️ Aucune donnée retournée pour consulados (data est null/undefined)");
               this.consulados = [];
               this.notify();
-              // Créer SEDE CENTRAL même si aucune donnée
+              // Créer CONSULADO CENTRAL même si aucune donnée
               this.ensureSedeCentralExists().catch(err => {
-                  console.error("Erreur lors de la création de SEDE CENTRAL:", err);
+                  console.error("Erreur lors de la création de CONSULADO CENTRAL:", err);
               });
           }
 
@@ -894,7 +894,7 @@ class DataService {
               if (isDevelopment) console.log("ℹ️ Tables solicitudes/notifications/transfer_requests non disponibles");
           }
 
-          // Assigner SEDE CENTRAL en arrière-plan (ne bloque pas l'initialisation)
+          // Assigner CONSULADO CENTRAL en arrière-plan (ne bloque pas l'initialisation)
           this.assignSociosToSedeCentral().catch(() => {
               // Erreurs silencieuses pour ne pas ralentir
           });
@@ -1093,21 +1093,21 @@ class DataService {
       this.notify(); 
   }
 
-  // SEDE CENTRAL est un consulado virtuel intégré à l'application, pas dans la base de données
-  // Cette fonction ne fait rien car SEDE CENTRAL est géré virtuellement dans getConsulados()
+  // CONSULADO CENTRAL est un consulado virtuel intégré à l'application, pas dans la base de données
+  // Cette fonction ne fait rien car CONSULADO CENTRAL est géré virtuellement dans getConsulados()
   // Il n'a pas de président car c'est un consulado administratif
   private async ensureSedeCentralExists() {
-      // SEDE CENTRAL est toujours créé virtuellement dans getConsulados()
+      // CONSULADO CENTRAL est toujours créé virtuellement dans getConsulados()
       // Il n'est jamais créé dans la base de données
       const isDevelopment = import.meta.env.DEV;
       if (isDevelopment) {
-          console.log("ℹ️ SEDE CENTRAL est un consulado virtuel, géré dans getConsulados()");
+          console.log("ℹ️ CONSULADO CENTRAL est un consulado virtuel, géré dans getConsulados()");
       }
   }
 
-  // Assigner "SEDE CENTRAL" aux socios qui n'ont pas de consulado (en arrière-plan, ne bloque pas)
+  // Assigner "CONSULADO CENTRAL" aux socios qui n'ont pas de consulado (en arrière-plan, ne bloque pas)
   private async assignSociosToSedeCentral() {
-      const sedeCentralName = 'SEDE CENTRAL';
+      const sedeCentralName = 'CONSULADO CENTRAL';
       const allConsulados = this.getConsulados();
       const sedeCentral = allConsulados.find(
           c => c.name && c.name.toUpperCase() === sedeCentralName.toUpperCase()
@@ -1147,7 +1147,7 @@ class DataService {
 
       // Exécuter les updates en parallèle (max 100 à la fois pour éviter de surcharger)
       Promise.all(updatePromises).catch(err => {
-          console.error("Erreur lors de l'assignation des socios à SEDE CENTRAL:", err);
+          console.error("Erreur lors de l'assignation des socios à CONSULADO CENTRAL:", err);
       });
       
       // Si plus de 100 socios, traiter le reste en arrière-plan
@@ -1167,18 +1167,18 @@ class DataService {
       }
   }
 
-  getConsulados() { 
-      // S'assurer que "SEDE CENTRAL" est toujours présent dans la liste
-      // SEDE CENTRAL est un consulado virtuel intégré à l'application, pas dans la base de données
+  getConsulados() {
+      // S'assurer que "CONSULADO CENTRAL" est toujours présent dans la liste
+      // CONSULADO CENTRAL est un consulado virtuel intégré à l'application, pas dans la base de données
       // Il n'a pas de président car c'est un consulado administratif
-      const sedeCentralName = 'SEDE CENTRAL';
-      
-      // Filtrer SEDE CENTRAL de la liste des consulados de la DB (s'il existe)
+      const sedeCentralName = 'CONSULADO CENTRAL';
+
+      // Filtrer CONSULADO CENTRAL de la liste des consulados de la DB (s'il existe)
       const consuladosFromDB = this.consulados.filter(
           c => !(c.name && c.name.toUpperCase() === sedeCentralName.toUpperCase())
       );
-      
-      // Créer "SEDE CENTRAL" virtuellement (toujours présent, jamais dans la DB)
+
+      // Créer "CONSULADO CENTRAL" virtuellement (toujours présent, jamais dans la DB)
       const sedeCentral: Consulado = {
           id: 'sede-central-virtual',
           name: sedeCentralName,
@@ -1203,16 +1203,16 @@ class DataService {
           website: undefined
       };
       
-      // Toujours retourner SEDE CENTRAL en premier, suivi des consulados de la DB
+      // Toujours retourner CONSULADO CENTRAL en premier, suivi des consulados de la DB
       return [sedeCentral, ...consuladosFromDB]; 
   }
   
   getConsuladoById(id: string) { 
-      // Si on cherche "SEDE CENTRAL" et qu'il n'existe pas, le retourner virtuellement
+      // Si on cherche "CONSULADO CENTRAL" et qu'il n'existe pas, le retourner virtuellement
       if (id === 'sede-central-virtual') {
           const sedeCentral: Consulado = {
               id: 'sede-central-virtual',
-              name: 'SEDE CENTRAL',
+              name: 'CONSULADO CENTRAL',
               city: 'Buenos Aires',
               country: 'Argentina',
               country_code: 'AR',
@@ -1238,10 +1238,10 @@ class DataService {
       
       return this.consulados.find(c => c.id === id); 
   }
-  async addConsulado(c: Consulado) { 
-      // SEDE CENTRAL est un consulado virtuel, ne peut pas être ajouté à la base de données
-      if (c.id === 'sede-central-virtual' || (c.name && c.name.toUpperCase() === 'SEDE CENTRAL')) {
-          console.warn("⚠️ SEDE CENTRAL est un consulado virtuel et ne peut pas être sauvegardé dans la base de données");
+  async addConsulado(c: Consulado) {
+      // CONSULADO CENTRAL est un consulado virtuel, ne peut pas être ajouté à la base de données
+      if (c.id === 'sede-central-virtual' || (c.name && c.name.toUpperCase() === 'CONSULADO CENTRAL')) {
+          console.warn("⚠️ CONSULADO CENTRAL est un consulado virtuel et ne peut pas être sauvegardé dans la base de données");
           return;
       }
       
@@ -1250,10 +1250,10 @@ class DataService {
       const { error } = await supabase.from('consulados').insert([mapConsuladoToDB(c)]);
       if (error) throw new Error(error.message);
   }
-  async updateConsulado(c: Consulado) { 
-      // SEDE CENTRAL est un consulado virtuel, ne peut pas être modifié dans la base de données
-      if (c.id === 'sede-central-virtual' || (c.name && c.name.toUpperCase() === 'SEDE CENTRAL')) {
-          console.warn("⚠️ SEDE CENTRAL est un consulado virtuel et ne peut pas être modifié dans la base de données");
+  async updateConsulado(c: Consulado) {
+      // CONSULADO CENTRAL est un consulado virtuel, ne peut pas être modifié dans la base de données
+      if (c.id === 'sede-central-virtual' || (c.name && c.name.toUpperCase() === 'CONSULADO CENTRAL')) {
+          console.warn("⚠️ CONSULADO CENTRAL est un consulado virtuel et ne peut pas être modifié dans la base de données");
           return;
       }
       
@@ -1262,10 +1262,10 @@ class DataService {
       const { error } = await supabase.from('consulados').update(mapConsuladoToDB(c)).eq('id', c.id);
       if (error) throw new Error(error.message);
   }
-  async deleteConsulado(id: string) { 
-      // SEDE CENTRAL est un consulado virtuel, ne peut pas être supprimé
+  async deleteConsulado(id: string) {
+      // CONSULADO CENTRAL est un consulado virtuel, ne peut pas être supprimé
       if (id === 'sede-central-virtual') {
-          console.warn("⚠️ SEDE CENTRAL est un consulado virtuel et ne peut pas être supprimé");
+          console.warn("⚠️ CONSULADO CENTRAL est un consulado virtuel et ne peut pas être supprimé");
           return;
       }
       
@@ -2571,9 +2571,9 @@ class DataService {
               
               if (consuladosError) throw consuladosError;
               this.consulados = (consuladosData || []).map(mapConsuladoFromDB);
-              // Créer SEDE CENTRAL si nécessaire
+              // Créer CONSULADO CENTRAL si nécessaire
               await this.ensureSedeCentralExists().catch(() => {});
-              // Assigner les socios à SEDE CENTRAL en arrière-plan
+              // Assigner les socios à CONSULADO CENTRAL en arrière-plan
               this.assignSociosToSedeCentral().catch(() => {});
               results[table] = { success: true, count: this.consulados.length };
               break;

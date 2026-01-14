@@ -233,10 +233,10 @@ export const Consulados = () => {
 
   const boardCandidates = useMemo(() => {
       const targetName = editingConsulado.name || '';
-      const isSede = targetName.toLowerCase() === 'sede central' || targetName === '';
+      const isSede = targetName.toLowerCase() === 'consulado central' || targetName === '';
       return allSocios.filter(s => {
           const sConsulado = s.consulado || '';
-          if (isSede) return sConsulado === '' || sConsulado.toLowerCase() === 'sede central';
+          if (isSede) return sConsulado === '' || sConsulado.toLowerCase() === 'consulado central';
           return sConsulado === targetName;
       }).map(s => ({
           value: s.name,
@@ -320,12 +320,12 @@ export const Consulados = () => {
   };
 
   const executeSave = async () => {
-      // SEDE CENTRAL est un consulado virtuel, ne peut pas être sauvegardé dans la base de données
-      const isSedeCentral = editingConsulado.id === 'sede-central-virtual' || 
-                           (editingConsulado.name && editingConsulado.name.toUpperCase() === 'SEDE CENTRAL');
-      
+      // CONSULADO CENTRAL est un consulado virtuel, ne peut pas être sauvegardé dans la base de données
+      const isSedeCentral = editingConsulado.id === 'sede-central-virtual' ||
+                           (editingConsulado.name && editingConsulado.name.toUpperCase() === 'CONSULADO CENTRAL');
+
       if (isSedeCentral) {
-          // Ne pas sauvegarder SEDE CENTRAL dans la base de données
+          // Ne pas sauvegarder CONSULADO CENTRAL dans la base de données
           setShowSaveConfirm(false);
           setIsEditModalOpen(false);
           return;
@@ -707,7 +707,7 @@ export const Consulados = () => {
                                         <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); requestDelete(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-red-500 text-white hover:text-white rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110"><Trash2 size={14} /></button>
                                     </>
                                 ) : (
-                                    <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleEdit(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white text-white hover:text-[#003B94] rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110" title="Ver información (SEDE CENTRAL no es editable)"><Edit2 size={14} /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleEdit(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white text-white hover:text-[#003B94] rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110" title="Ver información (CONSULADO CENTRAL no es editable)"><Edit2 size={14} /></button>
                                 )}
                             </div>
                         </div>
@@ -761,9 +761,9 @@ export const Consulados = () => {
 
                 <div className="flex justify-center backdrop-blur-md border-b border-[#003B94]/30 px-6 pt-3 gap-2 overflow-x-auto shrink-0 shadow-[0_2px_10px_rgba(0,0,0,0.1)]" style={{ backgroundColor: 'unset', background: 'unset', backgroundImage: 'none' }}>
                     {(() => {
-                        const isSedeCentral = editingConsulado.id === 'sede-central-virtual' || 
-                                             (editingConsulado.name && editingConsulado.name.toUpperCase() === 'SEDE CENTRAL');
-                        
+                        const isSedeCentral = editingConsulado.id === 'sede-central-virtual' ||
+                                             (editingConsulado.name && editingConsulado.name.toUpperCase() === 'CONSULADO CENTRAL');
+
                         const allTabs = [
                             { id: 'INFO', label: 'Info General', icon: Building2 }, 
                             { id: 'SOCIAL', label: 'Redes Sociales', icon: Globe }, 
@@ -771,8 +771,8 @@ export const Consulados = () => {
                             { id: 'BOARD', label: 'Directiva', icon: Users }
                         ];
                         
-                        // Pour Sede Central, exclure LOCATION et BOARD
-                        const availableTabs = isSedeCentral 
+                        // Pour Consulado Central, exclure LOCATION et BOARD
+                        const availableTabs = isSedeCentral
                             ? allTabs.filter(tab => tab.id !== 'LOCATION' && tab.id !== 'BOARD')
                             : allTabs;
                         
@@ -1072,14 +1072,14 @@ export const Consulados = () => {
                                     const isSedeCentral = editingConsulado.id === 'sede-central-virtual' || 
                                                          (editingConsulado.name && editingConsulado.name.toUpperCase() === 'SEDE CENTRAL');
                                     
-                                    // SEDE CENTRAL n'a pas de président
+                                    // CONSULADO CENTRAL n'a pas de président
                                     if (isSedeCentral) {
                                         const referenteSocio = allSocios.find(s => s.name === editingConsulado.referente || `${s.first_name} ${s.last_name}` === editingConsulado.referente);
                                         return (
                                             <div className="col-span-2 space-y-2">
                                                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                                                     <p className="text-[9px] font-bold text-yellow-800 uppercase">
-                                                        SEDE CENTRAL es un consulado administrativo y no tiene presidente
+                                                        CONSULADO CENTRAL es un consulado administrativo y no tiene presidente
                                                     </p>
                                                 </div>
                                                 <CustomSelect 
