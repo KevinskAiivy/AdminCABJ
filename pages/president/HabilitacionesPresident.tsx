@@ -295,7 +295,8 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
 
       for (const req of filteredReqs) {
         if (req && req.id && (req.status === 'PENDING' || req.status === 'APPROVED' || req.status === 'REJECTED')) {
-          await dataService.updateSolicitudStatus(req.id, 'CANCELLATION_REQUESTED');
+          // Sauvegarder le statut actuel comme previous_status avant de changer vers CANCELLATION_REQUESTED
+          await dataService.updateSolicitudStatusWithPrevious(req.id, 'CANCELLATION_REQUESTED', req.status);
         }
       }
       

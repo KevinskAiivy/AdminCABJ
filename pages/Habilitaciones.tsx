@@ -394,14 +394,16 @@ export const Habilitaciones = () => {
     }
     
     try {
-      // Remettre toutes les solicitudes du consulado pour ce match en APPROVED
+      // Restaurer toutes les solicitudes du consulado pour ce match à leur statut précédent
       for (const request of consuladoRequests) {
-        await dataService.updateSolicitudStatus(request.id, 'APPROVED');
+        // Utiliser le previous_status si disponible, sinon revenir à APPROVED par défaut
+        const statusToRestore = request.previous_status || 'APPROVED';
+        await dataService.updateSolicitudStatus(request.id, statusToRestore);
       }
       
       // Recharger les requests
       await reloadRequestsForSelectedMatch();
-      alert(`Solicitud de anulación rechazada. ${consuladoRequests.length} solicitud(es) del consulado ${req.consulado} para este partido vuelven al estado APROBADO.`);
+      alert(`Solicitud de anulación rechazada. ${consuladoRequests.length} solicitud(es) del consulado ${req.consulado} para este partido vuelven a su estado inicial.`);
     } catch (error) {
       console.error('Erreur lors du refus de l\'annulation:', error);
       alert('Error al rechazar la anulación. Por favor, intente nuevamente.');

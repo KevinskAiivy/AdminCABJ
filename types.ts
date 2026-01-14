@@ -191,6 +191,7 @@ export interface Solicitud {
   socio_category: string;
   consulado: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLATION_REQUESTED';
+  previous_status?: 'PENDING' | 'APPROVED' | 'REJECTED'; // Statut avant demande d'annulation
   timestamp: string;
 }
 
