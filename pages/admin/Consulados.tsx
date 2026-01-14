@@ -314,8 +314,24 @@ export const Consulados = () => {
       
       // Upload des images vers Supabase Storage si des fichiers ont été sélectionnés
       // Si l'utilisateur a entré une URL directement (pas de fichier sélectionné), on l'utilise telle quelle
+      // IMPORTANT: Ne pas sauvegarder les data URLs (aperçu local) - seulement les vraies URLs ou chemins Storage
       let logoUrl = editingConsulado.logo || '';
       let bannerUrl = editingConsulado.banner || '';
+      
+      // Si c'est une data URL (aperçu local) et qu'on n'a pas de fichier à uploader, on garde l'ancienne valeur
+      if (logoUrl.startsWith('data:') && !selectedLogoFile) {
+          logoUrl = oldConsulado?.logo || '';
+      }
+      if (bannerUrl.startsWith('data:') && !selectedBannerFile) {
+          bannerUrl = oldConsulado?.banner || '';
+      }
+      
+      // Préparer le consulado à sauvegarder (sera mis à jour après upload réussi)
+      let consuladoToSave = {
+          ...editingConsulado,
+          logo: logoUrl,
+          banner: bannerUrl
+      };
       
       try {
           // Upload du logo UNIQUEMENT si un fichier a été sélectionné (pas si c'est juste une URL)
@@ -366,8 +382,8 @@ export const Consulados = () => {
               bannerUrl = result.publicUrl || result.filePath || '';
           }
 
-          // Mettre à jour les URLs dans editingConsulado
-          const consuladoToSave = {
+          // Mettre à jour les URLs dans consuladoToSave
+          consuladoToSave = {
               ...editingConsulado,
               logo: logoUrl,
               banner: bannerUrl
@@ -385,8 +401,40 @@ export const Consulados = () => {
           }
       } catch (error) {
           console.error('❌ Error:', error);
-          alert(error instanceof Error ? error.message : 'Error al subir las imágenes');
-          return;
+          const errorMessage = error instanceof Error ? error.message : 'Error al subir las imágenes';
+          
+          // Proposer de sauvegarder sans les images
+          const saveWithoutImages = window.confirm(
+              `${errorMessage}\n\n¿Desea guardar el consulado sin las imágenes?\n\n` +
+              `(Puede agregar las imágenes más tarde usando una URL externa)`
+          );
+          
+          if (saveWithoutImages) {
+              // Sauvegarder sans les nouvelles images - utiliser les anciennes ou rien
+              logoUrl = oldConsulado?.logo || '';
+              bannerUrl = oldConsulado?.banner || '';
+              
+              const consuladoWithoutNewImages = {
+                  ...editingConsulado,
+                  logo: logoUrl,
+                  banner: bannerUrl
+              };
+              
+              try {
+                  if (isUpdate) {
+                      await dataService.updateConsulado(consuladoWithoutNewImages as Consulado);
+                  } else {
+                      await dataService.addConsulado(consuladoWithoutNewImages as Consulado);
+                  }
+                  console.log('✅ Consulado guardado sin nuevas imágenes');
+              } catch (saveError) {
+                  console.error('❌ Error al guardar consulado:', saveError);
+                  alert('Error al guardar el consulado');
+                  return;
+              }
+          } else {
+              return;
+          }
       }
       
       // Mettre à jour les rôles des socios

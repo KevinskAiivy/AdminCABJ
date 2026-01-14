@@ -27,22 +27,40 @@ export const uploadFileWithTracking = async (options: UploadOptions): Promise<Up
   const { bucket, folder, entityType, entityId, fieldName, file, userId } = options;
 
   try {
-    // 1. Générer le nom du fichier
+    // 1. Générer le nom du fichier avec un UUID unique pour éviter les conflits
     const timestamp = Date.now();
-    const fileExtension = file.name.split('.').pop() || 'jpg';
-    const fileName = `${folder}/${entityType}_${entityId}_${fieldName}_${timestamp}.${fileExtension}`;
+    const uniqueId = crypto.randomUUID().slice(0, 8);
+    const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const fileName = `${folder}/${entityType}_${entityId}_${fieldName}_${timestamp}_${uniqueId}.${fileExtension}`;
 
-    // 2. Upload vers Storage
+    console.log('📤 Tentative d\'upload vers:', bucket, '/', fileName);
+
+    // 2. Upload vers Storage avec upsert: true pour remplacer si existe
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(bucket)
       .upload(fileName, file, {
         cacheControl: '3600',
-        upsert: false
+        upsert: true  // Remplacer si existe déjà
       });
 
     if (uploadError) {
+      console.error('❌ Erreur Supabase Storage:', uploadError);
+      
+      // Erreurs courantes
+      if (uploadError.message.includes('Bucket not found')) {
+        throw new Error(`Le bucket "${bucket}" n'existe pas dans Supabase Storage. Créez-le d'abord.`);
+      }
+      if (uploadError.message.includes('not allowed') || uploadError.message.includes('policy')) {
+        throw new Error(`Permissions insuffisantes pour le bucket "${bucket}". Vérifiez les policies RLS.`);
+      }
+      if (uploadError.message.includes('Payload too large')) {
+        throw new Error('Le fichier est trop volumineux. Maximum 50MB.');
+      }
+      
       throw new Error(`Erreur upload: ${uploadError.message}`);
     }
+
+    console.log('✅ Upload réussi:', uploadData?.path || fileName);
 
     // 3. Récupérer l'URL publique
     const { data: urlData } = supabase.storage
@@ -50,10 +68,12 @@ export const uploadFileWithTracking = async (options: UploadOptions): Promise<Up
       .getPublicUrl(fileName);
 
     if (!urlData?.publicUrl) {
-      throw new Error('Impossible de récupérer l\'URL publique');
+      console.warn('⚠️ Impossible de récupérer l\'URL publique, utilisation du chemin');
     }
+    
+    const publicUrl = urlData?.publicUrl || null;
 
-    // 4. Enregistrer dans la table uploaded_files (optionnel)
+    // 4. Enregistrer dans la table uploaded_files (optionnel - ne bloque pas l'upload)
     try {
       const { error: dbError } = await supabase
         .from('uploaded_files')
@@ -67,26 +87,25 @@ export const uploadFileWithTracking = async (options: UploadOptions): Promise<Up
           entity_type: entityType,
           entity_id: entityId,
           field_name: fieldName,
-          public_url: urlData.publicUrl,
+          public_url: publicUrl,
           is_active: true,
           uploaded_at: new Date().toISOString()
         });
 
       if (dbError) {
+        // Table non existante ou erreur - on continue quand même
         console.warn('⚠️ Table uploaded_files non disponible (optionnel):', dbError.message);
-        // On ne bloque pas l'upload si l'enregistrement échoue
       } else {
         console.log('✅ Fichier enregistré dans uploaded_files');
       }
     } catch (dbError: any) {
       console.warn('⚠️ Impossible d\'enregistrer dans uploaded_files:', dbError.message);
-      // On continue quand même
     }
 
     return {
       success: true,
       filePath: fileName,
-      publicUrl: urlData.publicUrl,
+      publicUrl: publicUrl,
       error: null
     };
 
