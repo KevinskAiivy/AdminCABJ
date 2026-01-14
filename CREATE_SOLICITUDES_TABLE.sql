@@ -14,11 +14,46 @@ CREATE TABLE IF NOT EXISTS public.solicitudes (
     socio_dni TEXT NOT NULL,
     socio_category TEXT NOT NULL,
     consulado TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLATION_REQUESTED')),
+    status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    cancellation_requested BOOLEAN NOT NULL DEFAULT FALSE,
+    cancellation_rejected BOOLEAN NOT NULL DEFAULT FALSE,
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- 1b. Si la table existe déjà, ajouter les nouvelles colonnes
+DO $$
+BEGIN
+    -- Ajouter cancellation_requested si n'existe pas
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'solicitudes' 
+                   AND column_name = 'cancellation_requested') THEN
+        ALTER TABLE public.solicitudes ADD COLUMN cancellation_requested BOOLEAN NOT NULL DEFAULT FALSE;
+        RAISE NOTICE '✅ Colonne cancellation_requested ajoutée';
+    END IF;
+    
+    -- Ajouter cancellation_rejected si n'existe pas
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'solicitudes' 
+                   AND column_name = 'cancellation_rejected') THEN
+        ALTER TABLE public.solicitudes ADD COLUMN cancellation_rejected BOOLEAN NOT NULL DEFAULT FALSE;
+        RAISE NOTICE '✅ Colonne cancellation_rejected ajoutée';
+    END IF;
+    
+    -- Mettre à jour la contrainte de status si nécessaire (supprimer CANCELLATION_REQUESTED)
+    -- Cette opération peut échouer si la contrainte n'existe pas, on ignore l'erreur
+    BEGIN
+        ALTER TABLE public.solicitudes DROP CONSTRAINT IF EXISTS solicitudes_status_check;
+        ALTER TABLE public.solicitudes ADD CONSTRAINT solicitudes_status_check 
+            CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED'));
+        RAISE NOTICE '✅ Contrainte status mise à jour';
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'ℹ️ Contrainte status non modifiée (peut-être déjà correcte)';
+    END;
+END $$;
 
 -- 2. Créer les index pour améliorer les performances
 CREATE INDEX IF NOT EXISTS idx_solicitudes_match_id ON public.solicitudes(match_id);
@@ -212,7 +247,9 @@ COMMENT ON COLUMN public.solicitudes.socio_name IS 'Nom complet du socio';
 COMMENT ON COLUMN public.solicitudes.socio_dni IS 'DNI du socio';
 COMMENT ON COLUMN public.solicitudes.socio_category IS 'Catégorie du socio (ACTIVO, ADHERENTE, etc.)';
 COMMENT ON COLUMN public.solicitudes.consulado IS 'Nom du consulado du socio';
-COMMENT ON COLUMN public.solicitudes.status IS 'Statut: PENDING, APPROVED, REJECTED, CANCELLATION_REQUESTED';
+COMMENT ON COLUMN public.solicitudes.status IS 'Statut: PENDING, APPROVED, REJECTED';
+COMMENT ON COLUMN public.solicitudes.cancellation_requested IS 'TRUE si demande d''annulation en cours par le consulado';
+COMMENT ON COLUMN public.solicitudes.cancellation_rejected IS 'TRUE si demande d''annulation refusée par les admins';
 COMMENT ON COLUMN public.solicitudes.timestamp IS 'Date et heure de la demande';
 
 -- 7. Message de confirmation
@@ -232,7 +269,9 @@ BEGIN
     RAISE NOTICE '   - socio_dni (TEXT)';
     RAISE NOTICE '   - socio_category (TEXT)';
     RAISE NOTICE '   - consulado (TEXT)';
-    RAISE NOTICE '   - status (TEXT): PENDING, APPROVED, REJECTED, CANCELLATION_REQUESTED';
+    RAISE NOTICE '   - status (TEXT): PENDING, APPROVED, REJECTED';
+    RAISE NOTICE '   - cancellation_requested (BOOLEAN): TRUE si demande annulation en cours';
+    RAISE NOTICE '   - cancellation_rejected (BOOLEAN): TRUE si demande annulation refusée';
     RAISE NOTICE '   - timestamp (TIMESTAMPTZ)';
     RAISE NOTICE '   - created_at (TIMESTAMPTZ)';
     RAISE NOTICE '   - updated_at (TIMESTAMPTZ)';
