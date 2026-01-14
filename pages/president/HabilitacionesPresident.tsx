@@ -463,7 +463,17 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
       }
     } catch (error) {
       console.error('❌ Erreur lors de la demande d\'annulation:', error);
-      alert('Error al verificar las solicitudes en la base de datos. Por favor, intente nuevamente.');
+      // Afficher un message plus explicite selon le type d'erreur
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      console.error('Message d\'erreur:', errorMessage);
+      
+      // Ne pas afficher d'alerte si c'est juste un problème de table inexistante
+      // L'utilisateur verra le message "No hay solicitudes" à la place
+      if (errorMessage.includes('42P01') || errorMessage.includes('PGRST116')) {
+        alert('La base de datos no está configurada correctamente. Por favor, contacte al administrador.');
+      } else {
+        alert('Error al procesar la solicitud. Por favor, intente nuevamente.');
+      }
     }
   };
 
