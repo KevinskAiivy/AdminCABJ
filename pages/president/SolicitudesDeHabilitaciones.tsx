@@ -239,7 +239,28 @@ export const SolicitudesDeHabilitaciones = ({ consulado_id, consuladoName = '' }
 
     loadData();
     const unsubscribe = dataService.subscribe(loadData);
-    return () => unsubscribe();
+    
+    // Recharger les solicitudes depuis Supabase toutes les 10 secondes pour vérifier en permanence
+    const reloadSolicitudesFromDB = async () => {
+      try {
+        await dataService.reloadSolicitudes();
+        // Recharger les données pour mettre à jour submittedRequests
+        loadData();
+      } catch (error) {
+        console.error("❌ Erreur lors du rechargement des solicitudes:", error);
+      }
+    };
+    
+    // Recharger immédiatement au démarrage
+    reloadSolicitudesFromDB();
+    
+    // Puis recharger toutes les 10 secondes
+    const reloadInterval = setInterval(reloadSolicitudesFromDB, 10000);
+    
+    return () => {
+      unsubscribe();
+      clearInterval(reloadInterval);
+    };
   }, [matchId, consulado_id, consuladoName, navigate]);
 
   const toggleStageSocio = (socio: Socio) => {
