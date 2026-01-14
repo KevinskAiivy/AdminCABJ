@@ -156,19 +156,19 @@ ON CONFLICT (asset_key) DO NOTHING;
 
 -- General
 INSERT INTO public.app_assets (asset_key, name, description, category, fallback_svg, display_size) VALUES
-('app_logo_main', 'Logo Principal Application', 'Logo principal de l''application', 'general', default_svg, 128),
-('login_logo', 'Logo Page Connexion', 'Logo affiché sur la page de connexion', 'general', default_svg, 96),
-('loading_logo', 'Logo Chargement', 'Logo affiché pendant le chargement', 'general', default_svg, 64),
-('match_logo', 'Logo Match', 'Logo utilisé dans les cartes de match', 'general', default_svg, 128),
-('rival_logo', 'Logo Équipe Adverse', 'Logo par défaut pour équipe adverse', 'general', default_svg, 128),
-('background_habilitaciones', 'Fond Habilitaciones', 'Image de fond pour la page habilitaciones', 'general', default_svg, NULL)
+('app_logo_main', 'Logo Principal Aplicación', 'Logo principal de la aplicación', 'general', default_svg, 128),
+('login_logo', 'Logo Página Login', 'Logo mostrado en la página de inicio de sesión', 'general', default_svg, 96),
+('loading_logo', 'Logo Carga', 'Logo mostrado durante la carga de páginas', 'general', default_svg, 96),
+('match_logo', 'Logo Partidos', 'Logo usado en las tarjetas de partidos', 'general', default_svg, 128),
+('rival_logo', 'Logo Equipo Rival', 'Logo por defecto para equipo rival', 'general', default_svg, 128),
+('background_habilitaciones', 'Fondo Habilitaciones', 'Imagen de fondo para la página de habilitaciones', 'general', default_svg, NULL)
 ON CONFLICT (asset_key) DO NOTHING;
 
 -- Icons & Favicons
 INSERT INTO public.app_assets (asset_key, name, description, category, fallback_svg, display_size) VALUES
-('favicon', 'Favicon', 'Icône de l''onglet navigateur', 'icons', icon_svg, 32),
-('favicon_16', 'Favicon 16x16', 'Favicon taille 16x16', 'icons', icon_svg, 16),
-('favicon_32', 'Favicon 32x32', 'Favicon taille 32x32', 'icons', icon_svg, 32),
+('favicon', 'Favicon', 'Icono de la pestaña del navegador', 'icons', icon_svg, 32),
+('favicon_16', 'Favicon 16x16', 'Favicon tamaño 16x16', 'icons', icon_svg, 16),
+('favicon_32', 'Favicon 32x32', 'Favicon tamaño 32x32', 'icons', icon_svg, 32),
 ('apple_touch_icon', 'Apple Touch Icon', 'Icône pour iOS', 'icons', icon_svg, 180),
 ('android_chrome_192', 'Android Chrome 192', 'Icône Android 192x192', 'icons', icon_svg, 192),
 ('android_chrome_512', 'Android Chrome 512', 'Icône Android 512x512', 'icons', icon_svg, 512),
