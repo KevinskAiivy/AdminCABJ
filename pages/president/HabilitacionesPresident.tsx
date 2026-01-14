@@ -299,9 +299,13 @@ export const HabilitacionesPresident = ({ consulado_id, consuladoName = '' }: { 
         }
       }
       
-      console.log('✅ Cancellation demandée avec succès, redirection vers dashboard');
-      // Rediriger vers le dashboard après demande de cancellation
-      navigate('/dashboard');
+      console.log('✅ Cancellation demandée avec succès');
+      
+      // Recharger les solicitudes pour mettre à jour l'affichage
+      await dataService.reloadSolicitudes();
+      
+      // Message de confirmation
+      alert('Solicitud de cancelación enviada con éxito. Los administradores revisarán su solicitud.');
     } catch (error) {
       console.error('❌ Erreur lors de la demande d\'annulation:', error);
       alert('Error al solicitar la cancelación. Por favor, intente nuevamente.');
