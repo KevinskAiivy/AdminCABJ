@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GlassCard } from '../../components/GlassCard';
-import { Upload, Image as ImageIcon, Loader2, Save, RefreshCw, Trash2, CheckCircle2 } from 'lucide-react';
+import { Upload, Image as ImageIcon, Loader2, Save, RefreshCw, Trash2, CheckCircle2, Database, HardDrive } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { AppAsset } from '../../types';
 import { uploadFileWithTracking } from '../../lib/uploadHelper';
@@ -69,13 +69,30 @@ export const MarcaLogotipos = () => {
       {/* Header */}
       <GlassCard className="p-6">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             <h2 className="text-2xl font-black text-[#003B94] mb-2">
               🎨 Marca & Logotipos
             </h2>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 mb-3">
               Gérez tous les logos de l'application. Les changements sont appliqués immédiatement.
             </p>
+            <div className="flex items-center gap-4 text-xs">
+              <div className="flex items-center gap-2 text-green-600">
+                <HardDrive size={14} />
+                <span className="font-bold">Storage:</span>
+                <span>Bucket "Logo" → assets/</span>
+              </div>
+              <div className="flex items-center gap-2 text-blue-600">
+                <Database size={14} />
+                <span className="font-bold">Table:</span>
+                <span>app_assets</span>
+              </div>
+              <div className="flex items-center gap-2 text-purple-600">
+                <CheckCircle2 size={14} />
+                <span className="font-bold">{assets.filter(a => a.file_url).length}/{assets.length}</span>
+                <span>uploadés</span>
+              </div>
+            </div>
           </div>
           <button
             onClick={loadAssets}
@@ -179,7 +196,7 @@ const AssetCard = ({
   const hasFile = asset.file_url !== null;
 
   return (
-    <div className="border-2 border-gray-200 rounded-xl p-4 hover:border-[#003B94] transition-all">
+    <div className={`border-2 rounded-xl p-4 hover:border-[#003B94] transition-all ${hasFile ? 'border-green-200 bg-green-50/30' : 'border-gray-200'}`}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
           <h4 className="font-bold text-sm text-[#001d4a]">{asset.name}</h4>
@@ -187,9 +204,16 @@ const AssetCard = ({
             <p className="text-xs text-gray-500 mt-1">{asset.description}</p>
           )}
         </div>
-        {hasFile && (
-          <CheckCircle2 size={16} className="text-green-600 flex-shrink-0" />
-        )}
+        <div className="flex items-center gap-2">
+          {hasFile ? (
+            <>
+              <HardDrive size={14} className="text-green-600" title="Stocké dans Storage" />
+              <CheckCircle2 size={16} className="text-green-600 flex-shrink-0" />
+            </>
+          ) : (
+            <span className="text-xs text-gray-400 font-bold">SVG</span>
+          )}
+        </div>
       </div>
 
       {/* Aperçu de l'image */}
@@ -207,14 +231,25 @@ const AssetCard = ({
       {/* Métadonnées */}
       {!compact && (
         <div className="text-xs text-gray-500 mb-3 space-y-1">
+          {hasFile && (
+            <div className="flex items-center gap-2 text-green-600 font-bold mb-2">
+              <HardDrive size={12} />
+              <span>Stocké dans Storage</span>
+            </div>
+          )}
           {asset.display_size && (
-            <div>Taille affichage: {asset.display_size}px</div>
+            <div>📐 Taille affichage: {asset.display_size}px</div>
           )}
           {asset.file_type && (
-            <div>Type: {asset.file_type}</div>
+            <div>📄 Type: {asset.file_type}</div>
           )}
           {asset.file_size && (
-            <div>Poids: {(asset.file_size / 1024).toFixed(1)} KB</div>
+            <div>💾 Poids: {(asset.file_size / 1024).toFixed(1)} KB</div>
+          )}
+          {asset.file_url && (
+            <div className="text-[10px] text-gray-400 truncate" title={asset.file_url}>
+              📂 {asset.file_url}
+            </div>
           )}
         </div>
       )}
