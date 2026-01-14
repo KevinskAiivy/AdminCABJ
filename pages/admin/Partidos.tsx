@@ -288,9 +288,11 @@ export const Partidos = () => {
                const rivalTeam = teams.find(t => t.id === m.rival_id || t.name === m.rival);
                const rivalLogo = rivalTeam?.logo;
                // Chercher le logo de Boca dans la table teams
-               const bocaTeam = teams.find(t => 
-                 t.name?.toLowerCase().includes('boca') ||
-                 t.name?.toLowerCase().includes('junior')
+               const bocaTeam = teams.find(t =>
+                 t.name && (
+                   t.name.toLowerCase().includes('boca') ||
+                   t.name.toLowerCase().includes('club atlético boca juniors')
+                 )
                );
                const bocaLogo = bocaTeam?.logo || null;
                // Réduire la taille des logos pour que tout rentre dans la carte
@@ -567,10 +569,55 @@ export const Partidos = () => {
                     <div className="space-y-0.5"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Fecha/Jornada</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-[9px] text-[#001d4a] outline-none" value={editingMatch.fecha_jornada || ''} onChange={e => setEditingMatch({...editingMatch, fecha_jornada: e.target.value})}>{FECHAS.map(f => <option key={f} value={f}>{f}</option>)}</select></div>
                 </div>
 
-                {/* 3. Rival Selector */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="space-y-0.5"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">País</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-[9px] text-[#001d4a] outline-none" value={rivalCountryFilter} onChange={e => handleRivalCountryChange(e.target.value)}>{COUNTRY_OPTIONS.map(c => (<option key={c.code} value={c.code}>{c.name}</option>))}</select></div>
-                    <div className="space-y-0.5"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Equipo Rival</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-[9px] text-[#001d4a] outline-none" value={editingMatch.rival_id || ''} onChange={e => handleRivalIdChange(e.target.value)}><option value="">Seleccionar Equipo...</option>{teams.filter(t => t.country_id === rivalCountryFilter).sort((a,b) => a.name.localeCompare(b.name)).map(r => (<option key={r.id} value={r.id}>{r.name} ({r.short_name})</option>))}</select></div>
+                {/* 3. Rival Selector avec aperçu des écussons */}
+                <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-0.5"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">País</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-[9px] text-[#001d4a] outline-none" value={rivalCountryFilter} onChange={e => handleRivalCountryChange(e.target.value)}>{COUNTRY_OPTIONS.map(c => (<option key={c.code} value={c.code}>{c.name}</option>))}</select></div>
+                        <div className="space-y-0.5"><label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Equipo Rival</label><select className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-[9px] text-[#001d4a] outline-none" value={editingMatch.rival_id || ''} onChange={e => handleRivalIdChange(e.target.value)}><option value="">Seleccionar Equipo...</option>{teams.filter(t => t.country_id === rivalCountryFilter).sort((a,b) => a.name.localeCompare(b.name)).map(r => (<option key={r.id} value={r.id}>{r.name} ({r.short_name})</option>))}</select></div>
+                    </div>
+                    
+                    {/* Aperçu des écussons */}
+                    {editingMatch.rival_id && (
+                        <div className="bg-gradient-to-br from-[#001d4a] to-[#003B94] rounded-xl p-4 flex items-center justify-center gap-8">
+                            {/* Boca */}
+                            <div className="flex flex-col items-center gap-2">
+                                <div className="w-16 h-16 bg-white/10 rounded-xl p-2 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                                    {(() => {
+                                        const bocaTeam = teams.find(t =>
+                                            t.name && (
+                                                t.name.toLowerCase().includes('boca') ||
+                                                t.name.toLowerCase().includes('club atlético boca juniors')
+                                            )
+                                        );
+                                        return bocaTeam?.logo ? (
+                                            <img src={bocaTeam.logo} alt="Boca" className="w-full h-full object-contain" />
+                                        ) : (
+                                            <BocaLogoSVG className="w-full h-full" />
+                                        );
+                                    })()}
+                                </div>
+                                <span className="text-[8px] font-black text-white uppercase tracking-wide">Boca</span>
+                            </div>
+                            
+                            {/* VS */}
+                            <span className="text-2xl font-black text-[#FCB131] drop-shadow-lg">VS</span>
+                            
+                            {/* Rival */}
+                            <div className="flex flex-col items-center gap-2">
+                                <div className="w-16 h-16 bg-white/10 rounded-xl p-2 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                                    {(() => {
+                                        const rivalTeam = teams.find(t => t.id === editingMatch.rival_id);
+                                        return rivalTeam?.logo ? (
+                                            <img src={rivalTeam.logo} alt={rivalTeam.name} className="w-full h-full object-contain" />
+                                        ) : (
+                                            <span className="text-xs font-bold text-white/50">{editingMatch.rival_short || '?'}</span>
+                                        );
+                                    })()}
+                                </div>
+                                <span className="text-[8px] font-black text-white uppercase tracking-wide truncate max-w-[80px]">{editingMatch.rival}</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* 5. Date & Hour */}

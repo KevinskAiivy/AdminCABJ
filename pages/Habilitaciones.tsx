@@ -335,8 +335,10 @@ export const Habilitaciones = () => {
       
       // Trouver les équipes pour les logos
       const localTeam = teams.find(t => 
-        t.name?.toLowerCase().includes('boca') || 
-        t.name?.toLowerCase().includes('junior')
+        t.name && (
+          t.name.toLowerCase().includes('boca') || 
+          t.name.toLowerCase().includes('club atlético boca juniors')
+        )
       );
       const rivalTeam = teams.find(t => 
         (match.rival_id && t.id === match.rival_id) ||
@@ -957,8 +959,10 @@ export const Habilitaciones = () => {
                 
                 // Trouver les équipes pour les logos
                 const localTeam = teams.find(t => 
-                    t.name?.toLowerCase().includes('boca') || 
-                    t.name?.toLowerCase().includes('junior')
+                    t.name && (
+                        t.name.toLowerCase().includes('boca') || 
+                        t.name.toLowerCase().includes('club atlético boca juniors')
+                    )
                 );
                 const rivalTeam = teams.find(t => 
                     t.name?.toLowerCase() === match.rival?.toLowerCase() ||
@@ -989,7 +993,16 @@ export const Habilitaciones = () => {
                     
                     {/* Logos des équipes */}
                     <div className="flex items-center justify-center gap-2.5 mb-2">
-                        {settings.matchLogoUrl ? (
+                        {localTeam?.logo ? (
+                            <img 
+                                src={localTeam.logo} 
+                                alt="Boca Juniors" 
+                                className="w-12 h-12 object-contain"
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                            />
+                        ) : settings.matchLogoUrl ? (
                             <img 
                                 src={settings.matchLogoUrl} 
                                 alt="Boca Juniors" 
