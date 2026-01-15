@@ -55,7 +55,7 @@ export const Socios = ({ user }: { user?: any }) => {
   
   // Pagination - doit être déclaré avant le useEffect qui l'utilise
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 9;
+  const itemsPerPage = 12;
   
   // Initialiser le filtre consulado depuis l'URL si présent (une seule fois au chargement)
   const hasInitializedFromUrl = useRef(false);
@@ -809,7 +809,7 @@ export const Socios = ({ user }: { user?: any }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
         {(currentItems || []).map((socio) => {
             const isPresident = socio.role === 'PRESIDENTE';
             const isReferente = socio.role === 'REFERENTE';
@@ -819,131 +819,77 @@ export const Socios = ({ user }: { user?: any }) => {
             
             if (isPresident) {
                 variant = 'gold';
-                containerClass = "border-2 border-[#001d4a] shadow-[0_8px_32px_rgba(252,177,49,0.4),0_0_40px_rgba(255,215,0,0.3),inset_0_0_20px_rgba(255,255,255,0.4)] bg-gradient-to-br from-[#FFD700] via-[#FFC125] to-[#FFA500] backdrop-blur-xl";
+                containerClass = "border border-[#001d4a] shadow-sm bg-gradient-to-br from-[#FFD700] via-[#FFC125] to-[#FFA500]";
             } else if (isReferente) {
                 variant = 'dark';
-                containerClass = "border-2 border-[#FCB131] shadow-[0_0_20px_rgba(252,177,49,0.6),0_8px_32px_rgba(0,29,74,0.5)]";
+                containerClass = "border border-[#FCB131] shadow-sm";
             } else {
-                // Bordure selon le genre pour les socios normaux (bleu par défaut si non défini)
                 let genderBorderClass = "";
                 if (socio.gender === 'M') {
-                    genderBorderClass = "border-l-4 border-r-4 border-[#003B94]";
+                    genderBorderClass = "border-l-2 border-r-2 border-[#003B94]";
                 } else if (socio.gender === 'F') {
-                    genderBorderClass = "border-l-4 border-r-4 border-[#FCB131]";
+                    genderBorderClass = "border-l-2 border-r-2 border-[#FCB131]";
                 } else if (socio.gender === 'X') {
-                    genderBorderClass = "border-l-4 border-r-4 border-white";
+                    genderBorderClass = "border-l-2 border-r-2 border-white";
                 } else {
-                    // Genre non défini : bordure bleue par défaut
-                    genderBorderClass = "border-l-4 border-r-4 border-[#003B94]";
+                    genderBorderClass = "border-l-2 border-r-2 border-[#003B94]";
                 }
-                
                 variant = 'light';
-                if (computedStatus.label === 'EN DEUDA') {
-                    containerClass = `${genderBorderClass} shadow-[0_4px_16px_rgba(245,158,11,0.1)]`;
-                } else if (computedStatus.label === 'DE BAJA') {
-                    containerClass = `${genderBorderClass} shadow-[0_4px_16px_rgba(239,68,68,0.1)]`;
-                } else {
-                    containerClass = genderBorderClass;
-                }
+                containerClass = genderBorderClass;
             }
 
             return (
             <GlassCard
                 key={socio.id}
                 onClick={() => openCarnetDigital(socio)}
-                className={`flex flex-col group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_-5px_rgba(0,29,74,0.2)] ${containerClass} p-0`}
+                className={`flex flex-col group relative overflow-hidden transition-all duration-200 hover:shadow-md ${containerClass} p-0`}
                 variant={variant}
             >
-                {/* Action buttons - visibles uniquement au survol */}
-                <div className="absolute top-3 right-3 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                {/* Action buttons */}
+                <div className="absolute top-1 right-1 z-10 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
-                        onClick={(e) => { 
-                            e.stopPropagation(); 
-                            handleEdit(socio); 
-                        }} 
-                        className={`p-2 backdrop-blur-sm rounded-lg hover:text-white transition-all shadow-lg border hover:scale-110 ${
-                            isPresident || isReferente
-                                ? 'bg-white/20 text-white border-white/30 hover:bg-white/30'
-                                : 'bg-white/80 text-[#003B94] border-white/20 hover:bg-[#003B94]'
+                        onClick={(e) => { e.stopPropagation(); handleEdit(socio); }} 
+                        className={`p-1 rounded transition-all ${
+                            isPresident || isReferente ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-white/80 text-[#003B94] hover:bg-[#003B94] hover:text-white'
                         }`}
-                        title="Editar socio"
                     >
-                        <Edit2 size={14} />
+                        <Edit2 size={10} />
                     </button>
                     <button 
-                        onClick={(e) => { 
-                            e.stopPropagation(); 
-                            setSelectedSocio(socio); 
-                            setIsDeleteModalOpen(true); 
-                        }} 
-                        className={`p-2 backdrop-blur-sm text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-lg border hover:scale-110 ${
-                            isPresident || isReferente
-                                ? 'bg-white/20 border-white/30'
-                                : 'bg-white/80 border-white/20'
+                        onClick={(e) => { e.stopPropagation(); setSelectedSocio(socio); setIsDeleteModalOpen(true); }} 
+                        className={`p-1 rounded text-red-500 transition-all ${
+                            isPresident || isReferente ? 'bg-white/20 hover:bg-red-500 hover:text-white' : 'bg-white/80 hover:bg-red-500 hover:text-white'
                         }`}
-                        title="Eliminar socio"
                     >
-                        <Trash2 size={14} />
+                        <Trash2 size={10} />
                     </button>
                 </div>
 
-                <div className="p-5 pb-3 flex items-start gap-4 relative">
-                    <div className={`flex-1 min-w-0 ${isPresident ? 'pr-16' : 'pr-16'}`}>
-                        <div className="flex items-center gap-2 mb-1">
-                            <h4 className={`oswald text-lg tracking-tight leading-none truncate ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-[#001d4a]'}`}>
-                                <span className="font-black uppercase">{socio.last_name.toUpperCase()}</span> <span className="font-normal capitalize">{socio.first_name.toLowerCase()}</span>
-                            </h4>
-                            {/* Pastille pour les présidents - à droite du nom */}
-                            {isPresident && (
-                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#001d4a] to-[#003B94] flex items-center justify-center shadow-[0_4px_12px_rgba(252,177,49,0.4),0_0_20px_rgba(252,177,49,0.3)] border-2 border-[#FCB131] z-10 animate-pulse flex-shrink-0">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 0 2px rgba(252, 177, 49, 0.8))' }}>
-                                        <path d="M12 0.5L14.5 8.5L22.5 8.5L16 13.5L18.5 21.5L12 16L5.5 21.5L8 13.5L1.5 8.5L9.5 8.5L12 0.5Z" fill="#FCB131" stroke="#FCB131" strokeWidth="0.3" strokeLinejoin="miter" vectorEffect="non-scaling-stroke" />
-                                    </svg>
-                                </div>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-2 mb-2 mt-2">
-                            <span className={`text-[9px] font-bold uppercase tracking-wider ${isPresident ? 'text-[#001d4a]/80' : isReferente ? 'text-white/80' : 'text-gray-500'}`}>{getGenderLabel('N° Socio:', socio.gender)}</span>
-                            <span className={`text-[10px] font-black ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-[#001d4a]'}`}>{socio.numero_socio || socio.dni || 'N/A'}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2 items-center mt-3">
-                            <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest backdrop-blur-sm border shadow-sm ${
-                                isPresident 
-                                    ? 'bg-[#001d4a]/10 border-[#001d4a]/30 text-[#001d4a]'
-                                    : isReferente 
-                                    ? 'bg-white/20 border-white/30 text-white' 
-                                    : 'bg-white/60 border-white/30 text-gray-700'
-                            }`}>{getGenderRoleLabel(socio.role || 'SOCIO', socio.gender)}</span>
-                        </div>
-                        {/* Email et téléphone */}
-                        <div className="flex flex-col gap-1.5 mt-3">
-                            {socio.email && (
-                                <div className={`flex items-center gap-1.5 ${isPresident ? 'text-[#001d4a]/80' : isReferente ? 'text-white/80' : 'text-gray-600'}`}>
-                                    <Mail size={11} className={isPresident ? "text-[#001d4a]/60" : isReferente ? "text-white/60" : "text-gray-400"} />
-                                    <span className={`text-[9px] font-bold truncate ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-gray-700'}`}>{socio.email}</span>
-                                </div>
-                            )}
-                            {socio.phone && (
-                                <div className={`flex items-center gap-1.5 ${isPresident ? 'text-[#001d4a]/80' : isReferente ? 'text-white/80' : 'text-gray-600'}`}>
-                                    <Phone size={11} className={isPresident ? "text-[#001d4a]/60" : isReferente ? "text-white/60" : "text-gray-400"} />
-                                    <span className={`text-[9px] font-bold truncate ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-gray-700'}`}>{socio.phone}</span>
-                                </div>
-                            )}
-                        </div>
+                <div className="p-2 pb-1">
+                    <div className="flex items-center gap-1 mb-0.5">
+                        <h4 className={`oswald text-xs tracking-tight leading-none truncate font-black uppercase ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-[#001d4a]'}`}>
+                            {socio.last_name.toUpperCase()}
+                        </h4>
+                        {isPresident && (
+                            <div className="w-4 h-4 rounded-full bg-[#001d4a] flex items-center justify-center border border-[#FCB131] flex-shrink-0">
+                                <svg width="8" height="8" viewBox="0 0 24 24" fill="#FCB131"><path d="M12 0.5L14.5 8.5L22.5 8.5L16 13.5L18.5 21.5L12 16L5.5 21.5L8 13.5L1.5 8.5L9.5 8.5L12 0.5Z"/></svg>
+                            </div>
+                        )}
+                    </div>
+                    <p className={`text-[9px] truncate ${isPresident ? 'text-[#001d4a]/70' : isReferente ? 'text-white/70' : 'text-gray-500'}`}>{socio.first_name}</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                        <span className={`text-[7px] ${isPresident ? 'text-[#001d4a]/50' : isReferente ? 'text-white/50' : 'text-gray-400'}`}>N°</span>
+                        <span className={`text-[8px] font-bold ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-[#001d4a]'}`}>{socio.numero_socio || socio.dni || '-'}</span>
                     </div>
                 </div>
-                <div className="px-5 py-3 space-y-3">
-                    <div className={`flex items-center gap-2 ${isPresident ? 'text-[#001d4a] bg-[#001d4a]/5' : isReferente ? 'text-white/90 bg-white/10' : 'text-[#001d4a]/80 bg-white/30'} backdrop-blur-sm rounded-lg px-3 py-2 border ${isPresident ? 'border-[#001d4a]/20' : 'border-white/20'}`}>
-                        <MapPin size={14} className={isPresident ? "text-[#001d4a]" : isReferente ? "text-[#FCB131]" : "text-[#FCB131]"} />
-                        <span className="text-[10px] font-black uppercase tracking-widest truncate">{socio.consulado || 'CONSULADO CENTRAL'}</span>
+                <div className="px-2 pb-1.5 flex items-center justify-between gap-1">
+                    <div className={`flex items-center gap-0.5 ${isPresident ? 'text-[#001d4a]/70' : isReferente ? 'text-white/70' : 'text-gray-500'}`}>
+                        <MapPin size={8} className="text-[#FCB131]" />
+                        <span className="text-[7px] font-bold uppercase truncate max-w-[60px]">{socio.consulado || 'Central'}</span>
                     </div>
-                    {/* Pastille de statut - déplacée ici */}
-                    <div className={`text-[9px] font-bold flex items-center justify-between border-t ${isPresident ? 'border-[#001d4a]/20' : 'border-white/20'} pt-2 ${isPresident ? 'text-[#001d4a] bg-[#001d4a]/5' : isReferente ? 'text-white bg-white/10' : 'text-[#001d4a] bg-white/20'} backdrop-blur-sm rounded-lg px-3 py-2`}>
-                        <span className={`uppercase opacity-70 ${isPresident ? 'text-[#001d4a]/70' : isReferente ? 'text-white/70' : ''}`}>Estado:</span>
-                        <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest ${computedStatus.color} ${isPresident ? 'bg-opacity-20 border border-[#001d4a]/30' : isReferente ? 'bg-opacity-20 border border-white/30' : ''}`}>
-                            {computedStatus.label}
-                        </span>
-                    </div>
+                    <span className={`px-1 py-0.5 rounded text-[6px] font-black uppercase ${computedStatus.color}`}>
+                        {computedStatus.label}
+                    </span>
                 </div>
             </GlassCard>
             );
@@ -1567,56 +1513,53 @@ export const Socios = ({ user }: { user?: any }) => {
 
       {/* CARNET DIGITAL DE SOCIO */}
       {viewSocio && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center px-4 bg-[#001d4a]/70 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="relative w-full max-w-2xl bg-gradient-to-br from-[#001d4a] via-[#003B94] to-[#001d4a] rounded-3xl shadow-[0_50px_100px_rgba(0,0,0,0.5)] overflow-hidden border-2 border-[#FCB131]/30 max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center px-2 bg-[#001d4a]/70 backdrop-blur-md animate-in fade-in duration-300 h-[700px]">
+          <div className="relative w-full max-w-md bg-gradient-to-br from-[#001d4a] via-[#003B94] to-[#001d4a] rounded-2xl shadow-[0_30px_60px_rgba(0,0,0,0.5)] overflow-hidden border-2 border-[#FCB131]/30 max-h-[85vh] flex flex-col">
             {/* Header du carnet - Style carte d'identité */}
-            <div className="relative p-6 pb-4 border-b border-[#FCB131]/30 bg-gradient-to-r from-[#001d4a] to-[#003B94]">
+            <div className="relative p-4 pb-3 border-b border-[#FCB131]/30 bg-gradient-to-r from-[#001d4a] to-[#003B94]">
               {/* Bouton fermer */}
               <button 
-                onClick={() => { setViewSocio(null); setCarnetTab('INFO'); }}
-                className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all z-20"
+                onClick={(e) => { e.stopPropagation(); setViewSocio(null); setCarnetTab('INFO'); }}
+                className="absolute top-2 right-2 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all z-50 cursor-pointer"
+                type="button"
               >
-                <X size={20} />
+                <X size={16} />
               </button>
               
               {/* Badge CABJ */}
-              <div className="absolute top-4 left-4 flex items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-[#FCB131] flex items-center justify-center shadow-lg">
-                  <span className="text-[#001d4a] font-black text-xs">CABJ</span>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-[#FCB131] flex items-center justify-center shadow-lg">
+                  <span className="text-[#001d4a] font-black text-[10px]">CABJ</span>
                 </div>
                 <span className="text-[#FCB131] text-[8px] font-black uppercase tracking-widest">Carnet Digital</span>
               </div>
               
               {/* Photo et infos principales */}
-              <div className="flex items-center gap-6 mt-10">
-                {/* Photo */}
-                <div className="w-28 h-36 rounded-xl bg-white/10 border-2 border-[#FCB131]/50 overflow-hidden shadow-xl flex-shrink-0">
-                  {viewSocio.foto ? (
+              <div className="flex items-center gap-4 mt-3">
+                {/* Photo - seulement si disponible */}
+                {viewSocio.foto ? (
+                  <div className="w-20 h-24 rounded-lg bg-gradient-to-br from-[#001d4a] to-[#003B94] border-2 border-[#FCB131]/50 overflow-hidden shadow-xl flex-shrink-0">
                     <img src={viewSocio.foto} alt={viewSocio.last_name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-600 to-gray-800">
-                      <User size={48} className="text-white/50" />
-                    </div>
-                  )}
-                </div>
+                  </div>
+                ) : null}
                 
                 {/* Infos */}
                 <div className="flex-1 min-w-0">
-                  <h2 className="oswald text-2xl font-black text-white uppercase tracking-tight truncate">
+                  <h2 className="oswald text-lg font-black text-white uppercase tracking-tight truncate">
                     {viewSocio.last_name}
                   </h2>
-                  <p className="text-[#FCB131] text-lg font-bold capitalize">{viewSocio.first_name.toLowerCase()}</p>
+                  <p className="text-[#FCB131] text-sm font-bold capitalize">{viewSocio.first_name.toLowerCase()}</p>
                   
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <span className="px-3 py-1 rounded-lg bg-[#FCB131] text-[#001d4a] text-[10px] font-black uppercase tracking-widest">
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    <span className="px-2 py-0.5 rounded bg-[#FCB131] text-[#001d4a] text-[8px] font-black uppercase tracking-widest">
                       N° {viewSocio.numero_socio || viewSocio.dni || viewSocio.id}
                     </span>
-                    <span className="px-3 py-1 rounded-lg bg-white/20 text-white text-[10px] font-black uppercase tracking-widest">
+                    <span className="px-2 py-0.5 rounded bg-white/20 text-white text-[8px] font-black uppercase tracking-widest">
                       {viewSocio.category}
                     </span>
                     {viewSocio.role && viewSocio.role !== 'SOCIO' && (
-                      <span className="px-3 py-1 rounded-lg bg-green-500/80 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
-                        {viewSocio.role === 'PRESIDENTE' && <Crown size={10} />}
+                      <span className="px-2 py-0.5 rounded bg-green-500/80 text-white text-[8px] font-black uppercase tracking-widest flex items-center gap-0.5">
+                        {viewSocio.role === 'PRESIDENTE' && <Crown size={8} />}
                         {viewSocio.role}
                       </span>
                     )}
@@ -1626,13 +1569,13 @@ export const Socios = ({ user }: { user?: any }) => {
                   {(() => {
                     const status = calculateSocioStatus(viewSocio.last_month_paid);
                     return (
-                      <div className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ${
+                      <div className={`mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded ${
                         status.label === 'AL DÍA' ? 'bg-green-500/20 text-green-400' :
                         status.label === 'EN DEUDA' ? 'bg-amber-500/20 text-amber-400' :
                         'bg-red-500/20 text-red-400'
                       }`}>
-                        {status.label === 'AL DÍA' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
-                        <span className="text-[10px] font-black uppercase tracking-widest">{status.label}</span>
+                        {status.label === 'AL DÍA' ? <CheckCircle2 size={10} /> : <AlertTriangle size={10} />}
+                        <span className="text-[8px] font-black uppercase tracking-widest">{status.label}</span>
                       </div>
                     );
                   })()}
@@ -1644,104 +1587,104 @@ export const Socios = ({ user }: { user?: any }) => {
             <div className="flex border-b border-[#FCB131]/20 bg-[#001d4a]/50">
               <button
                 onClick={() => setCarnetTab('INFO')}
-                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1 ${
                   carnetTab === 'INFO' 
                     ? 'text-[#FCB131] border-b-2 border-[#FCB131] bg-white/5' 
                     : 'text-white/60 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <CreditCard size={14} /> Información
+                <CreditCard size={12} /> Información
               </button>
               <button
                 onClick={() => setCarnetTab('HISTORIAL')}
-                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1 ${
                   carnetTab === 'HISTORIAL' 
                     ? 'text-[#FCB131] border-b-2 border-[#FCB131] bg-white/5' 
                     : 'text-white/60 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <History size={14} /> Historial Partidos
+                <History size={12} /> Historial
               </button>
             </div>
             
             {/* Contenu */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-3">
               {carnetTab === 'INFO' && (
-                <div className="space-y-6">
+                <div className="space-y-3">
                   {/* Datos Personales */}
-                  <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                    <h3 className="text-[#FCB131] text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <User size={14} /> Datos Personales
+                  <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                    <h3 className="text-[#FCB131] text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-1">
+                      <User size={12} /> Datos Personales
                     </h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <span className="text-white/50 text-[9px] uppercase tracking-widest block">DNI</span>
-                        <span className="text-white font-bold text-sm">{viewSocio.dni || '-'}</span>
+                        <span className="text-white/50 text-[8px] uppercase tracking-widest block">DNI</span>
+                        <span className="text-white font-bold text-xs">{viewSocio.dni || '-'}</span>
                       </div>
                       <div>
-                        <span className="text-white/50 text-[9px] uppercase tracking-widest block">Género</span>
-                        <span className="text-white font-bold text-sm">
+                        <span className="text-white/50 text-[8px] uppercase tracking-widest block">Género</span>
+                        <span className="text-white font-bold text-xs">
                           {viewSocio.gender === 'M' ? 'Masculino' : viewSocio.gender === 'F' ? 'Femenino' : 'No binario'}
                         </span>
                       </div>
                       <div>
-                        <span className="text-white/50 text-[9px] uppercase tracking-widest block flex items-center gap-1">
-                          <Cake size={10} /> Fecha de Nacimiento
+                        <span className="text-white/50 text-[8px] uppercase tracking-widest block flex items-center gap-0.5">
+                          <Cake size={8} /> Nacimiento
                         </span>
-                        <span className="text-white font-bold text-sm">{formatDateDisplay(viewSocio.birth_date) || '-'}</span>
+                        <span className="text-white font-bold text-xs">{formatDateDisplay(viewSocio.birth_date) || '-'}</span>
                       </div>
                       <div>
-                        <span className="text-white/50 text-[9px] uppercase tracking-widest block">Nacionalidad</span>
-                        <span className="text-white font-bold text-sm">{viewSocio.nationality || 'Argentina'}</span>
+                        <span className="text-white/50 text-[8px] uppercase tracking-widest block">Nacionalidad</span>
+                        <span className="text-white font-bold text-xs">{viewSocio.nationality || 'Argentina'}</span>
                       </div>
                     </div>
                   </div>
                   
                   {/* Contacto */}
-                  <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                    <h3 className="text-[#FCB131] text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <Phone size={14} /> Contacto
+                  <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                    <h3 className="text-[#FCB131] text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-1">
+                      <Phone size={12} /> Contacto
                     </h3>
-                    <div className="space-y-3">
+                    <div className="space-y-1.5">
                       {viewSocio.email && (
-                        <div className="flex items-center gap-3">
-                          <Mail size={16} className="text-[#FCB131]" />
-                          <span className="text-white font-bold text-sm">{viewSocio.email}</span>
+                        <div className="flex items-center gap-2">
+                          <Mail size={12} className="text-[#FCB131]" />
+                          <span className="text-white font-bold text-xs truncate">{viewSocio.email}</span>
                         </div>
                       )}
                       {viewSocio.phone && (
-                        <div className="flex items-center gap-3">
-                          <Phone size={16} className="text-[#FCB131]" />
-                          <span className="text-white font-bold text-sm">{viewSocio.phone}</span>
+                        <div className="flex items-center gap-2">
+                          <Phone size={12} className="text-[#FCB131]" />
+                          <span className="text-white font-bold text-xs">{viewSocio.phone}</span>
                         </div>
                       )}
                     </div>
                   </div>
                   
                   {/* Membresía */}
-                  <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                    <h3 className="text-[#FCB131] text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <Award size={14} /> Membresía
+                  <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                    <h3 className="text-[#FCB131] text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-1">
+                      <Award size={12} /> Membresía
                     </h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <span className="text-white/50 text-[9px] uppercase tracking-widest block">Consulado</span>
-                        <span className="text-white font-bold text-sm flex items-center gap-1">
-                          <MapPin size={12} className="text-[#FCB131]" />
-                          {viewSocio.consulado || 'Consulado Central'}
+                        <span className="text-white/50 text-[8px] uppercase tracking-widest block">Consulado</span>
+                        <span className="text-white font-bold text-xs flex items-center gap-0.5">
+                          <MapPin size={10} className="text-[#FCB131]" />
+                          {viewSocio.consulado || 'Central'}
                         </span>
                       </div>
                       <div>
-                        <span className="text-white/50 text-[9px] uppercase tracking-widest block">Fecha Alta</span>
-                        <span className="text-white font-bold text-sm">{formatDateDisplay(viewSocio.join_date) || '-'}</span>
+                        <span className="text-white/50 text-[8px] uppercase tracking-widest block">Fecha Alta</span>
+                        <span className="text-white font-bold text-xs">{formatDateDisplay(viewSocio.join_date) || '-'}</span>
                       </div>
                       <div>
-                        <span className="text-white/50 text-[9px] uppercase tracking-widest block">Último Pago</span>
-                        <span className="text-white font-bold text-sm">{formatDateDisplay(viewSocio.last_month_paid) || '-'}</span>
+                        <span className="text-white/50 text-[8px] uppercase tracking-widest block">Último Pago</span>
+                        <span className="text-white font-bold text-xs">{formatDateDisplay(viewSocio.last_month_paid) || '-'}</span>
                       </div>
                       <div>
-                        <span className="text-white/50 text-[9px] uppercase tracking-widest block">Vencimiento</span>
-                        <span className="text-white font-bold text-sm">{formatDateDisplay(viewSocio.expiration_date) || '-'}</span>
+                        <span className="text-white/50 text-[8px] uppercase tracking-widest block">Vencimiento</span>
+                        <span className="text-white font-bold text-xs">{formatDateDisplay(viewSocio.expiration_date) || '-'}</span>
                       </div>
                     </div>
                   </div>
@@ -1749,73 +1692,73 @@ export const Socios = ({ user }: { user?: any }) => {
               )}
               
               {carnetTab === 'HISTORIAL' && (
-                <div className="space-y-6">
+                <div className="space-y-3">
                   {/* Estadísticas */}
                   {socioStats && (
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="bg-green-500/20 rounded-xl p-4 text-center border border-green-500/30">
-                        <div className="text-3xl font-black text-green-400 oswald">{socioStats.total_attended}</div>
-                        <div className="text-[9px] text-green-300 font-bold uppercase tracking-widest mt-1">Presencias</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-green-500/20 rounded-lg p-2 text-center border border-green-500/30">
+                        <div className="text-xl font-black text-green-400 oswald">{socioStats.total_attended}</div>
+                        <div className="text-[7px] text-green-300 font-bold uppercase tracking-widest">Presencias</div>
                       </div>
-                      <div className="bg-amber-500/20 rounded-xl p-4 text-center border border-amber-500/30">
-                        <div className="text-3xl font-black text-amber-400 oswald">{socioStats.total_no_show}</div>
-                        <div className="text-[9px] text-amber-300 font-bold uppercase tracking-widest mt-1">Ausencias</div>
+                      <div className="bg-amber-500/20 rounded-lg p-2 text-center border border-amber-500/30">
+                        <div className="text-xl font-black text-amber-400 oswald">{socioStats.total_no_show}</div>
+                        <div className="text-[7px] text-amber-300 font-bold uppercase tracking-widest">Ausencias</div>
                       </div>
-                      <div className="bg-blue-500/20 rounded-xl p-4 text-center border border-blue-500/30">
-                        <div className="text-3xl font-black text-blue-400 oswald">
+                      <div className="bg-blue-500/20 rounded-lg p-2 text-center border border-blue-500/30">
+                        <div className="text-xl font-black text-blue-400 oswald">
                           {socioStats.attendance_rate !== null ? `${socioStats.attendance_rate}%` : '-'}
                         </div>
-                        <div className="text-[9px] text-blue-300 font-bold uppercase tracking-widest mt-1">Asistencia</div>
+                        <div className="text-[7px] text-blue-300 font-bold uppercase tracking-widest">Asistencia</div>
                       </div>
                     </div>
                   )}
                   
                   {/* Liste de l'historique */}
-                  <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
-                    <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                      <h3 className="text-[#FCB131] text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                        <Ticket size={14} /> Historial de Partidos
+                  <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden">
+                    <div className="p-2 border-b border-white/10 flex items-center justify-between">
+                      <h3 className="text-[#FCB131] text-[8px] font-black uppercase tracking-widest flex items-center gap-1">
+                        <Ticket size={10} /> Historial
                       </h3>
-                      <span className="text-white/50 text-[9px]">{socioHistory.length} registros</span>
+                      <span className="text-white/50 text-[8px]">{socioHistory.length} registros</span>
                     </div>
                     
                     {isLoadingHistory ? (
-                      <div className="p-8 flex items-center justify-center">
-                        <Loader2 size={24} className="text-[#FCB131] animate-spin" />
+                      <div className="p-4 flex items-center justify-center">
+                        <Loader2 size={18} className="text-[#FCB131] animate-spin" />
                       </div>
                     ) : socioHistory.length === 0 ? (
-                      <div className="p-8 text-center">
-                        <Ticket size={48} className="text-white/20 mx-auto mb-3" />
-                        <p className="text-white/50 text-sm font-bold">Sin historial de partidos</p>
-                        <p className="text-white/30 text-xs mt-1">Las solicitudes aparecerán aquí</p>
+                      <div className="p-4 text-center">
+                        <Ticket size={32} className="text-white/20 mx-auto mb-2" />
+                        <p className="text-white/50 text-xs font-bold">Sin historial</p>
+                        <p className="text-white/30 text-[10px] mt-0.5">Las solicitudes aparecerán aquí</p>
                       </div>
                     ) : (
-                      <div className="divide-y divide-white/10 max-h-[300px] overflow-y-auto">
+                      <div className="divide-y divide-white/10 max-h-[200px] overflow-y-auto">
                         {socioHistory.map((record) => (
-                          <div key={record.id} className="p-4 hover:bg-white/5 transition-all">
-                            <div className="flex items-start justify-between gap-4">
+                          <div key={record.id} className="p-2 hover:bg-white/5 transition-all">
+                            <div className="flex items-start justify-between gap-2">
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-white font-bold text-sm truncate">
+                                <div className="flex items-center gap-1 mb-0.5">
+                                  <span className="text-white font-bold text-xs truncate">
                                     vs {record.match_opponent || 'Rival'}
                                   </span>
-                                  <span className="text-white/50 text-[9px] uppercase">
+                                  <span className="text-white/50 text-[8px] uppercase">
                                     {record.match_type === 'LOCAL' ? '(L)' : '(V)'}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-3 text-[10px] text-white/60">
-                                  <span className="flex items-center gap-1">
-                                    <Calendar size={10} />
+                                <div className="flex items-center gap-2 text-[8px] text-white/60">
+                                  <span className="flex items-center gap-0.5">
+                                    <Calendar size={8} />
                                     {record.match_date ? new Date(record.match_date).toLocaleDateString('es-AR') : '-'}
                                   </span>
-                                  <span>{record.match_competition || '-'}</span>
+                                  <span className="truncate">{record.match_competition || '-'}</span>
                                 </div>
                               </div>
                               
                               {/* Status badges */}
-                              <div className="flex flex-col items-end gap-1">
+                              <div className="flex flex-col items-end gap-0.5">
                                 {/* Request status */}
-                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                                <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase ${
                                   record.request_status === 'ACEPTADO' ? 'bg-green-500/20 text-green-400' :
                                   record.request_status === 'RECHAZADO' ? 'bg-red-500/20 text-red-400' :
                                   record.request_status === 'CANCELADO' ? 'bg-gray-500/20 text-gray-400' :
@@ -1826,18 +1769,18 @@ export const Socios = ({ user }: { user?: any }) => {
                                 
                                 {/* Attendance status */}
                                 {record.attendance_status && (
-                                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase flex items-center gap-1 ${
+                                  <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase flex items-center gap-0.5 ${
                                     record.attendance_status === 'PRESENTE' ? 'bg-green-500/30 text-green-300' :
                                     record.attendance_status === 'AUSENTE_SIN_AVISO' ? 'bg-red-500/30 text-red-300' :
                                     record.attendance_status === 'AUSENTE_CON_AVISO' ? 'bg-amber-500/30 text-amber-300' :
                                     'bg-gray-500/30 text-gray-300'
                                   }`}>
-                                    {record.attendance_status === 'PRESENTE' && <CheckCircle2 size={8} />}
-                                    {record.attendance_status === 'AUSENTE_SIN_AVISO' && <XOctagon size={8} />}
-                                    {record.attendance_status === 'AUSENTE_CON_AVISO' && <Bell size={8} />}
-                                    {record.attendance_status === 'PRESENTE' ? 'Presente' :
-                                     record.attendance_status === 'AUSENTE_SIN_AVISO' ? 'No vino' :
-                                     record.attendance_status === 'AUSENTE_CON_AVISO' ? 'Avisó' : 'Anulado'}
+                                    {record.attendance_status === 'PRESENTE' && <CheckCircle2 size={7} />}
+                                    {record.attendance_status === 'AUSENTE_SIN_AVISO' && <XOctagon size={7} />}
+                                    {record.attendance_status === 'AUSENTE_CON_AVISO' && <Bell size={7} />}
+                                    {record.attendance_status === 'PRESENTE' ? 'OK' :
+                                     record.attendance_status === 'AUSENTE_SIN_AVISO' ? 'No' :
+                                     record.attendance_status === 'AUSENTE_CON_AVISO' ? 'Avisó' : '-'}
                                   </span>
                                 )}
                               </div>
