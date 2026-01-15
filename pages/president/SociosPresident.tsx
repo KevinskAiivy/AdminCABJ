@@ -567,7 +567,7 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                                 <Star size={24} className="text-[#FCB131] fill-[#FCB131]" strokeWidth={2.5} />
                             </div>
                         )}
-                        <div className={`flex-1 min-w-0 ${isPresident || isReferente ? 'pl-20' : 'pr-16'}`}>
+                        <div className={`flex-1 min-w-0 ${isPresident ? 'pl-20' : 'pr-16'}`}>
                             {/* Nom du socio en premier */}
                             <h4 className={`oswald text-lg tracking-tight leading-none truncate mb-2 ${isPresident || isReferente ? 'text-white' : 'text-[#001d4a]'}`}>
                                 <span className="font-black uppercase">{socio.last_name.toUpperCase()}</span> <span className="font-normal capitalize">{socio.first_name.toLowerCase()}</span>
