@@ -80,10 +80,13 @@ export const Socios = ({ user }: { user?: any }) => {
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Export Modal - Options complètes
+  // Export Modal - Options complètes (filtres combinables)
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportSelection, setExportSelection] = useState<Set<string>>(new Set(['ALL']));
-  const [exportFilter, setExportFilter] = useState<'ALL' | 'AL_DIA' | 'EN_DEUDA' | 'DE_BAJA' | 'CONSULADO'>('ALL');
+  // Alcance: 'ALL' = toda la lista, 'CONSULADO' = por consulado(s) seleccionado(s)
+  const [exportAlcance, setExportAlcance] = useState<'ALL' | 'CONSULADO'>('ALL');
+  // Estado de cuota: 'ALL' = todos, 'AL_DIA', 'EN_DEUDA', 'DE_BAJA'
+  const [exportEstado, setExportEstado] = useState<'ALL' | 'AL_DIA' | 'EN_DEUDA' | 'DE_BAJA'>('ALL');
   const [exportConsulados, setExportConsulados] = useState<Set<string>>(new Set());
   const [exportCategories, setExportCategories] = useState<Set<string>>(new Set());
 
@@ -287,18 +290,18 @@ export const Socios = ({ user }: { user?: any }) => {
       let titulo = "PADRÓN OFICIAL DE SOCIOS";
       let subtitulos: string[] = [];
       
-      // Alcance
-      if (exportFilter === 'CONSULADO' && exportConsulados.size > 0) {
+      // Alcance (portée)
+      if (exportAlcance === 'CONSULADO' && exportConsulados.size > 0) {
           titulo = "PADRÓN POR CONSULADO";
           subtitulos.push(Array.from(exportConsulados).slice(0, 3).join(', ') + (exportConsulados.size > 3 ? '...' : ''));
       }
       
-      // État de cuota
-      if (exportFilter === 'AL_DIA') {
+      // État de cuota (indépendant de l'alcance)
+      if (exportEstado === 'AL_DIA') {
           subtitulos.push("Estado: Al Día");
-      } else if (exportFilter === 'EN_DEUDA') {
+      } else if (exportEstado === 'EN_DEUDA') {
           subtitulos.push("Estado: En Deuda");
-      } else if (exportFilter === 'DE_BAJA') {
+      } else if (exportEstado === 'DE_BAJA') {
           subtitulos.push("Estado: De Baja");
       }
       
@@ -322,22 +325,22 @@ export const Socios = ({ user }: { user?: any }) => {
       });
       doc.text(settings.appName || "Administración Consulados", 40, yPos);
 
-      // Filtrer les données selon les options sélectionnées
+      // Filtrer les données selon les options sélectionnées (filtres combinables)
       let dataToExport = socios.filter(s => {
-          // 1. Filtre par consulado (si sélectionné)
-          if (exportFilter === 'CONSULADO' && exportConsulados.size > 0) {
+          // 1. Filtre par consulado (si sélectionné) - ALCANCE
+          if (exportAlcance === 'CONSULADO' && exportConsulados.size > 0) {
               const cName = s.consulado || 'Consulado Central';
               if (!exportConsulados.has(cName)) return false;
           }
           
-          // 2. Filtre par état de cuota
-          if (exportFilter === 'AL_DIA') {
+          // 2. Filtre par état de cuota - ESTADO (indépendant de l'alcance)
+          if (exportEstado === 'AL_DIA') {
               const status = calculateSocioStatus(s.last_month_paid);
               if (status.label !== 'AL DÍA') return false;
-          } else if (exportFilter === 'EN_DEUDA') {
+          } else if (exportEstado === 'EN_DEUDA') {
               const status = calculateSocioStatus(s.last_month_paid);
               if (status.label !== 'EN DEUDA') return false;
-          } else if (exportFilter === 'DE_BAJA') {
+          } else if (exportEstado === 'DE_BAJA') {
               if (s.category !== 'BAJA') return false;
           }
           
@@ -381,17 +384,22 @@ export const Socios = ({ user }: { user?: any }) => {
           doc.text(`Página ${i} de ${pageCount} • Total: ${dataToExport.length} socios`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10, { align: 'right' });
       }
       
-      // Nom du fichier dynamique
-      let fileName = 'Padron_Socios';
-      if (exportFilter === 'CONSULADO') fileName = 'Socios_PorConsulado';
-      else if (exportFilter === 'AL_DIA') fileName = 'Socios_AlDia';
-      else if (exportFilter === 'EN_DEUDA') fileName = 'Socios_EnDeuda';
-      else if (exportFilter === 'DE_BAJA') fileName = 'Socios_DeBaja';
+      // Nom du fichier dynamique (combinaison des filtres)
+      let fileNameParts = ['Socios'];
+      if (exportAlcance === 'CONSULADO' && exportConsulados.size > 0) {
+          fileNameParts.push('Consulado');
+      }
+      if (exportEstado === 'AL_DIA') fileNameParts.push('AlDia');
+      else if (exportEstado === 'EN_DEUDA') fileNameParts.push('EnDeuda');
+      else if (exportEstado === 'DE_BAJA') fileNameParts.push('DeBaja');
+      
+      const fileName = fileNameParts.length > 1 ? fileNameParts.join('_') : 'Padron_Socios';
       
       doc.save(`${fileName}_${new Date().toISOString().split('T')[0]}.pdf`);
       setIsExportModalOpen(false);
       // Reset les filtres d'export
-      setExportFilter('ALL');
+      setExportAlcance('ALL');
+      setExportEstado('ALL');
       setExportConsulados(new Set());
       setExportCategories(new Set());
   };
@@ -1352,7 +1360,7 @@ export const Socios = ({ user }: { user?: any }) => {
                         </div>
                         <h2 className="oswald text-base font-black uppercase tracking-tight">Exportar Padrón</h2>
                     </div>
-                    <button onClick={() => { setIsExportModalOpen(false); setExportFilter('ALL'); setExportConsulados(new Set()); setExportCategories(new Set()); }} className="w-7 h-7 flex items-center justify-center hover:bg-white/10 rounded-lg transition-all">
+                    <button onClick={() => { setIsExportModalOpen(false); setExportAlcance('ALL'); setExportEstado('ALL'); setExportConsulados(new Set()); setExportCategories(new Set()); }} className="w-7 h-7 flex items-center justify-center hover:bg-white/10 rounded-lg transition-all">
                         <X size={16} />
                     </button>
                 </div>
@@ -1367,31 +1375,31 @@ export const Socios = ({ user }: { user?: any }) => {
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             <button
-                                onClick={() => { setExportFilter('ALL'); setExportConsulados(new Set()); }}
+                                onClick={() => { setExportAlcance('ALL'); setExportConsulados(new Set()); }}
                                 className={`px-3 py-2 rounded-lg border-2 transition-all flex items-center gap-2 ${
-                                    exportFilter !== 'CONSULADO' 
+                                    exportAlcance === 'ALL' 
                                         ? 'border-[#003B94] bg-[#003B94] text-white shadow-md' 
                                         : 'border-gray-200 hover:border-gray-300 bg-white'
                                 }`}
                             >
-                                <Users size={14} className={exportFilter !== 'CONSULADO' ? 'text-white' : 'text-gray-400'} />
+                                <Users size={14} className={exportAlcance === 'ALL' ? 'text-white' : 'text-gray-400'} />
                                 <span className="text-[10px] font-bold uppercase">Toda la Lista</span>
                             </button>
                             <button
-                                onClick={() => setExportFilter('CONSULADO')}
+                                onClick={() => setExportAlcance('CONSULADO')}
                                 className={`px-3 py-2 rounded-lg border-2 transition-all flex items-center gap-2 ${
-                                    exportFilter === 'CONSULADO' 
+                                    exportAlcance === 'CONSULADO' 
                                         ? 'border-indigo-500 bg-indigo-500 text-white shadow-md' 
                                         : 'border-gray-200 hover:border-gray-300 bg-white'
                                 }`}
                             >
-                                <Building2 size={14} className={exportFilter === 'CONSULADO' ? 'text-white' : 'text-gray-400'} />
+                                <Building2 size={14} className={exportAlcance === 'CONSULADO' ? 'text-white' : 'text-gray-400'} />
                                 <span className="text-[10px] font-bold uppercase">Por Consulado</span>
                             </button>
                         </div>
                         
                         {/* Sélection de consulados */}
-                        {exportFilter === 'CONSULADO' && (
+                        {exportAlcance === 'CONSULADO' && (
                             <div className="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
                                 <div className="grid grid-cols-2 gap-1.5 max-h-[100px] overflow-y-auto">
                                     {[{ id: 'Consulado Central', name: 'Consulado Central' }, ...consulados].map(c => (
@@ -1415,11 +1423,12 @@ export const Socios = ({ user }: { user?: any }) => {
                         )}
                     </div>
                     
-                    {/* Section 2: Estado de Cuota */}
+                    {/* Section 2: Estado de Cuota - INDÉPENDANT de l'alcance */}
                     <div className="space-y-2">
                         <div className="flex items-center gap-2">
                             <span className="w-5 h-5 rounded-full bg-[#003B94] text-white text-[10px] font-black flex items-center justify-center">2</span>
-                            <h3 className="text-xs font-black text-[#001d4a] uppercase tracking-wider">Estado</h3>
+                            <h3 className="text-xs font-black text-[#001d4a] uppercase tracking-wider">Estado de Cuota</h3>
+                            <span className="text-[8px] text-gray-400 italic">(combinable con alcance)</span>
                         </div>
                         <div className="grid grid-cols-4 gap-1.5">
                             {[
@@ -1428,17 +1437,11 @@ export const Socios = ({ user }: { user?: any }) => {
                                 { id: 'EN_DEUDA', label: 'Deuda', icon: AlertTriangle, color: 'bg-amber-500', border: 'border-amber-500' },
                                 { id: 'DE_BAJA', label: 'Baja', icon: UserX, color: 'bg-red-500', border: 'border-red-500' },
                             ].map(opt => {
-                                const isActive = (opt.id === 'ALL' && (exportFilter === 'ALL' || exportFilter === 'CONSULADO')) || (opt.id !== 'ALL' && exportFilter === opt.id);
+                                const isActive = exportEstado === opt.id;
                                 return (
                                     <button
                                         key={opt.id}
-                                        onClick={() => {
-                                            if (opt.id === 'ALL') {
-                                                if (exportFilter !== 'CONSULADO') setExportFilter('ALL');
-                                            } else {
-                                                setExportFilter(opt.id as any);
-                                            }
-                                        }}
+                                        onClick={() => setExportEstado(opt.id as 'ALL' | 'AL_DIA' | 'EN_DEUDA' | 'DE_BAJA')}
                                         className={`py-2 px-1 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
                                             isActive ? `${opt.border} ${opt.color} text-white shadow-md` : 'border-gray-200 hover:border-gray-300 bg-white'
                                         }`}
@@ -1499,7 +1502,7 @@ export const Socios = ({ user }: { user?: any }) => {
                             <div className="flex items-center gap-1 px-2 py-1 bg-white rounded border">
                                 <span className="text-gray-400 uppercase">Alcance:</span>
                                 <span className="font-bold text-[#001d4a]">
-                                    {exportFilter === 'CONSULADO' 
+                                    {exportAlcance === 'CONSULADO' 
                                         ? (exportConsulados.size > 0 ? `${exportConsulados.size} cons.` : '...') 
                                         : 'Todo'}
                                 </span>
@@ -1507,9 +1510,9 @@ export const Socios = ({ user }: { user?: any }) => {
                             <div className="flex items-center gap-1 px-2 py-1 bg-white rounded border">
                                 <span className="text-gray-400 uppercase">Estado:</span>
                                 <span className="font-bold text-[#001d4a]">
-                                    {exportFilter === 'AL_DIA' ? 'Al Día' :
-                                     exportFilter === 'EN_DEUDA' ? 'Deuda' :
-                                     exportFilter === 'DE_BAJA' ? 'Baja' : 'Todos'}
+                                    {exportEstado === 'AL_DIA' ? 'Al Día' :
+                                     exportEstado === 'EN_DEUDA' ? 'Deuda' :
+                                     exportEstado === 'DE_BAJA' ? 'Baja' : 'Todos'}
                                 </span>
                             </div>
                         </div>
@@ -1518,17 +1521,19 @@ export const Socios = ({ user }: { user?: any }) => {
                             <span className="font-black text-base oswald">
                                 {(() => {
                                     let count = socios.filter(s => {
-                                        if (exportFilter === 'CONSULADO' && exportConsulados.size > 0) {
+                                        // Filtre Alcance (consulados)
+                                        if (exportAlcance === 'CONSULADO' && exportConsulados.size > 0) {
                                             const cName = s.consulado || 'Consulado Central';
                                             if (!exportConsulados.has(cName)) return false;
                                         }
-                                        if (exportFilter === 'AL_DIA') {
+                                        // Filtre Estado (indépendant)
+                                        if (exportEstado === 'AL_DIA') {
                                             const status = calculateSocioStatus(s.last_month_paid);
                                             if (status.label !== 'AL DÍA') return false;
-                                        } else if (exportFilter === 'EN_DEUDA') {
+                                        } else if (exportEstado === 'EN_DEUDA') {
                                             const status = calculateSocioStatus(s.last_month_paid);
                                             if (status.label !== 'EN DEUDA') return false;
-                                        } else if (exportFilter === 'DE_BAJA') {
+                                        } else if (exportEstado === 'DE_BAJA') {
                                             if (s.category !== 'BAJA') return false;
                                         }
                                         if (exportCategories.size > 0 && !exportCategories.has(s.category || '')) return false;
@@ -1541,14 +1546,14 @@ export const Socios = ({ user }: { user?: any }) => {
                     </div>
                     <div className="flex gap-2">
                         <button 
-                            onClick={() => { setIsExportModalOpen(false); setExportFilter('ALL'); setExportConsulados(new Set()); setExportCategories(new Set()); }}
+                            onClick={() => { setIsExportModalOpen(false); setExportAlcance('ALL'); setExportEstado('ALL'); setExportConsulados(new Set()); setExportCategories(new Set()); }}
                             className="flex-1 px-4 py-2 rounded-lg bg-gray-200 text-gray-600 font-bold text-[10px] uppercase tracking-wider hover:bg-gray-300 transition-all"
                         >
                             Cancelar
                         </button>
                         <button 
                             onClick={handleExportPDF}
-                            disabled={exportFilter === 'CONSULADO' && exportConsulados.size === 0}
+                            disabled={exportAlcance === 'CONSULADO' && exportConsulados.size === 0}
                             className="flex-1 px-4 py-2 rounded-lg bg-gradient-to-r from-[#003B94] to-[#001d4a] text-white font-bold text-[10px] uppercase tracking-wider hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <Download size={12} />

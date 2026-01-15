@@ -304,88 +304,134 @@ export const Dashboard = () => {
           </div>
       )}
 
-      {/* AGENDA SEMANAL */}
+      {/* AGENDA SEMANAL - VERSION HORIZONTALE (même style que referente) */}
       <div className="space-y-4">
-          <div className="flex items-center gap-3 px-2">
-              <Calendar size={18} className="text-[#003B94]" />
-              <h3 className="oswald text-xl font-black text-[#001d4a] uppercase tracking-tight">Agenda Semanal</h3>
-              <span className="text-[#001d4a]/40">-</span>
-              <span className="oswald text-xl font-black text-[#001d4a] uppercase tracking-tight">{currentMonth}</span>
-              <span className="text-[#001d4a]/40">-</span>
-              <span className="text-sm font-bold text-gray-500 uppercase tracking-wide">{weekRange}</span>
-              <div className="flex items-center gap-2 ml-auto">
+          {/* Header avec filtres améliorés */}
+          <div className="bg-gradient-to-r from-[#003B94] to-[#001d4a] rounded-2xl p-4 shadow-lg">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                      <div className="p-2 bg-white/10 rounded-xl">
+                          <Calendar size={20} className="text-[#FCB131]" />
+                      </div>
+                      <div>
+                          <h3 className="oswald text-xl font-black text-white uppercase tracking-tight">Agenda Semanal</h3>
+                          <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">
+                              {currentMonth} • {weekRange}
+                          </p>
+                      </div>
+                  </div>
+                  <div className="flex items-center gap-2">
                       <button 
                           onClick={handlePrevWeek}
-                          className="p-2 rounded-lg bg-white border border-[#003B94]/20 text-[#003B94] hover:bg-[#003B94] hover:text-white transition-all"
+                          className="p-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-all"
                           title="Semana anterior"
                       >
                           <ChevronLeft size={16} />
                       </button>
                       <button 
                           onClick={handleTodayWeek}
-                          className="px-3 py-2 rounded-lg bg-white border border-[#003B94]/20 text-[#003B94] hover:bg-[#003B94] hover:text-white transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"
-                          title="Semana en cours"
+                          className="px-3 py-2 rounded-lg bg-[#FCB131] text-[#001d4a] hover:bg-[#FFD23F] transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"
+                          title="Semana actual"
                       >
                           <RotateCcw size={12} /> Hoy
                       </button>
                       <button 
                           onClick={handleNextWeek}
-                          className="p-2 rounded-lg bg-white border border-[#003B94]/20 text-[#003B94] hover:bg-[#003B94] hover:text-white transition-all"
+                          className="p-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-all"
                           title="Semana siguiente"
                       >
                           <ChevronRight size={16} />
                       </button>
+                  </div>
               </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
+          
+          {/* Grille horizontale des jours */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
               {next7Days.map((date, idx) => {
                   const { dayEvents, dayBirthdays } = getEventsForDate(date);
-                  const counts = getEventCounts(dayEvents, dayBirthdays);
+                  const hasEvents = dayEvents.length > 0 || dayBirthdays.length > 0;
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
-                  date.setHours(0, 0, 0, 0);
-                  const isToday = date.getTime() === today.getTime();
-                  const hasEvents = dayEvents.length > 0 || dayBirthdays.length > 0;
+                  const dateCompare = new Date(date);
+                  dateCompare.setHours(0, 0, 0, 0);
+                  const isToday = dateCompare.getTime() === today.getTime();
+                  const isMatchDay = nextMatch && (() => {
+                      try {
+                          const matchDateStr = nextMatch.date;
+                          let matchDate: Date;
+                          if (matchDateStr.includes('/')) {
+                              const [d, m, y] = matchDateStr.split('/').map(Number);
+                              matchDate = new Date(y, m - 1, d);
+                          } else {
+                              matchDate = new Date(matchDateStr);
+                          }
+                          matchDate.setHours(0, 0, 0, 0);
+                          return matchDate.getTime() === dateCompare.getTime();
+                      } catch { return false; }
+                  })();
                   
                   return (
                       <GlassCard 
                           key={idx} 
                           onClick={() => hasEvents && setSelectedDay({ date, events: dayEvents, birthdays: dayBirthdays })}
-                          className={`p-3 flex flex-col gap-2 min-h-[120px] transition-all group border ${
-                              isToday 
-                              ? 'border-[#FCB131] bg-gradient-to-b from-white to-amber-50 shadow-md' 
-                              : 'border-transparent bg-white hover:border-[#003B94]/20'
-                          } ${hasEvents ? 'cursor-pointer hover:translate-y-[-2px]' : ''}`}
+                          className={`p-3 transition-all group border-2 min-h-[140px] flex flex-col ${
+                              isToday ? 'border-[#003B94] bg-[#003B94]/5 shadow-lg' : 
+                              isMatchDay ? 'border-[#FCB131] bg-amber-50/50' : 
+                              hasEvents ? 'border-gray-200 hover:border-[#003B94]/30 cursor-pointer hover:shadow-md' : 
+                              'border-gray-100 bg-gray-50/50'
+                          }`}
                       >
-                          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                              <span className={`text-[9px] font-black uppercase tracking-widest ${isToday ? 'text-[#001d4a]' : 'text-gray-400'}`}>
+                          {/* Header du jour */}
+                          <div className={`text-center pb-2 mb-2 border-b ${isToday ? 'border-[#003B94]/20' : 'border-gray-100'}`}>
+                              <span className={`text-[9px] font-black uppercase tracking-widest block ${isToday ? 'text-[#003B94]' : 'text-gray-400'}`}>
                                   {date.toLocaleDateString('es-ES', { weekday: 'short' })}
                               </span>
-                              <span className={`text-xl font-black oswald leading-none ${isToday ? 'text-[#FCB131]' : 'text-[#003B94]'}`}>
+                              <span className={`text-2xl font-black oswald leading-none ${isToday ? 'text-[#003B94]' : isMatchDay ? 'text-[#FCB131]' : 'text-[#001d4a]'}`}>
                                   {date.getDate()}
                               </span>
+                              {isToday && (
+                                  <span className="block text-[7px] font-black uppercase tracking-widest text-[#FCB131] mt-1 bg-[#003B94] rounded px-1 py-0.5 mx-auto w-fit">
+                                      Hoy
+                                  </span>
+                              )}
                           </div>
                           
-                          <div className="flex-1 flex flex-col gap-1.5 justify-center">
-                              {hasEvents ? (
-                                  Object.entries(counts).map(([cat, count]) => (
-                                      <div key={cat} className={`flex items-center justify-between px-2 py-1.5 rounded-lg border ${
-                                          cat === 'Cumpleaños' ? 'bg-blue-50 border-blue-100' : 'bg-[#003B94]/5 border-[#003B94]/5'
-                                      }`}>
-                                          <span className={`text-[7px] font-black uppercase truncate max-w-[60px] ${
-                                              cat === 'Cumpleaños' ? 'text-blue-600' : 'text-[#001d4a]'
-                                          }`}>{cat}</span>
-                                          <span className={`text-[9px] font-bold ${
-                                              cat === 'Cumpleaños' ? 'text-blue-600' : 'text-[#003B94]'
-                                          }`}>{count}</span>
-                                      </div>
-                                  ))
-                              ) : (
-                                  <div className="flex-1 flex items-center justify-center">
-                                      <span className="text-[8px] font-bold text-gray-300 uppercase tracking-widest italic">Sin eventos</span>
+                          {/* Contenu */}
+                          <div className="flex-1 space-y-1.5">
+                              {isMatchDay && (
+                                  <div className="flex items-center justify-between bg-[#FCB131]/20 px-2 py-1 rounded-lg">
+                                      <span className="text-[7px] font-black text-[#001d4a] uppercase">Partido</span>
+                                      <Trophy size={10} className="text-[#001d4a]" />
+                                  </div>
+                              )}
+                              {dayBirthdays.length > 0 && (
+                                  <div className="flex items-center justify-between bg-pink-50 px-2 py-1 rounded-lg border border-pink-100">
+                                      <span className="text-[7px] font-black text-pink-600 uppercase">Cumple</span>
+                                      <span className="text-[9px] font-bold text-pink-600 bg-pink-200 px-1.5 rounded-full">{dayBirthdays.length}</span>
+                                  </div>
+                              )}
+                              {dayEvents.length > 0 && (
+                                  <div className="flex items-center justify-between bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
+                                      <span className="text-[7px] font-black text-emerald-600 uppercase">Eventos</span>
+                                      <span className="text-[9px] font-bold text-emerald-600 bg-emerald-200 px-1.5 rounded-full">{dayEvents.length}</span>
+                                  </div>
+                              )}
+                              {!hasEvents && !isMatchDay && (
+                                  <div className="flex items-center justify-center h-full">
+                                      <span className="text-[8px] text-gray-300 uppercase font-medium tracking-widest italic">Libre</span>
                                   </div>
                               )}
                           </div>
+                          
+                          {/* Indicateur cliquable */}
+                          {hasEvents && (
+                              <div className="mt-2 pt-2 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <span className="text-[8px] font-black text-[#003B94] uppercase tracking-widest flex items-center justify-center gap-1">
+                                      Ver detalles <ChevronRight size={10} />
+                                  </span>
+                              </div>
+                          )}
                       </GlassCard>
                   );
               })}
