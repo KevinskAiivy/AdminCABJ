@@ -278,22 +278,28 @@ export const Socios = ({ user }: { user?: any }) => {
           try { doc.addImage(logoUrl, 'PNG', 14, 10, 20, 20); } catch (e) {}
       }
 
-      // Titre dynamique selon le filtre
+      // Titre dynamique selon les filtres combinés
       let titulo = "PADRÓN OFICIAL DE SOCIOS";
-      let subtitulo = "";
+      let subtitulos: string[] = [];
       
-      if (exportFilter === 'AL_DIA') {
-          titulo = "SOCIOS AL DÍA";
-          subtitulo = "Cuotas al día";
-      } else if (exportFilter === 'EN_DEUDA') {
-          titulo = "SOCIOS EN DEUDA";
-          subtitulo = "Cuotas pendientes";
-      } else if (exportFilter === 'DE_BAJA') {
-          titulo = "SOCIOS DE BAJA";
-          subtitulo = "Dados de baja";
-      } else if (exportFilter === 'CONSULADO' && exportConsulados.size > 0) {
+      // Alcance
+      if (exportFilter === 'CONSULADO' && exportConsulados.size > 0) {
           titulo = "PADRÓN POR CONSULADO";
-          subtitulo = Array.from(exportConsulados).slice(0, 3).join(', ') + (exportConsulados.size > 3 ? '...' : '');
+          subtitulos.push(Array.from(exportConsulados).slice(0, 3).join(', ') + (exportConsulados.size > 3 ? '...' : ''));
+      }
+      
+      // État de cuota
+      if (exportFilter === 'AL_DIA') {
+          subtitulos.push("Estado: Al Día");
+      } else if (exportFilter === 'EN_DEUDA') {
+          subtitulos.push("Estado: En Deuda");
+      } else if (exportFilter === 'DE_BAJA') {
+          subtitulos.push("Estado: De Baja");
+      }
+      
+      // Catégories
+      if (exportCategories.size > 0) {
+          subtitulos.push(`Categorías: ${Array.from(exportCategories).join(', ')}`);
       }
 
       doc.setFont("helvetica", "bold");
@@ -303,16 +309,23 @@ export const Socios = ({ user }: { user?: any }) => {
       doc.setFontSize(10);
       doc.setTextColor(100);
       doc.text(`Generado el: ${new Date().toLocaleDateString()}`, 40, 26);
-      if (subtitulo) {
-          doc.text(subtitulo, 40, 31);
-          doc.text(settings.appName || "Administración Consulados", 40, 36);
-      } else {
-          doc.text(settings.appName || "Administración Consulados", 40, 31);
-      }
+      
+      let yPos = 31;
+      subtitulos.forEach(sub => {
+          doc.text(sub, 40, yPos);
+          yPos += 5;
+      });
+      doc.text(settings.appName || "Administración Consulados", 40, yPos);
 
       // Filtrer les données selon les options sélectionnées
       let dataToExport = socios.filter(s => {
-          // Filtre par état de cuota
+          // 1. Filtre par consulado (si sélectionné)
+          if (exportFilter === 'CONSULADO' && exportConsulados.size > 0) {
+              const cName = s.consulado || 'Consulado Central';
+              if (!exportConsulados.has(cName)) return false;
+          }
+          
+          // 2. Filtre par état de cuota
           if (exportFilter === 'AL_DIA') {
               const status = calculateSocioStatus(s.last_month_paid);
               if (status.label !== 'AL DÍA') return false;
@@ -321,12 +334,9 @@ export const Socios = ({ user }: { user?: any }) => {
               if (status.label !== 'EN DEUDA') return false;
           } else if (exportFilter === 'DE_BAJA') {
               if (s.category !== 'BAJA') return false;
-          } else if (exportFilter === 'CONSULADO' && exportConsulados.size > 0) {
-              const cName = s.consulado || 'Consulado Central';
-              if (!exportConsulados.has(cName)) return false;
           }
           
-          // Filtre par catégorie si sélectionné
+          // 3. Filtre par catégorie si sélectionné
           if (exportCategories.size > 0 && !exportCategories.has(s.category || '')) {
               return false;
           }
@@ -348,7 +358,7 @@ export const Socios = ({ user }: { user?: any }) => {
       });
 
       autoTable(doc, {
-          startY: subtitulo ? 45 : 40,
+          startY: yPos + 10,
           head: [['Apellido y Nombre', 'DNI', 'N° Socio', 'Categoría', 'Consulado', 'Último Pago', 'Estado']],
           body: tableData,
           theme: 'grid',
@@ -368,10 +378,10 @@ export const Socios = ({ user }: { user?: any }) => {
       
       // Nom du fichier dynamique
       let fileName = 'Padron_Socios';
-      if (exportFilter === 'AL_DIA') fileName = 'Socios_AlDia';
+      if (exportFilter === 'CONSULADO') fileName = 'Socios_PorConsulado';
+      else if (exportFilter === 'AL_DIA') fileName = 'Socios_AlDia';
       else if (exportFilter === 'EN_DEUDA') fileName = 'Socios_EnDeuda';
       else if (exportFilter === 'DE_BAJA') fileName = 'Socios_DeBaja';
-      else if (exportFilter === 'CONSULADO') fileName = 'Socios_PorConsulado';
       
       doc.save(`${fileName}_${new Date().toISOString().split('T')[0]}.pdf`);
       setIsExportModalOpen(false);
@@ -1269,33 +1279,125 @@ export const Socios = ({ user }: { user?: any }) => {
                 
                 {/* Content */}
                 <div className="p-6 space-y-6 overflow-y-auto max-h-[60vh]">
-                    {/* Tipo de exportación */}
+                    {/* ÉTAPE 1: Alcance - Toda la lista o por Consulado */}
                     <div className="space-y-3">
-                        <h3 className="text-sm font-black text-[#001d4a] uppercase tracking-widest flex items-center gap-2">
-                            <Filter size={14} className="text-[#003B94]" />
-                            Tipo de Exportación
-                        </h3>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-full bg-[#003B94] text-white text-xs font-black flex items-center justify-center">1</span>
+                            <h3 className="text-sm font-black text-[#001d4a] uppercase tracking-widest">Alcance</h3>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => { setExportFilter('ALL'); setExportConsulados(new Set()); }}
+                                className={`p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${
+                                    exportFilter !== 'CONSULADO' 
+                                        ? 'border-[#003B94] bg-[#003B94]/5 shadow-lg' 
+                                        : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                            >
+                                <div className={`p-2 rounded-lg ${exportFilter !== 'CONSULADO' ? 'bg-[#003B94]' : 'bg-gray-100'}`}>
+                                    <Users size={20} className={exportFilter !== 'CONSULADO' ? 'text-white' : 'text-gray-500'} />
+                                </div>
+                                <span className={`text-xs font-black uppercase tracking-widest ${exportFilter !== 'CONSULADO' ? 'text-[#003B94]' : 'text-gray-600'}`}>
+                                    Toda la Lista
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => setExportFilter('CONSULADO')}
+                                className={`p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${
+                                    exportFilter === 'CONSULADO' 
+                                        ? 'border-[#003B94] bg-[#003B94]/5 shadow-lg' 
+                                        : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                            >
+                                <div className={`p-2 rounded-lg ${exportFilter === 'CONSULADO' ? 'bg-indigo-500' : 'bg-gray-100'}`}>
+                                    <Building2 size={20} className={exportFilter === 'CONSULADO' ? 'text-white' : 'text-gray-500'} />
+                                </div>
+                                <span className={`text-xs font-black uppercase tracking-widest ${exportFilter === 'CONSULADO' ? 'text-[#003B94]' : 'text-gray-600'}`}>
+                                    Por Consulado
+                                </span>
+                            </button>
+                        </div>
+                        
+                        {/* Sélection de consulados (si option CONSULADO) */}
+                        {exportFilter === 'CONSULADO' && (
+                            <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mt-3">
+                                <h4 className="text-xs font-black text-indigo-700 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                    <Building2 size={12} />
+                                    Seleccionar Consulados
+                                </h4>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[150px] overflow-y-auto">
+                                    {[{ id: 'Consulado Central', name: 'Consulado Central' }, ...consulados].map(c => (
+                                        <label key={c.id} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-indigo-100 cursor-pointer hover:bg-indigo-50 transition-all">
+                                            <input
+                                                type="checkbox"
+                                                checked={exportConsulados.has(c.name)}
+                                                onChange={(e) => {
+                                                    const newSet = new Set(exportConsulados);
+                                                    if (e.target.checked) newSet.add(c.name);
+                                                    else newSet.delete(c.name);
+                                                    setExportConsulados(newSet);
+                                                }}
+                                                className="w-4 h-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            <span className="text-[10px] font-bold text-gray-700 truncate">{c.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                                {exportConsulados.size > 0 && (
+                                    <p className="text-[10px] text-indigo-600 font-bold mt-2">
+                                        {exportConsulados.size} consulado(s) seleccionado(s)
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* ÉTAPE 2: Estado de Cuota */}
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-full bg-[#003B94] text-white text-xs font-black flex items-center justify-center">2</span>
+                            <h3 className="text-sm font-black text-[#001d4a] uppercase tracking-widest">Estado de Cuota</h3>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                             {[
-                                { id: 'ALL', label: 'Toda la Lista', icon: Users, color: 'bg-[#003B94]' },
+                                { id: 'ALL', label: 'Todos', icon: Users, color: 'bg-[#003B94]' },
                                 { id: 'AL_DIA', label: 'Al Día', icon: CheckCircle2, color: 'bg-green-500' },
                                 { id: 'EN_DEUDA', label: 'En Deuda', icon: AlertTriangle, color: 'bg-amber-500' },
                                 { id: 'DE_BAJA', label: 'De Baja', icon: UserX, color: 'bg-red-500' },
-                                { id: 'CONSULADO', label: 'Por Consulado', icon: Building2, color: 'bg-indigo-500' },
                             ].map(opt => (
                                 <button
                                     key={opt.id}
-                                    onClick={() => setExportFilter(opt.id as any)}
-                                    className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                                        exportFilter === opt.id 
-                                            ? `border-[#003B94] bg-[#003B94]/5 shadow-lg` 
+                                    onClick={() => {
+                                        if (opt.id === 'ALL') {
+                                            // Si on choisit "Todos", on garde le filtre CONSULADO si actif, sinon ALL
+                                            if (exportFilter !== 'CONSULADO') setExportFilter('ALL');
+                                        } else {
+                                            setExportFilter(opt.id as any);
+                                        }
+                                    }}
+                                    className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                                        (opt.id === 'ALL' && (exportFilter === 'ALL' || exportFilter === 'CONSULADO')) ||
+                                        (opt.id !== 'ALL' && exportFilter === opt.id)
+                                            ? 'border-[#003B94] bg-[#003B94]/5 shadow-md' 
                                             : 'border-gray-200 hover:border-gray-300'
                                     }`}
                                 >
-                                    <div className={`p-2 rounded-lg ${exportFilter === opt.id ? opt.color : 'bg-gray-100'}`}>
-                                        <opt.icon size={20} className={exportFilter === opt.id ? 'text-white' : 'text-gray-500'} />
+                                    <div className={`p-1.5 rounded-lg ${
+                                        (opt.id === 'ALL' && (exportFilter === 'ALL' || exportFilter === 'CONSULADO')) ||
+                                        (opt.id !== 'ALL' && exportFilter === opt.id)
+                                            ? opt.color : 'bg-gray-100'
+                                    }`}>
+                                        <opt.icon size={16} className={
+                                            (opt.id === 'ALL' && (exportFilter === 'ALL' || exportFilter === 'CONSULADO')) ||
+                                            (opt.id !== 'ALL' && exportFilter === opt.id)
+                                                ? 'text-white' : 'text-gray-500'
+                                        } />
                                     </div>
-                                    <span className={`text-[10px] font-black uppercase tracking-widest ${exportFilter === opt.id ? 'text-[#003B94]' : 'text-gray-600'}`}>
+                                    <span className={`text-[9px] font-black uppercase tracking-widest ${
+                                        (opt.id === 'ALL' && (exportFilter === 'ALL' || exportFilter === 'CONSULADO')) ||
+                                        (opt.id !== 'ALL' && exportFilter === opt.id)
+                                            ? 'text-[#003B94]' : 'text-gray-600'
+                                    }`}>
                                         {opt.label}
                                     </span>
                                 </button>
@@ -1303,46 +1405,23 @@ export const Socios = ({ user }: { user?: any }) => {
                         </div>
                     </div>
                     
-                    {/* Sélection de consulados (si option CONSULADO) */}
-                    {exportFilter === 'CONSULADO' && (
-                        <div className="space-y-3 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                            <h3 className="text-sm font-black text-indigo-700 uppercase tracking-widest flex items-center gap-2">
-                                <Building2 size={14} />
-                                Seleccionar Consulados
-                            </h3>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[200px] overflow-y-auto">
-                                {[{ id: 'Consulado Central', name: 'Consulado Central' }, ...consulados].map(c => (
-                                    <label key={c.id} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-indigo-100 cursor-pointer hover:bg-indigo-50 transition-all">
-                                        <input
-                                            type="checkbox"
-                                            checked={exportConsulados.has(c.name)}
-                                            onChange={(e) => {
-                                                const newSet = new Set(exportConsulados);
-                                                if (e.target.checked) newSet.add(c.name);
-                                                else newSet.delete(c.name);
-                                                setExportConsulados(newSet);
-                                            }}
-                                            className="w-4 h-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
-                                        />
-                                        <span className="text-xs font-bold text-gray-700 truncate">{c.name}</span>
-                                    </label>
-                                ))}
-                            </div>
-                            {exportConsulados.size > 0 && (
-                                <p className="text-[10px] text-indigo-600 font-bold">
-                                    {exportConsulados.size} consulado(s) seleccionado(s)
-                                </p>
-                            )}
-                        </div>
-                    )}
-                    
-                    {/* Filtro por categoría (opcional) */}
+                    {/* ÉTAPE 3: Filtro por Categoría */}
                     <div className="space-y-3">
-                        <h3 className="text-sm font-black text-[#001d4a] uppercase tracking-widest flex items-center gap-2">
-                            <Tag size={14} className="text-[#003B94]" />
-                            Filtrar por Categoría (opcional)
-                        </h3>
+                        <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-full bg-[#003B94] text-white text-xs font-black flex items-center justify-center">3</span>
+                            <h3 className="text-sm font-black text-[#001d4a] uppercase tracking-widest">Categoría</h3>
+                        </div>
                         <div className="flex flex-wrap gap-2">
+                            <button
+                                onClick={() => setExportCategories(new Set())}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                                    exportCategories.size === 0
+                                        ? 'bg-[#003B94] text-white'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            >
+                                Todas
+                            </button>
                             {SOCIO_CATEGORIES.map(cat => (
                                 <button
                                     key={cat}
@@ -1354,7 +1433,7 @@ export const Socios = ({ user }: { user?: any }) => {
                                     }}
                                     className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
                                         exportCategories.has(cat)
-                                            ? 'bg-[#003B94] text-white'
+                                            ? 'bg-[#FCB131] text-[#001d4a]'
                                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                     }`}
                                 >
@@ -1362,68 +1441,66 @@ export const Socios = ({ user }: { user?: any }) => {
                                 </button>
                             ))}
                         </div>
-                        {exportCategories.size > 0 && (
-                            <button 
-                                onClick={() => setExportCategories(new Set())}
-                                className="text-[10px] text-red-500 font-bold hover:underline"
-                            >
-                                Limpiar filtro de categorías
-                            </button>
-                        )}
                     </div>
                     
                     {/* Resumen */}
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                        <h3 className="text-sm font-black text-[#001d4a] uppercase tracking-widest mb-3">Resumen de Exportación</h3>
-                        <div className="grid grid-cols-2 gap-4 text-xs">
-                            <div>
-                                <span className="text-gray-500">Tipo:</span>
-                                <span className="font-bold text-[#001d4a] ml-2">
-                                    {exportFilter === 'ALL' ? 'Toda la lista' : 
-                                     exportFilter === 'AL_DIA' ? 'Socios al día' :
-                                     exportFilter === 'EN_DEUDA' ? 'Socios en deuda' :
-                                     exportFilter === 'DE_BAJA' ? 'Socios de baja' :
-                                     'Por consulado'}
+                    <div className="bg-gradient-to-r from-[#003B94]/10 to-[#001d4a]/10 p-4 rounded-xl border border-[#003B94]/20">
+                        <h3 className="text-sm font-black text-[#001d4a] uppercase tracking-widest mb-3 flex items-center gap-2">
+                            <FileText size={14} className="text-[#003B94]" />
+                            Resumen de Exportación
+                        </h3>
+                        <div className="grid grid-cols-3 gap-4 text-xs">
+                            <div className="bg-white p-3 rounded-lg">
+                                <span className="text-gray-500 block text-[9px] uppercase tracking-widest">Alcance</span>
+                                <span className="font-bold text-[#001d4a]">
+                                    {exportFilter === 'CONSULADO' 
+                                        ? (exportConsulados.size > 0 ? `${exportConsulados.size} consulado(s)` : 'Seleccionar...') 
+                                        : 'Toda la lista'}
                                 </span>
                             </div>
-                            <div>
-                                <span className="text-gray-500">Categorías:</span>
-                                <span className="font-bold text-[#001d4a] ml-2">
-                                    {exportCategories.size === 0 ? 'Todas' : `${exportCategories.size} seleccionadas`}
+                            <div className="bg-white p-3 rounded-lg">
+                                <span className="text-gray-500 block text-[9px] uppercase tracking-widest">Estado</span>
+                                <span className="font-bold text-[#001d4a]">
+                                    {exportFilter === 'AL_DIA' ? 'Al Día' :
+                                     exportFilter === 'EN_DEUDA' ? 'En Deuda' :
+                                     exportFilter === 'DE_BAJA' ? 'De Baja' : 'Todos'}
                                 </span>
                             </div>
-                            {exportFilter === 'CONSULADO' && (
-                                <div className="col-span-2">
-                                    <span className="text-gray-500">Consulados:</span>
-                                    <span className="font-bold text-[#001d4a] ml-2">
-                                        {exportConsulados.size === 0 ? 'Ninguno seleccionado' : `${exportConsulados.size} seleccionado(s)`}
-                                    </span>
-                                </div>
-                            )}
-                            <div className="col-span-2">
-                                <span className="text-gray-500">Socios a exportar:</span>
-                                <span className="font-bold text-[#003B94] ml-2 text-lg">
-                                    {(() => {
-                                        let count = socios.filter(s => {
-                                            if (exportFilter === 'AL_DIA') {
-                                                const status = calculateSocioStatus(s.last_month_paid);
-                                                if (status.label !== 'AL DÍA') return false;
-                                            } else if (exportFilter === 'EN_DEUDA') {
-                                                const status = calculateSocioStatus(s.last_month_paid);
-                                                if (status.label !== 'EN DEUDA') return false;
-                                            } else if (exportFilter === 'DE_BAJA') {
-                                                if (s.category !== 'BAJA') return false;
-                                            } else if (exportFilter === 'CONSULADO' && exportConsulados.size > 0) {
-                                                const cName = s.consulado || 'Consulado Central';
-                                                if (!exportConsulados.has(cName)) return false;
-                                            }
-                                            if (exportCategories.size > 0 && !exportCategories.has(s.category || '')) return false;
-                                            return true;
-                                        }).length;
-                                        return count;
-                                    })()}
+                            <div className="bg-white p-3 rounded-lg">
+                                <span className="text-gray-500 block text-[9px] uppercase tracking-widest">Categorías</span>
+                                <span className="font-bold text-[#001d4a]">
+                                    {exportCategories.size === 0 ? 'Todas' : `${exportCategories.size} selec.`}
                                 </span>
                             </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-[#003B94]/20 flex items-center justify-between">
+                            <span className="text-gray-600 text-xs font-bold">Total a exportar:</span>
+                            <span className="font-black text-[#003B94] text-2xl oswald">
+                                {(() => {
+                                    let count = socios.filter(s => {
+                                        // Filtre par consulado
+                                        if (exportFilter === 'CONSULADO' && exportConsulados.size > 0) {
+                                            const cName = s.consulado || 'Consulado Central';
+                                            if (!exportConsulados.has(cName)) return false;
+                                        }
+                                        // Filtre par état de cuota
+                                        if (exportFilter === 'AL_DIA') {
+                                            const status = calculateSocioStatus(s.last_month_paid);
+                                            if (status.label !== 'AL DÍA') return false;
+                                        } else if (exportFilter === 'EN_DEUDA') {
+                                            const status = calculateSocioStatus(s.last_month_paid);
+                                            if (status.label !== 'EN DEUDA') return false;
+                                        } else if (exportFilter === 'DE_BAJA') {
+                                            if (s.category !== 'BAJA') return false;
+                                        }
+                                        // Filtre par catégorie
+                                        if (exportCategories.size > 0 && !exportCategories.has(s.category || '')) return false;
+                                        return true;
+                                    }).length;
+                                    return count;
+                                })()}
+                                <span className="text-sm ml-1">socios</span>
+                            </span>
                         </div>
                     </div>
                 </div>

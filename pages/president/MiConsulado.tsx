@@ -180,11 +180,14 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
                 )}
             </div>
             <div className="flex items-center gap-5 relative z-10">
-                <div className="bg-white/10 p-4 rounded-xl border border-white/20 overflow-hidden">
+                {/* Logo sans fond, plus grand */}
+                <div className="w-20 h-20 flex items-center justify-center shrink-0">
                     {displayLogoUrl ? (
-                        <img src={displayLogoUrl} alt={consulado?.name} className="w-10 h-10 object-contain" />
+                        <img src={displayLogoUrl} alt={consulado?.name} className="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(252,177,49,0.5)]" />
                     ) : (
-                        <Building2 size={28} className="text-[#FCB131]" />
+                        <div className="bg-white/10 p-4 rounded-xl border border-white/20">
+                            <Building2 size={40} className="text-[#FCB131]" />
+                        </div>
                     )}
                 </div>
                 <div>
@@ -258,13 +261,12 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
                             <input disabled className="w-full bg-gray-100 border border-gray-200 rounded-xl py-3 px-4 font-bold text-xs text-gray-500" value={`${formData.city}, ${formData.country}`} />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Dirección</label>
-                            <input disabled={!isEditing} className={`w-full border rounded-xl py-3 px-4 font-bold text-xs outline-none transition-all ${isEditing ? 'bg-white border-gray-200 focus:border-[#003B94] text-[#001d4a]' : 'bg-gray-50 border-transparent text-gray-600'}`} value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Teléfono</label>
+                            <input disabled={!isEditing} className={`w-full border rounded-xl py-3 px-4 font-bold text-xs outline-none transition-all ${isEditing ? 'bg-white border-gray-200 focus:border-[#003B94] text-[#001d4a]' : 'bg-gray-50 border-transparent text-gray-600'}`} value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="+XX XXX XXX XXXX" />
                         </div>
                         <div className="space-y-1">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Email Público</label>
                             <input disabled={!isEditing} className={`w-full border rounded-xl py-3 px-4 font-bold text-xs outline-none transition-all ${isEditing ? 'bg-white border-gray-200 focus:border-[#003B94] text-[#001d4a]' : 'bg-gray-50 border-transparent text-gray-600'}`} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-                        </div>
                     </div>
                 </GlassCard>
 
@@ -487,25 +489,51 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
                             )}
                         </div>
                         
-                        {/* Mapa placeholder */}
+                        {/* Mapa Google Maps - toujours actif */}
                         <div className="space-y-4">
-                            <div className="w-full h-64 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center">
-                                <Map size={48} className="text-gray-400 mb-3" />
-                                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Mapa del Consulado</p>
-                                <p className="text-[10px] text-gray-400 mt-1">
-                                    {formData.address ? formData.address : 'Dirección no definida'}
-                                </p>
-                                {formData.address && (
-                                    <a 
-                                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(formData.address + ', ' + formData.city + ', ' + formData.country)}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="mt-4 bg-[#003B94] text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-[#001d4a] transition-all flex items-center gap-2"
-                                    >
-                                        <MapPin size={12} /> Ver en Google Maps
-                                    </a>
-                                )}
-                            </div>
+                            {/* Construire la query pour Google Maps: adresse > ville, pays > pays seul */}
+                            {(() => {
+                                let mapQuery = '';
+                                if (formData.address && formData.address.trim()) {
+                                    mapQuery = `${formData.address}, ${formData.city || ''}, ${formData.country || ''}`;
+                                } else if (formData.city && formData.city.trim()) {
+                                    mapQuery = `${formData.city}, ${formData.country || ''}`;
+                                } else if (formData.country && formData.country.trim()) {
+                                    mapQuery = formData.country;
+                                } else {
+                                    mapQuery = 'Argentina'; // Fallback par défaut
+                                }
+                                
+                                return (
+                                    <div className="w-full h-72 rounded-xl overflow-hidden border-2 border-[#003B94]/20 shadow-lg">
+                                        <iframe
+                                            width="100%"
+                                            height="100%"
+                                            style={{ border: 0 }}
+                                            loading="lazy"
+                                            allowFullScreen
+                                            referrerPolicy="no-referrer-when-downgrade"
+                                            src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(mapQuery)}&zoom=14`}
+                                        />
+                                    </div>
+                                );
+                            })()}
+                            
+                            {/* Bouton pour ouvrir dans Google Maps */}
+                            <a 
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                    formData.address && formData.address.trim() 
+                                        ? `${formData.address}, ${formData.city || ''}, ${formData.country || ''}`
+                                        : formData.city && formData.city.trim()
+                                            ? `${formData.city}, ${formData.country || ''}`
+                                            : formData.country || 'Argentina'
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full bg-[#003B94] text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#001d4a] transition-all flex items-center justify-center gap-2"
+                            >
+                                <MapPin size={14} /> Abrir en Google Maps
+                            </a>
                             
                             {/* Info adicional */}
                             <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
