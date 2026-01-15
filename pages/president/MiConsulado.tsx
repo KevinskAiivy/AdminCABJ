@@ -279,6 +279,7 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
                         <div className="space-y-1">
                             <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Email Público</label>
                             <input disabled={!isEditing} className={`w-full border rounded-xl py-3 px-4 font-bold text-xs outline-none transition-all ${isEditing ? 'bg-white border-gray-200 focus:border-[#003B94] text-[#001d4a]' : 'bg-gray-50 border-transparent text-gray-600'}`} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                        </div>
                     </div>
                 </GlassCard>
 

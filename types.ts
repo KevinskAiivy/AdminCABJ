@@ -245,6 +245,60 @@ export interface AppNotification {
   data?: any;
 }
 
+// Historique des présences aux matchs
+export interface MatchAttendance {
+  id: string;
+  match_id: string;
+  socio_id: string;
+  consulado_id?: string;
+  
+  // Infos match (dénormalisées)
+  match_date: string;
+  match_competition?: string;
+  match_opponent?: string;
+  match_location?: string;
+  match_type?: 'LOCAL' | 'VISITANTE';
+  
+  // Infos socio (dénormalisées)
+  socio_name: string;
+  socio_numero?: string;
+  socio_dni?: string;
+  
+  // Statut demande
+  request_status: 'SOLICITADO' | 'ACEPTADO' | 'RECHAZADO' | 'CANCELADO' | 'EXPIRADO';
+  
+  // Statut présence (post-match)
+  attendance_status?: 'PRESENTE' | 'AUSENTE_SIN_AVISO' | 'AUSENTE_CON_AVISO' | 'ANULADO' | null;
+  
+  // Métadonnées
+  requested_at?: string;
+  requested_by?: string;
+  processed_at?: string;
+  processed_by?: string;
+  rejection_reason?: string;
+  attendance_recorded_at?: string;
+  attendance_recorded_by?: string;
+  attendance_notes?: string;
+  
+  // Places
+  places_requested?: number;
+  places_granted?: number;
+  
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Statistiques d'un socio aux matchs
+export interface SocioMatchStats {
+  total_requests: number;
+  total_accepted: number;
+  total_rejected: number;
+  total_attended: number;
+  total_no_show: number;
+  total_excused: number;
+  attendance_rate: number | null;
+}
+
 export interface AppSettings {
   // Identidad
   appName: string;
