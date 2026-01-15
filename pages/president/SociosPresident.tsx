@@ -561,16 +561,10 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                     </div>
 
                     <div className="p-5 pb-3 flex items-start gap-4 relative">
-                        {/* Pastille pour les présidents */}
+                        {/* Pastille pour les présidents uniquement */}
                         {isPresident && (
                             <div className="absolute top-3 left-3 w-14 h-14 rounded-full bg-gradient-to-br from-[#001d4a] to-[#003B94] flex items-center justify-center shadow-[0_4px_12px_rgba(252,177,49,0.4)] border-2 border-[#FCB131] z-10 animate-pulse">
                                 <Star size={24} className="text-[#FCB131] fill-[#FCB131]" strokeWidth={2.5} />
-                            </div>
-                        )}
-                        {/* Pastille pour les referentes */}
-                        {isReferente && !isPresident && (
-                            <div className="absolute top-3 left-3 w-14 h-14 rounded-full bg-gradient-to-br from-[#001d4a] to-[#003B94] flex items-center justify-center shadow-[0_4px_12px_rgba(252,177,49,0.3)] border-2 border-[#FCB131] z-10">
-                                <BadgeCheck size={24} className="text-[#FCB131] fill-[#FCB131]" strokeWidth={2.5} />
                             </div>
                         )}
                         <div className={`flex-1 min-w-0 ${isPresident || isReferente ? 'pl-20' : 'pr-16'}`}>
