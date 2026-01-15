@@ -2,16 +2,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { GlassCard } from '../../components/GlassCard';
 import { CustomSelect } from '../../components/CustomSelect';
-import { Building2, MapPin, Globe, Users, Edit2, Save, Upload, Image as ImageIcon, UserCircle, Crown, Briefcase, FileText, Wallet, UserCheck, Newspaper, Gift, Plane } from 'lucide-react';
+import { Building2, MapPin, Globe, Users, Edit2, Save, Upload, Image as ImageIcon, UserCircle, Crown, Briefcase, FileText, Wallet, UserCheck, Newspaper, Gift, Plane, CheckCircle2, Trash2, Map, Navigation } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { Consulado, Socio } from '../../types';
+import { getConsuladoLogoUrl } from '../../lib/supabase';
+import { uploadFileWithTracking } from '../../lib/uploadHelper';
 
 export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
   const [consulado, setConsulado] = useState<Consulado | null>(null);
   const [formData, setFormData] = useState<Partial<Consulado>>({});
   const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'info' | 'directiva'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'ubicacion' | 'directiva'>('info');
   const [socios, setSocios] = useState<Socio[]>([]);
+  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
+  const [selectedBannerFile, setSelectedBannerFile] = useState<File | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const c = dataService.getConsuladoById(consulado_id);
@@ -58,6 +63,14 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
           return;
       }
 
+      // Stocker le fichier pour l'upload
+      if (field === 'logo') {
+        setSelectedLogoFile(file);
+      } else {
+        setSelectedBannerFile(file);
+      }
+
+      // Afficher un aperçu local
       const reader = new FileReader();
       reader.onload = (event) => {
           if (event.target?.result) {
@@ -71,34 +84,111 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
     }
     e.target.value = '';
   };
+  
+  const handleRemoveImage = (field: 'logo' | 'banner') => {
+    setFormData(prev => ({ ...prev, [field]: '' }));
+    if (field === 'logo') {
+      setSelectedLogoFile(null);
+    } else {
+      setSelectedBannerFile(null);
+    }
+  };
 
   const handleSave = async () => {
-      if (consulado) {
-          try {
-              await dataService.updateConsulado({ ...consulado, ...formData } as Consulado);
-              setIsEditing(false);
-              alert('Cambios guardados correctamente.');
-          } catch (error: any) {
-              alert(`Error al guardar: ${error.message || 'Error desconocido'}`);
+      if (!consulado) return;
+      
+      setIsSaving(true);
+      
+      try {
+          let logoUrl = formData.logo || '';
+          let bannerUrl = formData.banner || '';
+          
+          // Ne pas sauvegarder les data URLs si pas de fichier
+          if (logoUrl.startsWith('data:') && !selectedLogoFile) {
+              logoUrl = consulado.logo || '';
           }
+          if (bannerUrl.startsWith('data:') && !selectedBannerFile) {
+              bannerUrl = consulado.banner || '';
+          }
+          
+          // Upload du logo si fichier sélectionné
+          if (selectedLogoFile) {
+              const result = await uploadFileWithTracking({
+                  bucket: 'Logo',
+                  folder: 'consulados',
+                  entityType: 'consulado',
+                  entityId: consulado.id,
+                  fieldName: 'logo',
+                  file: selectedLogoFile
+              });
+              if (result.success) {
+                  logoUrl = result.publicUrl || result.filePath || '';
+              } else {
+                  console.warn('Error upload logo:', result.error);
+              }
+          }
+          
+          // Upload de la bannière si fichier sélectionné
+          if (selectedBannerFile) {
+              const result = await uploadFileWithTracking({
+                  bucket: 'Logo',
+                  folder: 'consulados',
+                  entityType: 'consulado',
+                  entityId: consulado.id,
+                  fieldName: 'banner',
+                  file: selectedBannerFile
+              });
+              if (result.success) {
+                  bannerUrl = result.publicUrl || result.filePath || '';
+              } else {
+                  console.warn('Error upload banner:', result.error);
+              }
+          }
+          
+          await dataService.updateConsulado({ 
+              ...consulado, 
+              ...formData,
+              logo: logoUrl,
+              banner: bannerUrl
+          } as Consulado);
+          
+          setSelectedLogoFile(null);
+          setSelectedBannerFile(null);
+          setIsEditing(false);
+          alert('Cambios guardados correctamente.');
+      } catch (error: any) {
+          alert(`Error al guardar: ${error.message || 'Error desconocido'}`);
+      } finally {
+          setIsSaving(false);
       }
   };
 
   if (!consulado) return <div>Cargando...</div>;
 
+  // Obtenir l'URL du logo pour l'affichage
+  const displayLogoUrl = consulado?.logo ? getConsuladoLogoUrl(consulado.logo) : null;
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-20 px-4 animate-boca-entrance">
-        {/* Header */}
+        {/* Header - avec logo du consulado si disponible */}
         <div className="liquid-glass-dark p-8 rounded-xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
             <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none">
-                <Building2 size={300} className="text-white" />
+                {displayLogoUrl ? (
+                    <img src={displayLogoUrl} alt="" className="w-[300px] h-[300px] object-contain opacity-30" />
+                ) : (
+                    <Building2 size={300} className="text-white" />
+                )}
             </div>
             <div className="flex items-center gap-5 relative z-10">
-                <div className="bg-white/10 p-4 rounded-xl border border-white/20">
-                    <Building2 size={28} className="text-[#FCB131]" />
+                <div className="bg-white/10 p-4 rounded-xl border border-white/20 overflow-hidden">
+                    {displayLogoUrl ? (
+                        <img src={displayLogoUrl} alt={consulado?.name} className="w-10 h-10 object-contain" />
+                    ) : (
+                        <Building2 size={28} className="text-[#FCB131]" />
+                    )}
                 </div>
                 <div>
-                    <h1 className="oswald text-3xl font-black text-white uppercase tracking-tighter">Mi Consulado</h1>
+                    <h1 className="oswald text-3xl font-black text-white uppercase tracking-tighter">{consulado?.name || 'Mi Consulado'}</h1>
                     <p className="text-[#FCB131] font-black uppercase text-[10px] tracking-[0.4em] mt-1">Gestión de Perfil Oficial</p>
                 </div>
             </div>
@@ -108,9 +198,18 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
                 </button>
             ) : (
                 <div className="flex gap-3 relative z-10">
-                    <button onClick={() => setIsEditing(false)} className="bg-white/10 text-white px-4 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white/20 transition-all border border-white/10">Cancelar</button>
-                    <button onClick={handleSave} className="bg-[#FCB131] text-[#001d4a] px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#FFD23F] transition-all flex items-center gap-2">
-                        <Save size={14} /> Guardar
+                    <button onClick={() => { setIsEditing(false); setSelectedLogoFile(null); setSelectedBannerFile(null); }} className="bg-white/10 text-white px-4 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white/20 transition-all border border-white/10">Cancelar</button>
+                    <button onClick={handleSave} disabled={isSaving} className="bg-[#FCB131] text-[#001d4a] px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#FFD23F] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        {isSaving ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-[#001d4a] border-t-transparent rounded-full animate-spin" />
+                                Guardando...
+                            </>
+                        ) : (
+                            <>
+                                <Save size={14} /> Guardar
+                            </>
+                        )}
                     </button>
                 </div>
             )}
@@ -118,15 +217,16 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
 
         {/* Tabs */}
         <div className="liquid-glass rounded-xl shadow-lg border border-white/20 overflow-hidden backdrop-blur-xl bg-gradient-to-br from-white/40 via-white/30 to-white/20">
-            <div className="flex gap-2 p-2">
+            <div className="flex gap-2 p-2 overflow-x-auto">
                 {[
                     { id: 'info', label: 'Información General', icon: Building2 },
+                    { id: 'ubicacion', label: 'Mapa y Ubicación', icon: Map },
                     { id: 'directiva', label: 'Comisión Directiva', icon: Users }
                 ].map(tab => (
                     <button 
                         key={tab.id} 
-                        onClick={() => setActiveTab(tab.id as 'info' | 'directiva')} 
-                        className={`flex items-center gap-2 px-6 py-3.5 text-[10px] font-black uppercase tracking-widest transition-all duration-300 relative rounded-lg backdrop-blur-sm ${
+                        onClick={() => setActiveTab(tab.id as 'info' | 'ubicacion' | 'directiva')} 
+                        className={`flex items-center gap-2 px-6 py-3.5 text-[10px] font-black uppercase tracking-widest transition-all duration-300 relative rounded-lg backdrop-blur-sm whitespace-nowrap ${
                             activeTab === tab.id 
                                 ? 'bg-gradient-to-br from-[#003B94]/90 to-[#001d4a]/90 text-white shadow-lg shadow-[#003B94]/30 border border-white/30' 
                                 : 'text-gray-600 hover:text-[#003B94] hover:bg-white/40 border border-transparent hover:border-white/30'
@@ -169,26 +269,94 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
                 </GlassCard>
 
                 <GlassCard className="p-8 bg-white border-[#003B94]/10 space-y-6">
-                    <h3 className="text-[#001d4a] font-black uppercase text-sm tracking-widest border-b border-gray-100 pb-2">Imágenes</h3>
+                    <h3 className="text-[#001d4a] font-black uppercase text-sm tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
+                        <ImageIcon size={16} className="text-[#003B94]" />
+                        Imágenes del Consulado
+                    </h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Logo</label>
+                        {/* Logo */}
+                        <div className="space-y-3">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                <ImageIcon size={10} className="text-[#003B94]" />
+                                Logo del Consulado (URL o Archivo)
+                            </label>
+                            {isEditing && (
+                                <input 
+                                    type="text" 
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" 
+                                    value={formData.logo?.startsWith('data:') ? '' : (formData.logo || '')} 
+                                    onChange={e => {
+                                        setFormData({...formData, logo: e.target.value});
+                                        setSelectedLogoFile(null);
+                                    }} 
+                                    placeholder="https://ejemplo.com/logo.png"
+                                />
+                            )}
                             <div className="flex items-center gap-4">
-                                <div className="w-20 h-20 bg-gray-100 rounded-full border border-gray-200 flex items-center justify-center overflow-hidden">
-                                    {formData.logo ? <img src={formData.logo} className="w-full h-full object-cover" /> : <ImageIcon size={24} className="text-gray-400" />}
+                                <div className="w-20 h-20 bg-gray-100 rounded-full border-2 border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                                    {formData.logo ? (
+                                        <img 
+                                            src={formData.logo.startsWith('data:') ? formData.logo : getConsuladoLogoUrl(formData.logo)} 
+                                            className="w-full h-full object-cover" 
+                                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                        />
+                                    ) : (
+                                        <ImageIcon size={24} className="text-gray-400" />
+                                    )}
                                 </div>
                                 {isEditing && (
-                                    <label className="bg-[#003B94]/10 text-[#003B94] px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#003B94] hover:text-white transition-all">
-                                        Cambiar <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'logo')} />
-                                    </label>
+                                    <div className="flex flex-col gap-2 flex-1">
+                                        <label className="bg-[#003B94] text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#001d4a] transition-all flex items-center gap-2 justify-center">
+                                            <Upload size={12} /> Subir Archivo
+                                            <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'logo')} />
+                                        </label>
+                                        {formData.logo && (
+                                            <button 
+                                                onClick={() => handleRemoveImage('logo')} 
+                                                className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2 justify-center"
+                                            >
+                                                <Trash2 size={12} /> Eliminar
+                                            </button>
+                                        )}
+                                    </div>
                                 )}
                             </div>
+                            {selectedLogoFile && (
+                                <div className="text-[9px] text-green-600 font-bold flex items-center gap-1">
+                                    <CheckCircle2 size={10} /> Archivo seleccionado: {selectedLogoFile.name}
+                                </div>
+                            )}
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Banner</label>
-                            <div className="w-full h-32 bg-gray-100 rounded-xl border border-gray-200 overflow-hidden relative group">
-                                {formData.banner ? <img src={formData.banner} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-gray-400"><ImageIcon size={32} /></div>}
+                        
+                        {/* Banner */}
+                        <div className="space-y-3">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                <ImageIcon size={10} className="text-[#003B94]" />
+                                Banner del Consulado (URL o Archivo)
+                            </label>
+                            {isEditing && (
+                                <input 
+                                    type="text" 
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 font-bold text-xs text-[#001d4a] outline-none focus:border-[#003B94]" 
+                                    value={formData.banner?.startsWith('data:') ? '' : (formData.banner || '')} 
+                                    onChange={e => {
+                                        setFormData({...formData, banner: e.target.value});
+                                        setSelectedBannerFile(null);
+                                    }} 
+                                    placeholder="https://ejemplo.com/banner.png"
+                                />
+                            )}
+                            <div className="w-full h-32 bg-gray-100 rounded-xl border-2 border-gray-200 overflow-hidden relative group">
+                                {formData.banner ? (
+                                    <img 
+                                        src={formData.banner.startsWith('data:') ? formData.banner : getConsuladoLogoUrl(formData.banner)} 
+                                        className="w-full h-full object-cover" 
+                                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                    />
+                                ) : (
+                                    <div className="flex items-center justify-center h-full text-gray-400"><ImageIcon size={32} /></div>
+                                )}
                                 {isEditing && (
                                     <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                                         <span className="bg-white text-[#001d4a] px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
@@ -198,6 +366,19 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
                                     </label>
                                 )}
                             </div>
+                            {isEditing && formData.banner && (
+                                <button 
+                                    onClick={() => handleRemoveImage('banner')} 
+                                    className="bg-red-50 border border-red-200 text-red-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2"
+                                >
+                                    <Trash2 size={10} /> Eliminar Banner
+                                </button>
+                            )}
+                            {selectedBannerFile && (
+                                <div className="text-[9px] text-green-600 font-bold flex items-center gap-1">
+                                    <CheckCircle2 size={10} /> Archivo seleccionado: {selectedBannerFile.name}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </GlassCard>
@@ -229,6 +410,113 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
                 </GlassCard>
             </div>
         </div>
+        )}
+
+        {activeTab === 'ubicacion' && (
+            <div className="space-y-6">
+                <GlassCard className="p-8 bg-white border-[#003B94]/10 space-y-6">
+                    <h3 className="text-[#001d4a] font-black uppercase text-sm tracking-widest border-b border-gray-100 pb-2 flex items-center gap-2">
+                        <Map size={16} className="text-[#003B94]" />
+                        Mapa y Ubicación
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Información de ubicación */}
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                                    <MapPin size={10} /> Dirección Completa
+                                </label>
+                                <input 
+                                    disabled={!isEditing} 
+                                    className={`w-full border rounded-xl py-3 px-4 font-bold text-xs outline-none transition-all ${isEditing ? 'bg-white border-gray-200 focus:border-[#003B94] text-[#001d4a]' : 'bg-gray-50 border-transparent text-gray-600'}`} 
+                                    value={formData.address || ''} 
+                                    onChange={e => setFormData({...formData, address: e.target.value})}
+                                    placeholder="Calle, Número, Ciudad, País"
+                                />
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Ciudad</label>
+                                    <input 
+                                        disabled 
+                                        className="w-full bg-gray-100 border border-gray-200 rounded-xl py-3 px-4 font-bold text-xs text-gray-500" 
+                                        value={formData.city || ''} 
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">País</label>
+                                    <input 
+                                        disabled 
+                                        className="w-full bg-gray-100 border border-gray-200 rounded-xl py-3 px-4 font-bold text-xs text-gray-500" 
+                                        value={formData.country || ''} 
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-1">
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                                    <Globe size={10} /> Zona Horaria
+                                </label>
+                                <input 
+                                    disabled 
+                                    className="w-full bg-gray-100 border border-gray-200 rounded-xl py-3 px-4 font-bold text-xs text-gray-500" 
+                                    value={formData.timezone || 'No definida'} 
+                                />
+                            </div>
+                            
+                            {/* Coordenadas (si disponibles) */}
+                            {(formData as any).latitude && (formData as any).longitude && (
+                                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Navigation size={14} className="text-blue-600" />
+                                        <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Coordenadas GPS</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4 text-xs">
+                                        <div>
+                                            <span className="text-gray-500">Latitud:</span>
+                                            <span className="font-bold text-[#001d4a] ml-2">{(formData as any).latitude}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-500">Longitud:</span>
+                                            <span className="font-bold text-[#001d4a] ml-2">{(formData as any).longitude}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        
+                        {/* Mapa placeholder */}
+                        <div className="space-y-4">
+                            <div className="w-full h-64 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center">
+                                <Map size={48} className="text-gray-400 mb-3" />
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Mapa del Consulado</p>
+                                <p className="text-[10px] text-gray-400 mt-1">
+                                    {formData.address ? formData.address : 'Dirección no definida'}
+                                </p>
+                                {formData.address && (
+                                    <a 
+                                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(formData.address + ', ' + formData.city + ', ' + formData.country)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="mt-4 bg-[#003B94] text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-[#001d4a] transition-all flex items-center gap-2"
+                                    >
+                                        <MapPin size={12} /> Ver en Google Maps
+                                    </a>
+                                )}
+                            </div>
+                            
+                            {/* Info adicional */}
+                            <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                                <p className="text-[10px] text-amber-700 font-bold">
+                                    💡 Para modificar la ciudad, país o zona horaria, contacte a los administradores centrales.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </GlassCard>
+            </div>
         )}
 
         {activeTab === 'directiva' && (

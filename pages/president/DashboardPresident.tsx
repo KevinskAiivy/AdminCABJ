@@ -1,10 +1,20 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { GlassCard } from '../../components/GlassCard';
-import { Calendar, Mail, Cake, X, Bell, UserPlus, Trophy, Clock, MapPin, Star, ChevronRight, AlertTriangle, Ticket, Building2, Gift } from 'lucide-react';
+import { Calendar, Mail, Cake, X, Bell, UserPlus, Trophy, Clock, MapPin, Star, ChevronRight, AlertTriangle, Ticket, Building2, Gift, ChevronLeft, RotateCcw, Users, Globe } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { Match, Mensaje, Socio, AgendaEvent } from '../../types';
 import { NextMatchCard } from '../../components/NextMatchCard';
+
+// Config pour les types d'événements
+const EVENT_TYPE_CONFIG: Record<string, { label: string, icon: any, color: string, bg: string }> = {
+    'EVENTO': { label: 'Institucional', icon: Building2, color: 'text-[#003B94]', bg: 'bg-gray-50' },
+    'EFEMERIDE': { label: 'Efemérides', icon: Star, color: 'text-[#FCB131]', bg: 'bg-[#FFFBEB]' },
+    'IDOLO': { label: 'Ídolos', icon: Trophy, color: 'text-blue-500', bg: 'bg-blue-50' },
+    'INTERNACIONAL': { label: 'Internacional', icon: Globe, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    'ENCUENTRO': { label: 'Encuentros', icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    'CUMPLEAÑOS': { label: 'Cumpleaños', icon: Gift, color: 'text-pink-500', bg: 'bg-pink-50' }
+};
 
 // Notification Interface
 interface Notification {
@@ -63,6 +73,18 @@ export const DashboardPresident = ({ consulado_id }: { consulado_id: string }) =
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [viewingMessage, setViewingMessage] = useState<Mensaje | null>(null);
   const [selectedDayDetails, setSelectedDayDetails] = useState<{ date: Date, birthdays: Socio[], agenda: AgendaEvent[] } | null>(null);
+  const [weekOffset, setWeekOffset] = useState<number>(0);
+  
+  // Calculate week start (Monday) based on weekOffset
+  const getWeekStart = useCallback((offset: number) => {
+    const today = new Date();
+    const currentDay = today.getDay();
+    const daysToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + daysToMonday + (offset * 7));
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+  }, []);
 
   // Subscribe to dataService updates
   useEffect(() => {
@@ -133,11 +155,25 @@ export const DashboardPresident = ({ consulado_id }: { consulado_id: string }) =
     return () => unsubscribe();
   }, [consulado_id]);
 
+  // Calculer les 7 jours de la semaine basé sur weekOffset
+  const weekStart = getWeekStart(weekOffset);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  
   const next7Days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
     return d;
   });
+  
+  // Format dates for display
+  const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const currentMonth = monthNames[weekStart.getMonth()];
+  const weekRange = `semana del ${weekStart.getDate()} al ${weekEnd.getDate()}`;
+
+  const handlePrevWeek = () => setWeekOffset(prev => prev - 1);
+  const handleNextWeek = () => setWeekOffset(prev => prev + 1);
+  const handleTodayWeek = () => setWeekOffset(0);
 
   const getEventsForDate = (date: Date) => {
     const dateStr = `${date.getDate().toString().padStart(2,'0')}/${(date.getMonth()+1).toString().padStart(2,'0')}`;
@@ -257,58 +293,139 @@ export const DashboardPresident = ({ consulado_id }: { consulado_id: string }) =
                 </div>
             </div>
 
-            {/* WEEKLY AGENDA - PRESIDENT VIEW */}
-            <div className="space-y-4">
-                <div className="flex items-center gap-3 px-2">
-                    <Calendar size={18} className="text-[#003B94]" />
-                    <h3 className="oswald text-xl font-black text-[#001d4a] uppercase tracking-tight">Agenda Semanal</h3>
+        </div>
+        
+        {/* AGENDA SEMANAL - VERSION HORIZONTALE */}
+        <div className="space-y-4">
+            {/* Header avec filtres améliorés */}
+            <div className="bg-gradient-to-r from-[#003B94] to-[#001d4a] rounded-2xl p-4 shadow-lg">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-white/10 rounded-xl">
+                            <Calendar size={20} className="text-[#FCB131]" />
+                        </div>
+                        <div>
+                            <h3 className="oswald text-xl font-black text-white uppercase tracking-tight">Agenda Semanal</h3>
+                            <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">
+                                {currentMonth} • {weekRange}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={handlePrevWeek}
+                            className="p-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-all"
+                            title="Semana anterior"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <button 
+                            onClick={handleTodayWeek}
+                            className="px-3 py-2 rounded-lg bg-[#FCB131] text-[#001d4a] hover:bg-[#FFD23F] transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"
+                            title="Semana actual"
+                        >
+                            <RotateCcw size={12} /> Hoy
+                        </button>
+                        <button 
+                            onClick={handleNextWeek}
+                            className="p-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-all"
+                            title="Semana siguiente"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
                 </div>
-                <div className="space-y-3">
-                    {next7Days.map((date, idx) => {
-                        const { dayBirthdays, dayAgenda } = getEventsForDate(date);
-                        const hasEvents = dayBirthdays.length > 0 || dayAgenda.length > 0;
-                        const isMatchDay = nextMatch && new Date(nextMatch.date.split('/').reverse().join('-')).getDate() === date.getDate();
-                        
-                        return (
-                            <GlassCard 
-                                key={idx} 
-                                onClick={() => hasEvents && setSelectedDayDetails({ date, birthdays: dayBirthdays, agenda: dayAgenda })}
-                                className={`p-4 flex items-center gap-5 transition-all group border ${hasEvents ? 'cursor-pointer hover:shadow-lg hover:border-[#003B94]/20' : ''} ${isMatchDay ? 'border-[#FCB131] bg-amber-50/30' : 'border-transparent bg-white'}`}
-                            >
-                                <div className="flex flex-col items-center justify-center w-12 shrink-0 border-r border-gray-100 pr-5">
-                                    <span className="text-[8px] font-black uppercase text-gray-400 mb-1">{date.toLocaleDateString('es-ES', { weekday: 'short' })}</span>
-                                    <span className={`text-2xl font-black oswald leading-none ${isMatchDay ? 'text-[#FCB131]' : 'text-[#001d4a]'}`}>{date.getDate()}</span>
-                                </div>
-                                <div className="flex-1 space-y-1.5">
-                                    {isMatchDay && (
-                                        <div className="flex items-center justify-between bg-[#FCB131]/10 px-2 py-1.5 rounded-lg border border-[#FCB131]/20">
-                                            <span className="text-[7px] font-black text-[#001d4a] uppercase">Partido</span>
-                                            <Trophy size={10} className="text-[#001d4a]" />
-                                        </div>
-                                    )}
-                                    {dayBirthdays.length > 0 && (
-                                        <div className="flex items-center justify-between bg-blue-50 px-2 py-1.5 rounded-lg border border-blue-100">
-                                            <span className="text-[7px] font-black text-[#001d4a] uppercase">Cumpleaños</span>
-                                            <span className="text-[9px] font-bold text-blue-600">{dayBirthdays.length}</span>
-                                        </div>
-                                    )}
-                                    {dayAgenda.length > 0 && (
-                                        <div className="flex items-center justify-between bg-emerald-50 px-2 py-1.5 rounded-lg border border-emerald-100">
-                                            <span className="text-[7px] font-black text-[#001d4a] uppercase">Eventos</span>
-                                            <span className="text-[9px] font-bold text-emerald-600">{dayAgenda.length}</span>
-                                        </div>
-                                    )}
-                                    {!hasEvents && !isMatchDay && <span className="text-[9px] text-gray-300 uppercase font-medium tracking-widest italic block py-1">Agenda libre</span>}
-                                </div>
-                                {(hasEvents || isMatchDay) && (
-                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <ChevronRight size={14} className="text-[#003B94]" />
+            </div>
+            
+            {/* Grille horizontale des jours */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                {next7Days.map((date, idx) => {
+                    const { dayBirthdays, dayAgenda } = getEventsForDate(date);
+                    const hasEvents = dayBirthdays.length > 0 || dayAgenda.length > 0;
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const dateCompare = new Date(date);
+                    dateCompare.setHours(0, 0, 0, 0);
+                    const isToday = dateCompare.getTime() === today.getTime();
+                    const isMatchDay = nextMatch && (() => {
+                        try {
+                            const matchDateStr = nextMatch.date;
+                            let matchDate: Date;
+                            if (matchDateStr.includes('/')) {
+                                const [d, m, y] = matchDateStr.split('/').map(Number);
+                                matchDate = new Date(y, m - 1, d);
+                            } else {
+                                matchDate = new Date(matchDateStr);
+                            }
+                            matchDate.setHours(0, 0, 0, 0);
+                            return matchDate.getTime() === dateCompare.getTime();
+                        } catch { return false; }
+                    })();
+                    
+                    return (
+                        <GlassCard 
+                            key={idx} 
+                            onClick={() => hasEvents && setSelectedDayDetails({ date, birthdays: dayBirthdays, agenda: dayAgenda })}
+                            className={`p-3 transition-all group border-2 min-h-[140px] flex flex-col ${
+                                isToday ? 'border-[#003B94] bg-[#003B94]/5 shadow-lg' : 
+                                isMatchDay ? 'border-[#FCB131] bg-amber-50/50' : 
+                                hasEvents ? 'border-gray-200 hover:border-[#003B94]/30 cursor-pointer hover:shadow-md' : 
+                                'border-gray-100 bg-gray-50/50'
+                            }`}
+                        >
+                            {/* Header du jour */}
+                            <div className={`text-center pb-2 mb-2 border-b ${isToday ? 'border-[#003B94]/20' : 'border-gray-100'}`}>
+                                <span className={`text-[9px] font-black uppercase tracking-widest block ${isToday ? 'text-[#003B94]' : 'text-gray-400'}`}>
+                                    {date.toLocaleDateString('es-ES', { weekday: 'short' })}
+                                </span>
+                                <span className={`text-2xl font-black oswald leading-none ${isToday ? 'text-[#003B94]' : isMatchDay ? 'text-[#FCB131]' : 'text-[#001d4a]'}`}>
+                                    {date.getDate()}
+                                </span>
+                                {isToday && (
+                                    <span className="block text-[7px] font-black uppercase tracking-widest text-[#FCB131] mt-1 bg-[#003B94] rounded px-1 py-0.5 mx-auto w-fit">
+                                        Hoy
+                                    </span>
+                                )}
+                            </div>
+                            
+                            {/* Contenu */}
+                            <div className="flex-1 space-y-1.5">
+                                {isMatchDay && (
+                                    <div className="flex items-center justify-between bg-[#FCB131]/20 px-2 py-1 rounded-lg">
+                                        <span className="text-[7px] font-black text-[#001d4a] uppercase">Partido</span>
+                                        <Trophy size={10} className="text-[#001d4a]" />
                                     </div>
                                 )}
-                            </GlassCard>
-                        );
-                    })}
-                </div>
+                                {dayBirthdays.length > 0 && (
+                                    <div className="flex items-center justify-between bg-pink-50 px-2 py-1 rounded-lg border border-pink-100">
+                                        <span className="text-[7px] font-black text-pink-600 uppercase">Cumple</span>
+                                        <span className="text-[9px] font-bold text-pink-600 bg-pink-200 px-1.5 rounded-full">{dayBirthdays.length}</span>
+                                    </div>
+                                )}
+                                {dayAgenda.length > 0 && (
+                                    <div className="flex items-center justify-between bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
+                                        <span className="text-[7px] font-black text-emerald-600 uppercase">Eventos</span>
+                                        <span className="text-[9px] font-bold text-emerald-600 bg-emerald-200 px-1.5 rounded-full">{dayAgenda.length}</span>
+                                    </div>
+                                )}
+                                {!hasEvents && !isMatchDay && (
+                                    <div className="flex items-center justify-center h-full">
+                                        <span className="text-[8px] text-gray-300 uppercase font-medium tracking-widest italic">Libre</span>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {/* Indicateur cliquable */}
+                            {hasEvents && (
+                                <div className="mt-2 pt-2 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span className="text-[8px] font-black text-[#003B94] uppercase tracking-widest flex items-center justify-center gap-1">
+                                        Ver detalles <ChevronRight size={10} />
+                                    </span>
+                                </div>
+                            )}
+                        </GlassCard>
+                    );
+                })}
             </div>
         </div>
         
