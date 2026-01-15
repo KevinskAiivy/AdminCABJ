@@ -50,6 +50,18 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
     })).sort((a, b) => a.label.localeCompare(b.label));
   }, [socios]);
 
+  // Query pour Google Maps - calculée à partir de l'adresse, ville ou pays
+  const mapQuery = useMemo(() => {
+    if (formData.address && formData.address.trim()) {
+      return `${formData.address}, ${formData.city || ''}, ${formData.country || ''}`;
+    } else if (formData.city && formData.city.trim()) {
+      return `${formData.city}, ${formData.country || ''}`;
+    } else if (formData.country && formData.country.trim()) {
+      return formData.country;
+    }
+    return 'Argentina';
+  }, [formData.address, formData.city, formData.country]);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'logo' | 'banner') => {
     const file = e.target.files?.[0];
     if (file) {
@@ -491,43 +503,21 @@ export const MiConsulado = ({ consulado_id }: { consulado_id: string }) => {
                         
                         {/* Mapa Google Maps - toujours actif */}
                         <div className="space-y-4">
-                            {/* Construire la query pour Google Maps: adresse > ville, pays > pays seul */}
-                            {(() => {
-                                let mapQuery = '';
-                                if (formData.address && formData.address.trim()) {
-                                    mapQuery = `${formData.address}, ${formData.city || ''}, ${formData.country || ''}`;
-                                } else if (formData.city && formData.city.trim()) {
-                                    mapQuery = `${formData.city}, ${formData.country || ''}`;
-                                } else if (formData.country && formData.country.trim()) {
-                                    mapQuery = formData.country;
-                                } else {
-                                    mapQuery = 'Argentina'; // Fallback par défaut
-                                }
-                                
-                                return (
-                                    <div className="w-full h-72 rounded-xl overflow-hidden border-2 border-[#003B94]/20 shadow-lg">
-                                        <iframe
-                                            width="100%"
-                                            height="100%"
-                                            style={{ border: 0 }}
-                                            loading="lazy"
-                                            allowFullScreen
-                                            referrerPolicy="no-referrer-when-downgrade"
-                                            src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(mapQuery)}&zoom=14`}
-                                        />
-                                    </div>
-                                );
-                            })()}
+                            <div className="w-full h-72 rounded-xl overflow-hidden border-2 border-[#003B94]/20 shadow-lg">
+                                <iframe
+                                    width="100%"
+                                    height="100%"
+                                    style={{ border: 0 }}
+                                    loading="lazy"
+                                    allowFullScreen
+                                    referrerPolicy="no-referrer-when-downgrade"
+                                    src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(mapQuery)}&zoom=14`}
+                                />
+                            </div>
                             
                             {/* Bouton pour ouvrir dans Google Maps */}
                             <a 
-                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                    formData.address && formData.address.trim() 
-                                        ? `${formData.address}, ${formData.city || ''}, ${formData.country || ''}`
-                                        : formData.city && formData.city.trim()
-                                            ? `${formData.city}, ${formData.country || ''}`
-                                            : formData.country || 'Argentina'
-                                )}`}
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-full bg-[#003B94] text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#001d4a] transition-all flex items-center justify-center gap-2"
