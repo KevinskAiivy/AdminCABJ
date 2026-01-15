@@ -184,48 +184,67 @@ export const Equipos = () => {
   }, [teams, searchQuery, filterCountry]);
 
   return (
-    <div className="space-y-8 pb-20">
-        <div className="mx-4 bg-white p-4 rounded-xl shadow-sm border border-[#003B94]/10 flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="flex gap-2 text-[#001d4a]/60 items-center shrink-0">
-                <ShieldCheck size={18} />
-                <span className="text-[10px] font-black uppercase tracking-widest">Base de Datos</span>
+    <div className="space-y-8 pb-20 px-4">
+        {/* BANDEAU UNIFIÉ - Style Consulados */}
+        <div className="bg-[#003B94] p-8 rounded-xl border border-white/20 shadow-xl flex flex-col gap-6 relative overflow-hidden">
+            <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none"><ShieldCheck size={300} className="text-white" /></div>
+            
+            {/* Ligne 1: Titre + Stats + Bouton */}
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
+                <div className="flex items-center gap-5">
+                    <div className="bg-white/10 p-4 rounded-xl border border-white/20"><ShieldCheck size={28} className="text-[#FCB131]" /></div>
+                    <div>
+                        <h1 className="oswald text-3xl font-black text-white uppercase tracking-tighter">Equipos</h1>
+                        <p className="text-[#FCB131] font-black uppercase text-[10px] tracking-[0.4em] mt-1">Base de Datos de Rivales</p>
+                    </div>
+                </div>
+                
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 bg-white/10 px-4 py-2 rounded-xl border border-white/20">
+                        <div className="flex items-center gap-2">
+                            <ShieldCheck size={14} className="text-[#FCB131]" />
+                            <span className="text-white font-black text-sm oswald">{teams.length}</span>
+                            <span className="text-white/60 text-[8px] font-bold uppercase">Equipos</span>
+                        </div>
+                    </div>
+                    <button onClick={handleCreate} className="bg-[#FCB131] text-[#001d4a] px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center gap-2 hover:bg-[#FFD23F] transition-all">
+                        <Plus size={16} /> Nuevo Equipo
+                    </button>
+                </div>
             </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
-                <div className="flex gap-2 w-full sm:w-auto overflow-x-auto">
+            
+            {/* Ligne 2: Filtres intégrés */}
+            <div className="flex flex-col md:flex-row gap-3 items-center relative z-10 pt-4 border-t border-white/20">
+                <div className="flex flex-wrap gap-3 flex-1">
                     <div className="relative min-w-[180px]">
                         <select 
                             value={filterCountry || 'AR'} 
                             onChange={(e) => setFilterCountry(e.target.value)} 
-                            className="w-full bg-[#003B94]/5 border border-transparent rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:bg-white focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide transition-all"
+                            className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-8 text-xs font-bold text-white outline-none appearance-none cursor-pointer hover:bg-white/20 transition-all"
                         >
                             {availableCountries && availableCountries.length > 0 ? (
                                 availableCountries.map(c => (
-                                    <option key={c.code} value={c.code}>{c.name}</option>
+                                    <option key={c.code} value={c.code} className="text-[#001d4a]">{c.name}</option>
                                 ))
                             ) : (
-                                // Fallback: afficher au moins AR si availableCountries est vide
-                                <option value="AR">Argentina</option>
+                                <option value="AR" className="text-[#001d4a]">Argentina</option>
                             )}
                         </select>
-                        <Flag className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 pointer-events-none" size={12} />
+                        <Flag className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" size={14} />
                     </div>
-                    
-                    {(filterCountry !== 'AR' || searchQuery) && (
-                        <button onClick={resetFilters} className="p-2.5 bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200 transition-colors" title="Limpiar Filtros">
-                            <RotateCcw size={14} />
-                        </button>
-                    )}
-                </div>
-
-                <div className="relative group flex-1 xl:w-64">
-                    <input type="text" placeholder="Buscar equipo..." className="w-full bg-white border border-gray-200 rounded-lg py-2.5 pl-10 pr-4 outline-none text-xs font-bold text-[#001d4a] transition-all focus:border-[#003B94] placeholder:text-gray-400" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#003B94]" size={16} />
                 </div>
                 
-                <button onClick={handleCreate} className="bg-[#FCB131] text-[#001d4a] px-4 py-2.5 rounded-lg font-black uppercase text-[10px] tracking-widest shadow-md flex items-center gap-2 hover:bg-[#FFD23F] transition-all whitespace-nowrap">
-                    <Plus size={14} /> Nuevo
-                </button>
+                <div className="flex gap-3 items-center">
+                    {(filterCountry !== 'AR' || searchQuery) && (
+                        <button onClick={resetFilters} className="bg-white/10 text-white px-4 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white/20 transition-all flex items-center gap-2 border border-white/20">
+                            <RotateCcw size={12} /> Reset
+                        </button>
+                    )}
+                    <div className="relative w-64">
+                        <input type="text" placeholder="Buscar equipo..." className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-4 outline-none text-xs font-bold text-white placeholder:text-white/40 transition-all focus:bg-white focus:text-[#001d4a]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
+                    </div>
+                </div>
             </div>
         </div>
 

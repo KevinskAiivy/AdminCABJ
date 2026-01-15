@@ -315,52 +315,67 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 px-4 animate-boca-entrance">
-        {/* Header */}
-        <div className="bg-[#003B94] p-8 rounded-xl border border-white/20 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+        {/* BANDEAU UNIFIÉ - Style Consulados */}
+        <div className="bg-[#003B94] p-8 rounded-xl border border-white/20 shadow-xl flex flex-col gap-6 relative overflow-hidden">
             <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none"><Users size={300} className="text-white" /></div>
-            <div className="flex items-center gap-5 relative z-10">
-                <div className="bg-white/10 p-4 rounded-xl border border-white/20"><Users size={28} className="text-[#FCB131]" /></div>
-                <div><h1 className="oswald text-3xl font-black text-white uppercase tracking-tighter">Mis Socios</h1><p className="text-[#FCB131] font-black uppercase text-[10px] tracking-[0.4em] mt-1">Padrón Local</p></div>
-            </div>
-            <div className="relative z-10 flex gap-2.5 flex-wrap justify-center">
-                <GlassCard className="px-4 py-2.5 flex flex-col items-center bg-white/10 border-white/20 text-white backdrop-blur-sm hover:bg-white/20 transition-all shadow-lg">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                        <div className="p-1 rounded-lg bg-emerald-500/30"><CheckCircle2 size={14} className="text-emerald-300"/></div>
-                        <span className="text-xl font-black oswald">{stats.alDia}</span>
+            
+            {/* Ligne 1: Titre + Stats */}
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
+                <div className="flex items-center gap-5">
+                    <div className="bg-white/10 p-4 rounded-xl border border-white/20"><Users size={28} className="text-[#FCB131]" /></div>
+                    <div>
+                        <h1 className="oswald text-3xl font-black text-white uppercase tracking-tighter">Mis Socios</h1>
+                        <p className="text-[#FCB131] font-black uppercase text-[10px] tracking-[0.4em] mt-1">Padrón Local</p>
                     </div>
-                    <span className="text-[8px] uppercase tracking-widest font-bold text-emerald-300">Al Día</span>
-                </GlassCard>
-                <GlassCard className="px-4 py-2.5 flex flex-col items-center bg-white/10 border-white/20 text-white backdrop-blur-sm hover:bg-white/20 transition-all shadow-lg">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                        <div className="p-1 rounded-lg bg-amber-500/30"><AlertTriangle size={14} className="text-amber-300"/></div>
-                        <span className="text-xl font-black oswald">{stats.deuda}</span>
+                </div>
+                
+                {/* Stats compactes */}
+                <div className="flex items-center gap-4 bg-white/10 px-4 py-2 rounded-xl border border-white/20">
+                    <div className="flex items-center gap-2">
+                        <Users size={14} className="text-[#FCB131]" />
+                        <span className="text-white font-black text-sm oswald">{socios.length}</span>
+                        <span className="text-white/60 text-[8px] font-bold uppercase">Total</span>
                     </div>
-                    <span className="text-[8px] uppercase tracking-widest font-bold text-amber-300">En Deuda</span>
-                </GlassCard>
-                <GlassCard className="px-4 py-2.5 flex flex-col items-center bg-white/10 border-white/20 text-white backdrop-blur-sm hover:bg-white/20 transition-all shadow-lg">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                        <div className="p-1 rounded-lg bg-red-500/30"><UserX size={14} className="text-red-300"/></div>
-                        <span className="text-xl font-black oswald">{stats.deBaja}</span>
+                    <div className="w-px h-6 bg-white/20" />
+                    <div className="flex items-center gap-2">
+                        <CheckCircle2 size={14} className="text-green-400" />
+                        <span className="text-white font-black text-sm oswald">{stats.alDia}</span>
+                        <span className="text-white/60 text-[8px] font-bold uppercase">Al Día</span>
                     </div>
-                    <span className="text-[8px] uppercase tracking-widest font-bold text-red-300">De Baja</span>
-                </GlassCard>
+                    <div className="w-px h-6 bg-white/20" />
+                    <div className="flex items-center gap-2">
+                        <AlertTriangle size={14} className="text-amber-400" />
+                        <span className="text-white font-black text-sm oswald">{stats.deuda}</span>
+                        <span className="text-white/60 text-[8px] font-bold uppercase">Deuda</span>
+                    </div>
+                    <div className="w-px h-6 bg-white/20" />
+                    <div className="flex items-center gap-2">
+                        <UserX size={14} className="text-red-400" />
+                        <span className="text-white font-black text-sm oswald">{stats.deBaja}</span>
+                        <span className="text-white/60 text-[8px] font-bold uppercase">Baja</span>
+                    </div>
+                </div>
             </div>
-        </div>
-
-        {/* Toolbar */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-[#003B94]/10 flex flex-col sm:flex-row gap-4 items-center justify-between">
-            <div className="relative group w-full sm:max-w-md">
-                <input type="text" placeholder="Buscar socio..." className="w-full bg-[#003B94]/5 border-transparent rounded-lg py-2.5 pl-10 pr-4 outline-none text-xs font-bold text-[#001d4a] transition-all focus:bg-white focus:ring-2 focus:ring-[#003B94]/10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#003B94]/30" size={16} />
-            </div>
-            <div className="relative min-w-[150px]">
-                <select value={filterCuotaStatus} onChange={(e) => setFilterCuotaStatus(e.target.value)} className="w-full bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide">
-                    <option value="ALL">Estado Cuota</option>
-                    <option value="AL DÍA">Al Día</option>
-                    <option value="EN DEUDA">En Deuda</option>
-                    <option value="DE BAJA">De Baja</option>
-                </select>
-                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
+            
+            {/* Ligne 2: Filtres intégrés */}
+            <div className="flex flex-col md:flex-row gap-3 items-center relative z-10 pt-4 border-t border-white/20">
+                <div className="flex flex-wrap gap-3 flex-1">
+                    <div className="relative min-w-[160px]">
+                        <select value={filterCuotaStatus} onChange={(e) => setFilterCuotaStatus(e.target.value)} className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-8 text-xs font-bold text-white outline-none appearance-none cursor-pointer hover:bg-white/20 transition-all">
+                            <option value="ALL" className="text-[#001d4a]">Estado Cuota</option>
+                            <option value="AL DÍA" className="text-[#001d4a]">Al Día</option>
+                            <option value="EN DEUDA" className="text-[#001d4a]">En Deuda</option>
+                            <option value="DE BAJA" className="text-[#001d4a]">De Baja</option>
+                        </select>
+                        <AlertTriangle className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" size={14} />
+                    </div>
+                </div>
+                
+                {/* Recherche */}
+                <div className="relative w-64">
+                    <input type="text" placeholder="Buscar socio..." className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-4 outline-none text-xs font-bold text-white placeholder:text-white/40 transition-all focus:bg-white focus:text-[#001d4a]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
+                </div>
             </div>
         </div>
 

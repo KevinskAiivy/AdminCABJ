@@ -694,90 +694,110 @@ export const Socios = ({ user }: { user?: any }) => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 px-4 animate-boca-entrance">
-      <div className="bg-[#003B94] p-6 rounded-xl border border-white/20 shadow-xl relative overflow-hidden">
-            <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none"><User size={300} className="text-white" /></div>
-            <div className="relative z-10 space-y-4">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="flex items-center gap-5">
-                        <div className="bg-white/10 p-3 rounded-xl border border-white/20"><User size={24} className="text-[#FCB131]" /></div>
-                        <div><h1 className="oswald text-2xl font-black text-white uppercase tracking-tighter">Padrón de Socios</h1><p className="text-[#FCB131] font-black uppercase text-[9px] tracking-[0.4em] mt-1">Gestión Centralizada</p></div>
-                    </div>
-                    <div className="flex gap-3">
-                        <button onClick={() => setIsExportModalOpen(true)} className="bg-white/10 text-white px-4 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest hover:bg-white/20 transition-all flex items-center gap-2 border border-white/10"><Download size={14} /> Exportar</button>
-                        <button onClick={handleCreate} className="bg-[#FCB131] text-[#001d4a] px-5 py-2.5 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg flex items-center gap-2 hover:bg-[#FFD23F] transition-all"><UserPlus size={14} /> Nuevo Socio</button>
-                    </div>
-                </div>
-                
-                <div className="flex flex-wrap gap-4 pt-4 border-t border-white/20">
-                    <div className="flex flex-col items-center gap-1.5">
-                        <div className="w-16 h-16 flex flex-col items-center justify-center">
-                            <div className="p-1.5 rounded bg-white/20 text-white mb-1"><Users size={14}/></div>
-                            <span className="text-sm font-black text-white oswald leading-none">{stats?.total || 0}</span>
-                        </div>
-                        <span className="text-[8px] text-white/80 font-bold uppercase tracking-wider whitespace-nowrap">Total Socios</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1.5">
-                        <div className="w-16 h-16 flex flex-col items-center justify-center">
-                            <div className="p-1.5 rounded bg-white/20 text-white mb-1"><CheckCircle2 size={14}/></div>
-                            <span className="text-sm font-black text-white oswald leading-none">{stats?.alDia || 0}</span>
-                        </div>
-                        <span className="text-[8px] text-white/80 font-bold uppercase tracking-wider whitespace-nowrap">Al Día</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1.5">
-                        <div className="w-16 h-16 flex flex-col items-center justify-center">
-                            <div className="p-1.5 rounded bg-white/20 text-white mb-1"><AlertTriangle size={14}/></div>
-                            <span className="text-sm font-black text-white oswald leading-none">{stats?.morosos || 0}</span>
-                        </div>
-                        <span className="text-[8px] text-white/80 font-bold uppercase tracking-wider whitespace-nowrap">En Deuda</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1.5">
-                        <div className="w-16 h-16 flex flex-col items-center justify-center">
-                            <div className="p-1.5 rounded bg-white/20 text-white mb-1"><UserX size={14}/></div>
-                            <span className="text-sm font-black text-white oswald leading-none">{stats?.deBaja || 0}</span>
-                        </div>
-                        <span className="text-[8px] text-white/80 font-bold uppercase tracking-wider whitespace-nowrap">De Baja</span>
-                    </div>
-                </div>
+      {/* BANDEAU UNIFIÉ - Style Consulados */}
+      <div className="bg-[#003B94] p-8 rounded-xl border border-white/20 shadow-xl flex flex-col gap-6 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none"><User size={300} className="text-white" /></div>
+        
+        {/* Ligne 1: Titre + Stats + Boutons */}
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
+          <div className="flex items-center gap-5">
+            <div className="bg-white/10 p-4 rounded-xl border border-white/20"><User size={28} className="text-[#FCB131]" /></div>
+            <div>
+              <h1 className="oswald text-3xl font-black text-white uppercase tracking-tighter">Padrón de Socios</h1>
+              <p className="text-[#FCB131] font-black uppercase text-[10px] tracking-[0.4em] mt-1">Gestión Centralizada</p>
             </div>
-      </div>
-
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-[#003B94]/10 flex flex-col xl:flex-row gap-4 items-center justify-between">
-        <button onClick={resetFilters} style={{ backgroundColor: 'var(--boca-gold)' }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[#001d4a] hover:bg-gray-200 hover:text-[#001d4a] transition-all font-black text-[8px] uppercase tracking-widest border border-transparent hover:border-gray-300 h-fit"><RotateCcw size={10} /> Limpiar Filtros</button>
-        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto overflow-x-auto">
-            <div className="relative min-w-[130px]">
-                <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} style={{width: '200px'}} className="bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Categorías</option>{SOCIO_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select>
-                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
+          </div>
+          
+          {/* Stats compactes */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-6 bg-white/10 px-4 py-2 rounded-xl border border-white/20">
+              <div className="flex items-center gap-2">
+                <Users size={14} className="text-[#FCB131]" />
+                <span className="text-white font-black text-sm oswald">{stats?.total || 0}</span>
+                <span className="text-white/60 text-[8px] font-bold uppercase">Total</span>
+              </div>
+              <div className="w-px h-6 bg-white/20" />
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={14} className="text-green-400" />
+                <span className="text-white font-black text-sm oswald">{stats?.alDia || 0}</span>
+                <span className="text-white/60 text-[8px] font-bold uppercase">Al Día</span>
+              </div>
+              <div className="w-px h-6 bg-white/20" />
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={14} className="text-amber-400" />
+                <span className="text-white font-black text-sm oswald">{stats?.morosos || 0}</span>
+                <span className="text-white/60 text-[8px] font-bold uppercase">Deuda</span>
+              </div>
+              <div className="w-px h-6 bg-white/20" />
+              <div className="flex items-center gap-2">
+                <UserX size={14} className="text-red-400" />
+                <span className="text-white font-black text-sm oswald">{stats?.deBaja || 0}</span>
+                <span className="text-white/60 text-[8px] font-bold uppercase">Baja</span>
+              </div>
             </div>
-            <div className="relative min-w-[150px]">
-                <select value={filterConsulado} onChange={(e) => setFilterConsulado(e.target.value)} style={{width: '200px'}} className="bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide"><option value="ALL">Consulados</option><option value="CONSULADO CENTRAL">Consulado Central</option>{(consulados || []).sort((a,b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select>
-                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
+            
+            <div className="flex gap-3">
+              <button onClick={() => setIsExportModalOpen(true)} className="bg-white/10 text-white px-4 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white/20 transition-all flex items-center gap-2 border border-white/20"><Download size={14} /> Exportar</button>
+              <button onClick={handleCreate} className="bg-[#FCB131] text-[#001d4a] px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center gap-2 hover:bg-[#FFD23F] transition-all"><UserPlus size={14} /> Nuevo</button>
             </div>
-            {/* Filtre Estado de la cuota - visible uniquement pour PRESIDENTE et REFERENTE */}
-            {(user?.role === 'PRESIDENTE' || user?.role === 'REFERENTE') && (
-                <div className="relative min-w-[150px]">
-                    <select value={filterCuotaStatus} onChange={(e) => setFilterCuotaStatus(e.target.value)} style={{width: '200px'}} className="bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide">
-                        <option value="ALL">Estado Cuota</option>
-                        <option value="AL DÍA">Al Día</option>
-                        <option value="EN DEUDA">En Deuda</option>
-                        <option value="DE BAJA">De Baja</option>
-                    </select>
-                    <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
-                </div>
-            )}
-            <div className="relative min-w-[130px]">
-                <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} style={{width: '200px'}} className="bg-white border border-[#003B94]/10 rounded-lg py-2.5 pl-3 pr-8 text-xs font-bold text-[#001d4a] outline-none focus:border-[#003B94]/30 appearance-none cursor-pointer uppercase tracking-wide">
-                    <option value="ALL">Roles</option>
-                    <option value="SOCIO">Socio</option>
-                    <option value="PRESIDENTE">Presidente</option>
-                    <option value="REFERENTE">Referente</option>
-                    <option value="">Sin Rol</option>
-                </select>
-                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-[#003B94]/30 rotate-90 pointer-events-none" size={12} />
-            </div>
+          </div>
         </div>
-        <div className="relative group w-full xl:w-80">
-            <input type="text" placeholder="Buscar..." className="w-full bg-[#003B94]/5 border-transparent rounded-lg py-2.5 pl-10 pr-4 outline-none text-xs font-bold text-[#001d4a] transition-all focus:bg-white focus:ring-2 focus:ring-[#003B94]/10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#003B94]/30" size={16} />
+        
+        {/* Ligne 2: Filtres intégrés */}
+        <div className="flex flex-col md:flex-row gap-3 items-center relative z-10 pt-4 border-t border-white/20">
+          <div className="flex flex-wrap gap-3 flex-1">
+            <div className="relative min-w-[160px]">
+              <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-8 text-xs font-bold text-white outline-none appearance-none cursor-pointer hover:bg-white/20 transition-all">
+                <option value="ALL" className="text-[#001d4a]">Todas las Categorías</option>
+                {SOCIO_CATEGORIES.map(cat => <option key={cat} value={cat} className="text-[#001d4a]">{cat}</option>)}
+              </select>
+              <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" size={14} />
+              <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" size={12} />
+            </div>
+            <div className="relative min-w-[180px]">
+              <select value={filterConsulado} onChange={(e) => setFilterConsulado(e.target.value)} className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-8 text-xs font-bold text-white outline-none appearance-none cursor-pointer hover:bg-white/20 transition-all">
+                <option value="ALL" className="text-[#001d4a]">Todos los Consulados</option>
+                <option value="CONSULADO CENTRAL" className="text-[#001d4a]">Consulado Central</option>
+                {(consulados || []).sort((a,b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.name} className="text-[#001d4a]">{c.name}</option>)}
+              </select>
+              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" size={14} />
+              <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" size={12} />
+            </div>
+            {(user?.role === 'PRESIDENTE' || user?.role === 'REFERENTE') && (
+              <div className="relative min-w-[160px]">
+                <select value={filterCuotaStatus} onChange={(e) => setFilterCuotaStatus(e.target.value)} className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-8 text-xs font-bold text-white outline-none appearance-none cursor-pointer hover:bg-white/20 transition-all">
+                  <option value="ALL" className="text-[#001d4a]">Estado Cuota</option>
+                  <option value="AL DÍA" className="text-[#001d4a]">Al Día</option>
+                  <option value="EN DEUDA" className="text-[#001d4a]">En Deuda</option>
+                  <option value="DE BAJA" className="text-[#001d4a]">De Baja</option>
+                </select>
+                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" size={14} />
+                <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" size={12} />
+              </div>
+            )}
+            <div className="relative min-w-[140px]">
+              <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-8 text-xs font-bold text-white outline-none appearance-none cursor-pointer hover:bg-white/20 transition-all">
+                <option value="ALL" className="text-[#001d4a]">Todos los Roles</option>
+                <option value="SOCIO" className="text-[#001d4a]">Socio</option>
+                <option value="PRESIDENTE" className="text-[#001d4a]">Presidente</option>
+                <option value="REFERENTE" className="text-[#001d4a]">Referente</option>
+                <option value="" className="text-[#001d4a]">Sin Rol</option>
+              </select>
+              <Award className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" size={14} />
+              <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" size={12} />
+            </div>
+          </div>
+          
+          {/* Recherche + Reset */}
+          <div className="flex gap-3 items-center">
+            <button onClick={resetFilters} className="bg-white/10 text-white px-4 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white/20 transition-all flex items-center gap-2 border border-white/20">
+              <RotateCcw size={12} /> Reset
+            </button>
+            <div className="relative w-64">
+              <input type="text" placeholder="Buscar socio..." className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-4 outline-none text-xs font-bold text-white placeholder:text-white/40 transition-all focus:bg-white focus:text-[#001d4a]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1320,77 +1340,62 @@ export const Socios = ({ user }: { user?: any }) => {
         </div>
       )}
       
-      {/* Modal d'Export Complet */}
+      {/* Modal d'Export Complet - Design Compact */}
       {isExportModalOpen && (
-        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-[#001d4a]/60 backdrop-blur-sm animate-in fade-in" style={{ height: '700px' }}>
-            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden animate-in zoom-in-95">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-[#003B94] to-[#001d4a] p-5 text-white">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Download size={24} className="text-[#FCB131]" />
-                            <div>
-                                <h2 className="oswald text-xl font-black uppercase tracking-tight">Exportar Padrón</h2>
-                                <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Seleccione las opciones de exportación</p>
-                            </div>
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-[#001d4a]/70 backdrop-blur-md animate-in fade-in" style={{ height: '500px' }}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 border border-gray-200">
+                {/* Header Compact */}
+                <div className="bg-gradient-to-r from-[#003B94] to-[#001d4a] px-4 py-3 text-white flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-[#FCB131]/20 flex items-center justify-center">
+                            <Download size={16} className="text-[#FCB131]" />
                         </div>
-                        <button onClick={() => { setIsExportModalOpen(false); setExportFilter('ALL'); setExportConsulados(new Set()); setExportCategories(new Set()); }} className="p-2 hover:bg-white/10 rounded-lg transition-all">
-                            <X size={20} />
-                        </button>
+                        <h2 className="oswald text-base font-black uppercase tracking-tight">Exportar Padrón</h2>
                     </div>
+                    <button onClick={() => { setIsExportModalOpen(false); setExportFilter('ALL'); setExportConsulados(new Set()); setExportCategories(new Set()); }} className="w-7 h-7 flex items-center justify-center hover:bg-white/10 rounded-lg transition-all">
+                        <X size={16} />
+                    </button>
                 </div>
                 
-                {/* Content */}
-                <div className="p-6 space-y-6 overflow-y-auto max-h-[60vh]">
-                    {/* ÉTAPE 1: Alcance - Toda la lista o por Consulado */}
-                    <div className="space-y-3">
+                {/* Content Compact */}
+                <div className="p-4 space-y-4 overflow-y-auto max-h-[55vh]">
+                    {/* Section 1: Alcance */}
+                    <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 rounded-full bg-[#003B94] text-white text-xs font-black flex items-center justify-center">1</span>
-                            <h3 className="text-sm font-black text-[#001d4a] uppercase tracking-widest">Alcance</h3>
+                            <span className="w-5 h-5 rounded-full bg-[#003B94] text-white text-[10px] font-black flex items-center justify-center">1</span>
+                            <h3 className="text-xs font-black text-[#001d4a] uppercase tracking-wider">Alcance</h3>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-2">
                             <button
                                 onClick={() => { setExportFilter('ALL'); setExportConsulados(new Set()); }}
-                                className={`p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${
+                                className={`px-3 py-2 rounded-lg border-2 transition-all flex items-center gap-2 ${
                                     exportFilter !== 'CONSULADO' 
-                                        ? 'border-[#003B94] bg-[#003B94]/5 shadow-lg' 
-                                        : 'border-gray-200 hover:border-gray-300'
+                                        ? 'border-[#003B94] bg-[#003B94] text-white shadow-md' 
+                                        : 'border-gray-200 hover:border-gray-300 bg-white'
                                 }`}
                             >
-                                <div className={`p-2 rounded-lg ${exportFilter !== 'CONSULADO' ? 'bg-[#003B94]' : 'bg-gray-100'}`}>
-                                    <Users size={20} className={exportFilter !== 'CONSULADO' ? 'text-white' : 'text-gray-500'} />
-                                </div>
-                                <span className={`text-xs font-black uppercase tracking-widest ${exportFilter !== 'CONSULADO' ? 'text-[#003B94]' : 'text-gray-600'}`}>
-                                    Toda la Lista
-                                </span>
+                                <Users size={14} className={exportFilter !== 'CONSULADO' ? 'text-white' : 'text-gray-400'} />
+                                <span className="text-[10px] font-bold uppercase">Toda la Lista</span>
                             </button>
                             <button
                                 onClick={() => setExportFilter('CONSULADO')}
-                                className={`p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${
+                                className={`px-3 py-2 rounded-lg border-2 transition-all flex items-center gap-2 ${
                                     exportFilter === 'CONSULADO' 
-                                        ? 'border-[#003B94] bg-[#003B94]/5 shadow-lg' 
-                                        : 'border-gray-200 hover:border-gray-300'
+                                        ? 'border-indigo-500 bg-indigo-500 text-white shadow-md' 
+                                        : 'border-gray-200 hover:border-gray-300 bg-white'
                                 }`}
                             >
-                                <div className={`p-2 rounded-lg ${exportFilter === 'CONSULADO' ? 'bg-indigo-500' : 'bg-gray-100'}`}>
-                                    <Building2 size={20} className={exportFilter === 'CONSULADO' ? 'text-white' : 'text-gray-500'} />
-                                </div>
-                                <span className={`text-xs font-black uppercase tracking-widest ${exportFilter === 'CONSULADO' ? 'text-[#003B94]' : 'text-gray-600'}`}>
-                                    Por Consulado
-                                </span>
+                                <Building2 size={14} className={exportFilter === 'CONSULADO' ? 'text-white' : 'text-gray-400'} />
+                                <span className="text-[10px] font-bold uppercase">Por Consulado</span>
                             </button>
                         </div>
                         
-                        {/* Sélection de consulados (si option CONSULADO) */}
+                        {/* Sélection de consulados */}
                         {exportFilter === 'CONSULADO' && (
-                            <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mt-3">
-                                <h4 className="text-xs font-black text-indigo-700 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                    <Building2 size={12} />
-                                    Seleccionar Consulados
-                                </h4>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[150px] overflow-y-auto">
+                            <div className="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
+                                <div className="grid grid-cols-2 gap-1.5 max-h-[100px] overflow-y-auto">
                                     {[{ id: 'Consulado Central', name: 'Consulado Central' }, ...consulados].map(c => (
-                                        <label key={c.id} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-indigo-100 cursor-pointer hover:bg-indigo-50 transition-all">
+                                        <label key={c.id} className="flex items-center gap-1.5 px-2 py-1.5 bg-white rounded border border-indigo-100 cursor-pointer hover:bg-indigo-50 transition-all">
                                             <input
                                                 type="checkbox"
                                                 checked={exportConsulados.has(c.name)}
@@ -1400,87 +1405,67 @@ export const Socios = ({ user }: { user?: any }) => {
                                                     else newSet.delete(c.name);
                                                     setExportConsulados(newSet);
                                                 }}
-                                                className="w-4 h-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
+                                                className="w-3 h-3 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
                                             />
-                                            <span className="text-[10px] font-bold text-gray-700 truncate">{c.name}</span>
+                                            <span className="text-[9px] font-semibold text-gray-700 truncate">{c.name}</span>
                                         </label>
                                     ))}
                                 </div>
-                                {exportConsulados.size > 0 && (
-                                    <p className="text-[10px] text-indigo-600 font-bold mt-2">
-                                        {exportConsulados.size} consulado(s) seleccionado(s)
-                                    </p>
-                                )}
                             </div>
                         )}
                     </div>
                     
-                    {/* ÉTAPE 2: Estado de Cuota */}
-                    <div className="space-y-3">
+                    {/* Section 2: Estado de Cuota */}
+                    <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 rounded-full bg-[#003B94] text-white text-xs font-black flex items-center justify-center">2</span>
-                            <h3 className="text-sm font-black text-[#001d4a] uppercase tracking-widest">Estado de Cuota</h3>
+                            <span className="w-5 h-5 rounded-full bg-[#003B94] text-white text-[10px] font-black flex items-center justify-center">2</span>
+                            <h3 className="text-xs font-black text-[#001d4a] uppercase tracking-wider">Estado</h3>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div className="grid grid-cols-4 gap-1.5">
                             {[
-                                { id: 'ALL', label: 'Todos', icon: Users, color: 'bg-[#003B94]' },
-                                { id: 'AL_DIA', label: 'Al Día', icon: CheckCircle2, color: 'bg-green-500' },
-                                { id: 'EN_DEUDA', label: 'En Deuda', icon: AlertTriangle, color: 'bg-amber-500' },
-                                { id: 'DE_BAJA', label: 'De Baja', icon: UserX, color: 'bg-red-500' },
-                            ].map(opt => (
-                                <button
-                                    key={opt.id}
-                                    onClick={() => {
-                                        if (opt.id === 'ALL') {
-                                            // Si on choisit "Todos", on garde le filtre CONSULADO si actif, sinon ALL
-                                            if (exportFilter !== 'CONSULADO') setExportFilter('ALL');
-                                        } else {
-                                            setExportFilter(opt.id as any);
-                                        }
-                                    }}
-                                    className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                                        (opt.id === 'ALL' && (exportFilter === 'ALL' || exportFilter === 'CONSULADO')) ||
-                                        (opt.id !== 'ALL' && exportFilter === opt.id)
-                                            ? 'border-[#003B94] bg-[#003B94]/5 shadow-md' 
-                                            : 'border-gray-200 hover:border-gray-300'
-                                    }`}
-                                >
-                                    <div className={`p-1.5 rounded-lg ${
-                                        (opt.id === 'ALL' && (exportFilter === 'ALL' || exportFilter === 'CONSULADO')) ||
-                                        (opt.id !== 'ALL' && exportFilter === opt.id)
-                                            ? opt.color : 'bg-gray-100'
-                                    }`}>
-                                        <opt.icon size={16} className={
-                                            (opt.id === 'ALL' && (exportFilter === 'ALL' || exportFilter === 'CONSULADO')) ||
-                                            (opt.id !== 'ALL' && exportFilter === opt.id)
-                                                ? 'text-white' : 'text-gray-500'
-                                        } />
-                                    </div>
-                                    <span className={`text-[9px] font-black uppercase tracking-widest ${
-                                        (opt.id === 'ALL' && (exportFilter === 'ALL' || exportFilter === 'CONSULADO')) ||
-                                        (opt.id !== 'ALL' && exportFilter === opt.id)
-                                            ? 'text-[#003B94]' : 'text-gray-600'
-                                    }`}>
-                                        {opt.label}
-                                    </span>
-                                </button>
-                            ))}
+                                { id: 'ALL', label: 'Todos', icon: Users, color: 'bg-[#003B94]', border: 'border-[#003B94]' },
+                                { id: 'AL_DIA', label: 'Al Día', icon: CheckCircle2, color: 'bg-emerald-500', border: 'border-emerald-500' },
+                                { id: 'EN_DEUDA', label: 'Deuda', icon: AlertTriangle, color: 'bg-amber-500', border: 'border-amber-500' },
+                                { id: 'DE_BAJA', label: 'Baja', icon: UserX, color: 'bg-red-500', border: 'border-red-500' },
+                            ].map(opt => {
+                                const isActive = (opt.id === 'ALL' && (exportFilter === 'ALL' || exportFilter === 'CONSULADO')) || (opt.id !== 'ALL' && exportFilter === opt.id);
+                                return (
+                                    <button
+                                        key={opt.id}
+                                        onClick={() => {
+                                            if (opt.id === 'ALL') {
+                                                if (exportFilter !== 'CONSULADO') setExportFilter('ALL');
+                                            } else {
+                                                setExportFilter(opt.id as any);
+                                            }
+                                        }}
+                                        className={`py-2 px-1 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
+                                            isActive ? `${opt.border} ${opt.color} text-white shadow-md` : 'border-gray-200 hover:border-gray-300 bg-white'
+                                        }`}
+                                    >
+                                        <opt.icon size={14} className={isActive ? 'text-white' : 'text-gray-400'} />
+                                        <span className={`text-[8px] font-bold uppercase ${isActive ? 'text-white' : 'text-gray-500'}`}>
+                                            {opt.label}
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                     
-                    {/* ÉTAPE 3: Filtro por Categoría */}
-                    <div className="space-y-3">
+                    {/* Section 3: Categoría */}
+                    <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 rounded-full bg-[#003B94] text-white text-xs font-black flex items-center justify-center">3</span>
-                            <h3 className="text-sm font-black text-[#001d4a] uppercase tracking-widest">Categoría</h3>
+                            <span className="w-5 h-5 rounded-full bg-[#003B94] text-white text-[10px] font-black flex items-center justify-center">3</span>
+                            <h3 className="text-xs font-black text-[#001d4a] uppercase tracking-wider">Categoría</h3>
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-1.5">
                             <button
                                 onClick={() => setExportCategories(new Set())}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                                className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase transition-all ${
                                     exportCategories.size === 0
-                                        ? 'bg-[#003B94] text-white'
-                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        ? 'bg-[#003B94] text-white shadow-sm'
+                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                                 }`}
                             >
                                 Todas
@@ -1494,10 +1479,10 @@ export const Socios = ({ user }: { user?: any }) => {
                                         else newSet.add(cat);
                                         setExportCategories(newSet);
                                     }}
-                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                                    className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase transition-all ${
                                         exportCategories.has(cat)
-                                            ? 'bg-[#FCB131] text-[#001d4a]'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            ? 'bg-[#FCB131] text-[#001d4a] shadow-sm'
+                                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                                     }`}
                                 >
                                     {cat}
@@ -1505,48 +1490,38 @@ export const Socios = ({ user }: { user?: any }) => {
                             ))}
                         </div>
                     </div>
-                    
-                    {/* Resumen */}
-                    <div className="bg-gradient-to-r from-[#003B94]/10 to-[#001d4a]/10 p-4 rounded-xl border border-[#003B94]/20">
-                        <h3 className="text-sm font-black text-[#001d4a] uppercase tracking-widest mb-3 flex items-center gap-2">
-                            <FileText size={14} className="text-[#003B94]" />
-                            Resumen de Exportación
-                        </h3>
-                        <div className="grid grid-cols-3 gap-4 text-xs">
-                            <div className="bg-white p-3 rounded-lg">
-                                <span className="text-gray-500 block text-[9px] uppercase tracking-widest">Alcance</span>
+                </div>
+                
+                {/* Footer avec Résumé intégré */}
+                <div className="border-t border-gray-100 bg-gradient-to-r from-slate-50 to-gray-50 p-3">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3 text-[10px]">
+                            <div className="flex items-center gap-1 px-2 py-1 bg-white rounded border">
+                                <span className="text-gray-400 uppercase">Alcance:</span>
                                 <span className="font-bold text-[#001d4a]">
                                     {exportFilter === 'CONSULADO' 
-                                        ? (exportConsulados.size > 0 ? `${exportConsulados.size} consulado(s)` : 'Seleccionar...') 
-                                        : 'Toda la lista'}
+                                        ? (exportConsulados.size > 0 ? `${exportConsulados.size} cons.` : '...') 
+                                        : 'Todo'}
                                 </span>
                             </div>
-                            <div className="bg-white p-3 rounded-lg">
-                                <span className="text-gray-500 block text-[9px] uppercase tracking-widest">Estado</span>
+                            <div className="flex items-center gap-1 px-2 py-1 bg-white rounded border">
+                                <span className="text-gray-400 uppercase">Estado:</span>
                                 <span className="font-bold text-[#001d4a]">
                                     {exportFilter === 'AL_DIA' ? 'Al Día' :
-                                     exportFilter === 'EN_DEUDA' ? 'En Deuda' :
-                                     exportFilter === 'DE_BAJA' ? 'De Baja' : 'Todos'}
-                                </span>
-                            </div>
-                            <div className="bg-white p-3 rounded-lg">
-                                <span className="text-gray-500 block text-[9px] uppercase tracking-widest">Categorías</span>
-                                <span className="font-bold text-[#001d4a]">
-                                    {exportCategories.size === 0 ? 'Todas' : `${exportCategories.size} selec.`}
+                                     exportFilter === 'EN_DEUDA' ? 'Deuda' :
+                                     exportFilter === 'DE_BAJA' ? 'Baja' : 'Todos'}
                                 </span>
                             </div>
                         </div>
-                        <div className="mt-3 pt-3 border-t border-[#003B94]/20 flex items-center justify-between">
-                            <span className="text-gray-600 text-xs font-bold">Total a exportar:</span>
-                            <span className="font-black text-[#003B94] text-2xl oswald">
+                        <div className="flex items-center gap-1.5 bg-[#003B94] text-white px-3 py-1.5 rounded-lg">
+                            <span className="text-[10px] font-medium">Total:</span>
+                            <span className="font-black text-base oswald">
                                 {(() => {
                                     let count = socios.filter(s => {
-                                        // Filtre par consulado
                                         if (exportFilter === 'CONSULADO' && exportConsulados.size > 0) {
                                             const cName = s.consulado || 'Consulado Central';
                                             if (!exportConsulados.has(cName)) return false;
                                         }
-                                        // Filtre par état de cuota
                                         if (exportFilter === 'AL_DIA') {
                                             const status = calculateSocioStatus(s.last_month_paid);
                                             if (status.label !== 'AL DÍA') return false;
@@ -1556,34 +1531,30 @@ export const Socios = ({ user }: { user?: any }) => {
                                         } else if (exportFilter === 'DE_BAJA') {
                                             if (s.category !== 'BAJA') return false;
                                         }
-                                        // Filtre par catégorie
                                         if (exportCategories.size > 0 && !exportCategories.has(s.category || '')) return false;
                                         return true;
                                     }).length;
                                     return count;
                                 })()}
-                                <span className="text-sm ml-1">socios</span>
                             </span>
                         </div>
                     </div>
-                </div>
-                
-                {/* Footer */}
-                <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
-                    <button 
-                        onClick={() => { setIsExportModalOpen(false); setExportFilter('ALL'); setExportConsulados(new Set()); setExportCategories(new Set()); }}
-                        className="px-6 py-2.5 rounded-xl bg-gray-200 text-gray-700 font-bold text-xs uppercase tracking-widest hover:bg-gray-300 transition-all"
-                    >
-                        Cancelar
-                    </button>
-                    <button 
-                        onClick={handleExportPDF}
-                        disabled={exportFilter === 'CONSULADO' && exportConsulados.size === 0}
-                        className="px-6 py-2.5 rounded-xl bg-[#003B94] text-white font-bold text-xs uppercase tracking-widest hover:bg-[#001d4a] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <Download size={14} />
-                        Exportar PDF
-                    </button>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => { setIsExportModalOpen(false); setExportFilter('ALL'); setExportConsulados(new Set()); setExportCategories(new Set()); }}
+                            className="flex-1 px-4 py-2 rounded-lg bg-gray-200 text-gray-600 font-bold text-[10px] uppercase tracking-wider hover:bg-gray-300 transition-all"
+                        >
+                            Cancelar
+                        </button>
+                        <button 
+                            onClick={handleExportPDF}
+                            disabled={exportFilter === 'CONSULADO' && exportConsulados.size === 0}
+                            className="flex-1 px-4 py-2 rounded-lg bg-gradient-to-r from-[#003B94] to-[#001d4a] text-white font-bold text-[10px] uppercase tracking-wider hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Download size={12} />
+                            Exportar PDF
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

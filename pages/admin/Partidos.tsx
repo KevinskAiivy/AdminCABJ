@@ -272,14 +272,28 @@ export const Partidos = () => {
 
   return (
     <div className="space-y-6 pb-20">
-       <div className="bg-white p-4 rounded-xl shadow-sm border border-[#003B94]/10 flex justify-between items-center gap-4">
-           <div className="flex items-center gap-2 text-[#003B94]">
-               <Sword size={20} />
-               <h3 className="text-sm font-black uppercase tracking-widest">Partidos</h3>
+       {/* BANDEAU UNIFIÉ - Style Consulados */}
+       <div className="bg-[#003B94] p-8 rounded-xl border border-white/20 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+           <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none"><Sword size={300} className="text-white" /></div>
+           <div className="flex items-center gap-5 relative z-10">
+               <div className="bg-white/10 p-4 rounded-xl border border-white/20"><Sword size={28} className="text-[#FCB131]" /></div>
+               <div>
+                   <h1 className="oswald text-3xl font-black text-white uppercase tracking-tighter">Partidos</h1>
+                   <p className="text-[#FCB131] font-black uppercase text-[10px] tracking-[0.4em] mt-1">Calendario de Encuentros</p>
+               </div>
            </div>
-           <button onClick={handleCreate} className="bg-[#FCB131] text-[#001d4a] px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-widest flex items-center gap-2 hover:bg-[#FFD23F] transition-all">
-               <Plus size={14} /> Nuevo
-           </button>
+           <div className="relative z-10 flex items-center gap-4">
+               <div className="flex items-center gap-4 bg-white/10 px-4 py-2 rounded-xl border border-white/20">
+                   <div className="flex items-center gap-2">
+                       <Calendar size={14} className="text-[#FCB131]" />
+                       <span className="text-white font-black text-sm oswald">{sortedMatches.length}</span>
+                       <span className="text-white/60 text-[8px] font-bold uppercase">Partidos</span>
+                   </div>
+               </div>
+               <button onClick={handleCreate} className="bg-[#FCB131] text-[#001d4a] px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center gap-2 hover:bg-[#FFD23F] transition-all">
+                   <Plus size={16} /> Nuevo Partido
+               </button>
+           </div>
        </div>
 
        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -125,21 +125,31 @@ export const Usuarios = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 px-4 animate-boca-entrance">
-        {/* Harmonized Header */}
-        <div className="liquid-glass-dark p-8 rounded-xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+        {/* BANDEAU UNIFIÉ - Style Consulados */}
+        <div className="bg-[#003B94] p-8 rounded-xl border border-white/20 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
             <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none"><User size={300} className="text-white" /></div>
             
             <div className="flex items-center gap-5 relative z-10">
                 <div className="bg-white/10 p-4 rounded-xl border border-white/20"><User size={28} className="text-[#FCB131]" /></div>
-                <div><h1 className="oswald text-3xl font-black text-white uppercase tracking-tighter">Gestión de Usuarios</h1><p className="text-[#FCB131] font-black uppercase text-[10px] tracking-[0.4em] mt-1">Control de Acceso</p></div>
+                <div>
+                    <h1 className="oswald text-3xl font-black text-white uppercase tracking-tighter">Gestión de Usuarios</h1>
+                    <p className="text-[#FCB131] font-black uppercase text-[10px] tracking-[0.4em] mt-1">Control de Acceso</p>
+                </div>
             </div>
 
             <div className="relative z-10 flex flex-col md:flex-row gap-3 w-full md:w-auto items-center">
+                <div className="flex items-center gap-4 bg-white/10 px-4 py-2 rounded-xl border border-white/20">
+                    <div className="flex items-center gap-2">
+                        <User size={14} className="text-[#FCB131]" />
+                        <span className="text-white font-black text-sm oswald">{users.length}</span>
+                        <span className="text-white/60 text-[8px] font-bold uppercase">Usuarios</span>
+                    </div>
+                </div>
                 <div className="relative group w-full md:w-64">
                     <input type="text" placeholder="Buscar usuario..." className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-10 pr-4 outline-none text-xs font-bold text-white placeholder:text-white/40 transition-all focus:bg-white focus:text-[#001d4a]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-[#001d4a]" size={16} />
                 </div>
-                <button onClick={handleCreate} className="bg-[#FCB131] text-[#001d4a] px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center gap-2 hover:bg-[#FFD23F] transition-all whitespace-nowrap ml-2"><Plus size={16} /> Nuevo</button>
+                <button onClick={handleCreate} className="bg-[#FCB131] text-[#001d4a] px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex items-center gap-2 hover:bg-[#FFD23F] transition-all whitespace-nowrap"><Plus size={16} /> Nuevo</button>
             </div>
         </div>
 
