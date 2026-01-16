@@ -55,7 +55,7 @@ export const Socios = ({ user }: { user?: any }) => {
   
   // Pagination - doit être déclaré avant le useEffect qui l'utilise
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 12;
+  const itemsPerPage = 9;
   
   // Initialiser le filtre consulado depuis l'URL si présent (une seule fois au chargement)
   const hasInitializedFromUrl = useRef(false);
@@ -809,7 +809,7 @@ export const Socios = ({ user }: { user?: any }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {(currentItems || []).map((socio) => {
             const isPresident = socio.role === 'PRESIDENTE';
             const isReferente = socio.role === 'REFERENTE';
@@ -819,77 +819,131 @@ export const Socios = ({ user }: { user?: any }) => {
             
             if (isPresident) {
                 variant = 'gold';
-                containerClass = "border border-[#001d4a] shadow-sm bg-gradient-to-br from-[#FFD700] via-[#FFC125] to-[#FFA500]";
+                containerClass = "border-2 border-[#001d4a] shadow-[0_8px_32px_rgba(252,177,49,0.4),0_0_40px_rgba(255,215,0,0.3),inset_0_0_20px_rgba(255,255,255,0.4)] bg-gradient-to-br from-[#FFD700] via-[#FFC125] to-[#FFA500] backdrop-blur-xl";
             } else if (isReferente) {
                 variant = 'dark';
-                containerClass = "border border-[#FCB131] shadow-sm";
+                containerClass = "border-2 border-[#FCB131] shadow-[0_0_20px_rgba(252,177,49,0.6),0_8px_32px_rgba(0,29,74,0.5)]";
             } else {
+                // Bordure selon le genre pour les socios normaux (bleu par défaut si non défini)
                 let genderBorderClass = "";
                 if (socio.gender === 'M') {
-                    genderBorderClass = "border-l-2 border-r-2 border-[#003B94]";
+                    genderBorderClass = "border-l-4 border-r-4 border-[#003B94]";
                 } else if (socio.gender === 'F') {
-                    genderBorderClass = "border-l-2 border-r-2 border-[#FCB131]";
+                    genderBorderClass = "border-l-4 border-r-4 border-[#FCB131]";
                 } else if (socio.gender === 'X') {
-                    genderBorderClass = "border-l-2 border-r-2 border-white";
+                    genderBorderClass = "border-l-4 border-r-4 border-white";
                 } else {
-                    genderBorderClass = "border-l-2 border-r-2 border-[#003B94]";
+                    // Genre non défini : bordure bleue par défaut
+                    genderBorderClass = "border-l-4 border-r-4 border-[#003B94]";
                 }
+                
                 variant = 'light';
-                containerClass = genderBorderClass;
+                if (computedStatus.label === 'EN DEUDA') {
+                    containerClass = `${genderBorderClass} shadow-[0_4px_16px_rgba(245,158,11,0.1)]`;
+                } else if (computedStatus.label === 'DE BAJA') {
+                    containerClass = `${genderBorderClass} shadow-[0_4px_16px_rgba(239,68,68,0.1)]`;
+                } else {
+                    containerClass = genderBorderClass;
+                }
             }
 
             return (
             <GlassCard
                 key={socio.id}
                 onClick={() => openCarnetDigital(socio)}
-                className={`flex flex-col group relative overflow-hidden transition-all duration-200 hover:shadow-md ${containerClass} p-0`}
+                className={`flex flex-col group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_-5px_rgba(0,29,74,0.2)] ${containerClass} p-0`}
                 variant={variant}
             >
-                {/* Action buttons */}
-                <div className="absolute top-1 right-1 z-10 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Action buttons - visibles uniquement au survol */}
+                <div className="absolute top-2 right-2 z-10 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <button 
-                        onClick={(e) => { e.stopPropagation(); handleEdit(socio); }} 
-                        className={`p-1 rounded transition-all ${
-                            isPresident || isReferente ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-white/80 text-[#003B94] hover:bg-[#003B94] hover:text-white'
+                        onClick={(e) => { 
+                            e.stopPropagation(); 
+                            handleEdit(socio); 
+                        }} 
+                        className={`p-1.5 backdrop-blur-sm rounded-lg hover:text-white transition-all shadow-lg border hover:scale-110 ${
+                            isPresident || isReferente
+                                ? 'bg-white/20 text-white border-white/30 hover:bg-white/30'
+                                : 'bg-white/80 text-[#003B94] border-white/20 hover:bg-[#003B94]'
                         }`}
+                        title="Editar socio"
                     >
-                        <Edit2 size={10} />
+                        <Edit2 size={12} />
                     </button>
                     <button 
-                        onClick={(e) => { e.stopPropagation(); setSelectedSocio(socio); setIsDeleteModalOpen(true); }} 
-                        className={`p-1 rounded text-red-500 transition-all ${
-                            isPresident || isReferente ? 'bg-white/20 hover:bg-red-500 hover:text-white' : 'bg-white/80 hover:bg-red-500 hover:text-white'
+                        onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setSelectedSocio(socio); 
+                            setIsDeleteModalOpen(true); 
+                        }} 
+                        className={`p-1.5 backdrop-blur-sm text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-lg border hover:scale-110 ${
+                            isPresident || isReferente
+                                ? 'bg-white/20 border-white/30'
+                                : 'bg-white/80 border-white/20'
                         }`}
+                        title="Eliminar socio"
                     >
-                        <Trash2 size={10} />
+                        <Trash2 size={12} />
                     </button>
                 </div>
 
-                <div className="p-2 pb-1">
-                    <div className="flex items-center gap-1 mb-0.5">
-                        <h4 className={`oswald text-xs tracking-tight leading-none truncate font-black uppercase ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-[#001d4a]'}`}>
-                            {socio.last_name.toUpperCase()}
-                        </h4>
-                        {isPresident && (
-                            <div className="w-4 h-4 rounded-full bg-[#001d4a] flex items-center justify-center border border-[#FCB131] flex-shrink-0">
-                                <svg width="8" height="8" viewBox="0 0 24 24" fill="#FCB131"><path d="M12 0.5L14.5 8.5L22.5 8.5L16 13.5L18.5 21.5L12 16L5.5 21.5L8 13.5L1.5 8.5L9.5 8.5L12 0.5Z"/></svg>
-                            </div>
-                        )}
-                    </div>
-                    <p className={`text-[9px] truncate ${isPresident ? 'text-[#001d4a]/70' : isReferente ? 'text-white/70' : 'text-gray-500'}`}>{socio.first_name}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                        <span className={`text-[7px] ${isPresident ? 'text-[#001d4a]/50' : isReferente ? 'text-white/50' : 'text-gray-400'}`}>N°</span>
-                        <span className={`text-[8px] font-bold ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-[#001d4a]'}`}>{socio.numero_socio || socio.dni || '-'}</span>
+                <div className="p-4 pb-2 flex items-start gap-3 relative">
+                    <div className={`flex-1 min-w-0 ${isPresident ? 'pr-14' : 'pr-14'}`}>
+                        <div className="flex items-center gap-2 mb-0.5">
+                            <h4 className={`oswald text-base tracking-tight leading-none truncate ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-[#001d4a]'}`}>
+                                <span className="font-black uppercase">{socio.last_name.toUpperCase()}</span> <span className="font-normal capitalize">{socio.first_name.toLowerCase()}</span>
+                            </h4>
+                            {/* Pastille pour les présidents - à droite du nom */}
+                            {isPresident && (
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#001d4a] to-[#003B94] flex items-center justify-center shadow-[0_4px_12px_rgba(252,177,49,0.4),0_0_20px_rgba(252,177,49,0.3)] border-2 border-[#FCB131] z-10 animate-pulse flex-shrink-0">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 0 2px rgba(252, 177, 49, 0.8))' }}>
+                                        <path d="M12 0.5L14.5 8.5L22.5 8.5L16 13.5L18.5 21.5L12 16L5.5 21.5L8 13.5L1.5 8.5L9.5 8.5L12 0.5Z" fill="#FCB131" stroke="#FCB131" strokeWidth="0.3" strokeLinejoin="miter" vectorEffect="non-scaling-stroke" />
+                                    </svg>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2 mb-1.5 mt-1.5">
+                            <span className={`text-[8px] font-bold uppercase tracking-wider ${isPresident ? 'text-[#001d4a]/80' : isReferente ? 'text-white/80' : 'text-gray-500'}`}>{getGenderLabel('N° Socio:', socio.gender)}</span>
+                            <span className={`text-[9px] font-black ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-[#001d4a]'}`}>{socio.numero_socio || socio.dni || 'N/A'}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 items-center mt-2">
+                            <span className={`px-1.5 py-0.5 rounded-lg text-[7px] font-black uppercase tracking-widest backdrop-blur-sm border shadow-sm ${
+                                isPresident 
+                                    ? 'bg-[#001d4a]/10 border-[#001d4a]/30 text-[#001d4a]'
+                                    : isReferente 
+                                    ? 'bg-white/20 border-white/30 text-white' 
+                                    : 'bg-white/60 border-white/30 text-gray-700'
+                            }`}>{getGenderRoleLabel(socio.role || 'SOCIO', socio.gender)}</span>
+                        </div>
+                        {/* Email et téléphone */}
+                        <div className="flex flex-col gap-1 mt-2">
+                            {socio.email && (
+                                <div className={`flex items-center gap-1 ${isPresident ? 'text-[#001d4a]/80' : isReferente ? 'text-white/80' : 'text-gray-600'}`}>
+                                    <Mail size={10} className={isPresident ? "text-[#001d4a]/60" : isReferente ? "text-white/60" : "text-gray-400"} />
+                                    <span className={`text-[8px] font-bold truncate ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-gray-700'}`}>{socio.email}</span>
+                                </div>
+                            )}
+                            {socio.phone && (
+                                <div className={`flex items-center gap-1 ${isPresident ? 'text-[#001d4a]/80' : isReferente ? 'text-white/80' : 'text-gray-600'}`}>
+                                    <Phone size={10} className={isPresident ? "text-[#001d4a]/60" : isReferente ? "text-white/60" : "text-gray-400"} />
+                                    <span className={`text-[8px] font-bold truncate ${isPresident ? 'text-[#001d4a]' : isReferente ? 'text-white' : 'text-gray-700'}`}>{socio.phone}</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-                <div className="px-2 pb-1.5 flex items-center justify-between gap-1">
-                    <div className={`flex items-center gap-0.5 ${isPresident ? 'text-[#001d4a]/70' : isReferente ? 'text-white/70' : 'text-gray-500'}`}>
-                        <MapPin size={8} className="text-[#FCB131]" />
-                        <span className="text-[7px] font-bold uppercase truncate max-w-[60px]">{socio.consulado || 'Central'}</span>
+                <div className="px-4 py-2 space-y-2">
+                    <div className={`flex items-center gap-1.5 ${isPresident ? 'text-[#001d4a] bg-[#001d4a]/5' : isReferente ? 'text-white/90 bg-white/10' : 'text-[#001d4a]/80 bg-white/30'} backdrop-blur-sm rounded-lg px-2.5 py-1.5 border ${isPresident ? 'border-[#001d4a]/20' : 'border-white/20'}`}>
+                        <MapPin size={12} className={isPresident ? "text-[#001d4a]" : isReferente ? "text-[#FCB131]" : "text-[#FCB131]"} />
+                        <span className="text-[9px] font-black uppercase tracking-widest truncate">{socio.consulado || 'CONSULADO CENTRAL'}</span>
                     </div>
-                    <span className={`px-1 py-0.5 rounded text-[6px] font-black uppercase ${computedStatus.color}`}>
-                        {computedStatus.label}
-                    </span>
+                    {/* Pastille de statut */}
+                    <div className={`text-[8px] font-bold flex items-center justify-between border-t ${isPresident ? 'border-[#001d4a]/20' : 'border-white/20'} pt-1.5 ${isPresident ? 'text-[#001d4a] bg-[#001d4a]/5' : isReferente ? 'text-white bg-white/10' : 'text-[#001d4a] bg-white/20'} backdrop-blur-sm rounded-lg px-2.5 py-1.5`}>
+                        <span className={`uppercase opacity-70 ${isPresident ? 'text-[#001d4a]/70' : isReferente ? 'text-white/70' : ''}`}>Estado:</span>
+                        <span className={`px-1.5 py-0.5 rounded-lg text-[7px] font-black uppercase tracking-widest ${computedStatus.color} ${isPresident ? 'bg-opacity-20 border border-[#001d4a]/30' : isReferente ? 'bg-opacity-20 border border-white/30' : ''}`}>
+                            {computedStatus.label}
+                        </span>
+                    </div>
                 </div>
             </GlassCard>
             );
