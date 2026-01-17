@@ -93,7 +93,7 @@ export const DashboardPresident = ({ consulado_id }: { consulado_id: string }) =
         setConsulado(c);
         
         const allMsgs = dataService.getMensajes(consulado_id);
-        setMessages(allMsgs.slice(0, 3));
+        setMessages(allMsgs);
         
         // Fetch Birthdays
         if (c) setBirthdays(dataService.getBirthdays(c.name, 7));
@@ -259,35 +259,41 @@ export const DashboardPresident = ({ consulado_id }: { consulado_id: string }) =
                     </div>
                 )}
 
-                {/* Messages */}
-                <div className="space-y-4">
-                    <div className="flex items-center gap-3 px-2">
-                        <Mail size={18} className="text-[#003B94]" />
-                        <h3 className="oswald text-xl font-black text-[#001d4a] uppercase tracking-tight">Mensajes Oficiales</h3>
+                {/* Messages - Compact horizontal layout */}
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between px-2">
+                        <div className="flex items-center gap-3">
+                            <Mail size={16} className="text-[#003B94]" />
+                            <h3 className="oswald text-lg font-black text-[#001d4a] uppercase tracking-tight">Mensajes Oficiales</h3>
+                        </div>
+                        {messages.length > 5 && (
+                            <a href="#/admin/mensajes" className="text-[9px] font-black text-[#003B94] uppercase tracking-widest hover:text-[#FCB131] transition-colors flex items-center gap-1">
+                                Ver todos ({messages.length}) <ChevronRight size={12} />
+                            </a>
+                        )}
                     </div>
                     {messages.length > 0 ? (
-                        <div className="grid grid-cols-1 gap-3">
-                            {messages.map(msg => (
-                                <GlassCard key={msg.id} onClick={() => setViewingMessage(msg)} className={`p-6 transition-all hover:shadow-xl cursor-pointer group relative overflow-hidden ${msg.type === 'URGENTE' ? 'bg-gradient-to-br from-white to-amber-50 border-l-4 border-l-[#FCB131]' : 'bg-white border-l-4 border-l-[#003B94]'}`}>
-                                    <div className="flex justify-between items-start mb-3">
-                                        <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 ${msg.type === 'URGENTE' ? 'bg-[#FCB131] text-[#001d4a]' : 'bg-blue-50 text-blue-600'}`}>
-                                            {msg.type === 'URGENTE' && <Star size={8} fill="currentColor" />}
-                                            {msg.type === 'URGENTE' ? 'COMUNICADO CRÍTICO' : 'INSTITUCIONAL'}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                            {messages.slice(0, 5).map(msg => (
+                                <GlassCard key={msg.id} onClick={() => setViewingMessage(msg)} className={`p-3 transition-all hover:shadow-lg cursor-pointer group relative overflow-hidden ${msg.type === 'URGENTE' ? 'bg-gradient-to-br from-white to-amber-50 border-l-2 border-l-[#FCB131]' : 'bg-white border-l-2 border-l-[#003B94]'}`}>
+                                    <div className="flex justify-between items-start mb-1.5">
+                                        <span className={`px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-widest ${msg.type === 'URGENTE' ? 'bg-[#FCB131] text-[#001d4a]' : 'bg-blue-50 text-blue-600'}`}>
+                                            {msg.type === 'URGENTE' ? 'URGENTE' : 'INFO'}
                                         </span>
-                                        <span className="text-[10px] font-bold text-gray-400">{msg.date}</span>
                                     </div>
-                                    <h4 className="oswald text-xl font-black text-[#001d4a] uppercase mb-2 group-hover:text-[#003B94] transition-colors">{msg.title}</h4>
-                                    <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{msg.body}</p>
-                                    <div className="mt-4 flex items-center gap-1 text-[9px] font-black text-[#003B94] uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0">
-                                        Leer comunicado <ChevronRight size={10} />
+                                    <h4 className="oswald text-xs font-black text-[#001d4a] uppercase mb-1 truncate group-hover:text-[#003B94] transition-colors">{msg.title}</h4>
+                                    <p className="text-[8px] text-gray-500 line-clamp-2 leading-relaxed">{msg.body}</p>
+                                    <div className="mt-2 pt-1.5 border-t border-gray-100 flex items-center justify-between">
+                                        <span className="text-[7px] font-bold text-gray-400">{msg.date}</span>
+                                        <ChevronRight size={10} className="text-[#003B94] opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </div>
                                 </GlassCard>
                             ))}
                         </div>
                     ) : (
-                        <div className="p-12 text-center bg-white rounded-[2rem] border border-dashed border-gray-200 text-gray-400">
-                             <Mail size={32} className="mx-auto mb-4 opacity-10" />
-                             <p className="text-xs font-bold uppercase tracking-[0.2em]">Sin mensajes activos</p>
+                        <div className="p-8 text-center bg-white rounded-xl border border-dashed border-gray-200 text-gray-400">
+                             <Mail size={24} className="mx-auto mb-3 opacity-10" />
+                             <p className="text-[10px] font-bold uppercase tracking-widest">Sin mensajes activos</p>
                         </div>
                     )}
                 </div>

@@ -2175,52 +2175,52 @@ class DataService {
   getNotificationsForUser(u: any) { 
       // Filtrer par utilisateur selon son rôle et consulado
       // Les notifications sont uniquement pour les PRESIDENTE et REFERENTE
-      return this.notifications.filter(n => {
-          // Les SUPERADMIN et ADMIN ne voient pas les notifications (ils ont accès à tout directement)
-          if (u.role === 'SUPERADMIN' || u.role === 'ADMIN') {
-              return false;
-          }
+      
+      // Les SUPERADMIN et ADMIN ne voient pas les notifications (ils ont accès à tout directement)
+      if (u.role === 'SUPERADMIN' || u.role === 'ADMIN') {
+          return [];
+      }
+      
+      // Les PRESIDENTE et REFERENTE voient les notifications
+      if (u.role === 'PRESIDENTE' || u.role === 'REFERENTE') {
+          const consulado = u.consulado_id ? this.consulados.find(c => c.id === u.consulado_id) : null;
+          const consuladoName = consulado?.name || '';
           
-          // Les PRESIDENTE et REFERENTE voient les notifications liées à leur consulado
-          if ((u.role === 'PRESIDENTE' || u.role === 'REFERENTE') && u.consulado_id) {
-              const consulado = this.consulados.find(c => c.id === u.consulado_id);
-              if (consulado) {
-                  // Si la notification a un target_consulado_id, vérifier s'il correspond
-                  if (n.target_consulado_id) {
-                      if (n.target_consulado_id === u.consulado_id) {
-                          return true;
-                      }
-                  }
-                  
-                  // Notifications globales (sans target_consulado_id) - pour tous les consulados
-                  if (!n.target_consulado_id && (n.type === 'HABILITACION' || n.type === 'MESSAGE' || n.type === 'SYSTEM')) {
-                      return true;
-                  }
-                  
-                  // Vérifier si la notification concerne leur consulado via les données
-                  if (n.type === 'TRANSFER' && n.data && n.data.transfer_id) {
-                      const transfer = this.transfers.find(t => t.id === n.data.transfer_id);
-                      if (transfer && (transfer.to_consulado_name === consulado.name || transfer.from_consulado_name === consulado.name)) {
-                          return true;
-                      }
-                  }
-                  
-                  // Pour les notifications de type SOCIO, vérifier si le socio appartient au consulado
-                  if (n.type === 'SOCIO' && n.data && n.data.consulado_name === consulado.name) {
-                      return true;
-                  }
-                  
-                  // Pour les autres types, vérifier si le message mentionne le consulado
-                  if (n.message && n.message.includes(consulado.name)) {
+          return this.notifications.filter(n => {
+              // Notifications globales (sans target_consulado_id) - visibles par tous les présidents/référents
+              if (!n.target_consulado_id) {
+                  return true;
+              }
+              
+              // Si la notification a un target_consulado_id, vérifier s'il correspond
+              if (n.target_consulado_id === u.consulado_id) {
+                  return true;
+              }
+              
+              // Vérifier si la notification concerne leur consulado via les données
+              if (n.type === 'TRANSFER' && n.data && n.data.transfer_id && consuladoName) {
+                  const transfer = this.transfers.find(t => t.id === n.data.transfer_id);
+                  if (transfer && (transfer.to_consulado_name === consuladoName || transfer.from_consulado_name === consuladoName)) {
                       return true;
                   }
               }
+              
+              // Pour les notifications de type SOCIO, vérifier si le socio appartient au consulado
+              if (n.type === 'SOCIO' && n.data && consuladoName && n.data.consulado_name === consuladoName) {
+                  return true;
+              }
+              
+              // Pour les autres types, vérifier si le message mentionne le consulado
+              if (consuladoName && n.message && n.message.includes(consuladoName)) {
+                  return true;
+              }
+              
               return false;
-          }
-          
-          // Par défaut, ne rien retourner
-          return false;
-      });
+          });
+      }
+      
+      // Par défaut, ne rien retourner
+      return [];
   }
   getNotificationById(id: string) { return this.notifications.find(n => n.id === id); }
   async addNotification(n: AppNotification) {

@@ -62,6 +62,24 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
       });
   }, [notifications, filterType, searchQuery]);
 
+  // Les notifications sont uniquement pour les présidents et référents
+  if (user.role !== 'PRESIDENTE' && user.role !== 'REFERENTE') {
+      return (
+          <div className="max-w-2xl mx-auto py-20 px-4 text-center">
+              <div className="bg-white rounded-2xl p-12 shadow-lg border border-gray-100">
+                  <Bell size={64} className="mx-auto mb-6 text-gray-300" />
+                  <h1 className="oswald text-2xl font-black text-[#001d4a] uppercase mb-4">Acceso Restringido</h1>
+                  <p className="text-gray-500 text-sm mb-6">
+                      El centro de notificaciones está disponible únicamente para Presidentes y Referentes de consulados.
+                  </p>
+                  <a href="#/" className="inline-block px-6 py-3 bg-[#003B94] text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-[#001d4a] transition-all">
+                      Volver al Dashboard
+                  </a>
+              </div>
+          </div>
+      );
+  }
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-20 px-4 animate-boca-entrance">
         {/* Header */}
