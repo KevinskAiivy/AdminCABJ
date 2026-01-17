@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { GlassCard } from '../components/GlassCard';
-import { Calendar, Activity, Star, Trophy, X, MapPin, Gift, Building2, Users, Globe, Cake, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { Calendar, Activity, Star, Trophy, X, MapPin, Gift, Building2, Users, Globe, Cake, ChevronLeft, ChevronRight, RotateCcw, Mail } from 'lucide-react';
 import { dataService } from '../services/dataService';
-import { AgendaEvent, Match, Socio } from '../types';
+import { AgendaEvent, Match, Socio, Mensaje } from '../types';
 import { NextMatchCard } from '../components/NextMatchCard';
+import { Link } from 'react-router-dom';
 
 interface DaySummary {
     date: Date;
@@ -70,6 +71,8 @@ export const Dashboard = () => {
   const [nextMatch, setNextMatch] = useState<any>(null);
   const [selectedDay, setSelectedDay] = useState<DaySummary | null>(null);
   const [weekOffset, setWeekOffset] = useState<number>(0);
+  const [messages, setMessages] = useState<Mensaje[]>([]);
+  const [viewingMessage, setViewingMessage] = useState<Mensaje | null>(null);
 
   // Calculate week start (Monday) based on weekOffset
   const getWeekStart = useCallback((offset: number) => {
@@ -182,6 +185,12 @@ export const Dashboard = () => {
             .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
         
         setNextMatch(upcomingMatches.length > 0 ? upcomingMatches[0] : null);
+
+        // 4. Load Messages
+        const allMsgs = dataService.getMensajes()
+            .filter(m => m.status === 'ACTIVE')
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setMessages(allMsgs);
     };
 
     loadDashboardData();
@@ -274,7 +283,7 @@ export const Dashboard = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-12 px-4 animate-boca-entrance">
+    <div className="max-w-7xl mx-auto pb-12 px-4 animate-boca-entrance">
       <style>{`
         @keyframes pan-zoom {
           0% { transform: scale(1) translate(0, 0); }
@@ -286,26 +295,30 @@ export const Dashboard = () => {
         }
       `}</style>
 
-      {/* Next Match Section */}
-      {nextMatch ? (
-          <NextMatchCard match={nextMatch} />
-      ) : (
-          <div className="w-full min-h-[250px] bg-[#001d4a] rounded-[2.5rem] shadow-xl border border-white/5 flex flex-col items-center justify-center text-center p-8 relative overflow-hidden group">
-              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center opacity-10 grayscale group-hover:scale-105 transition-transform duration-700"></div>
-              <div className="relative z-10 flex flex-col items-center gap-4">
-                  <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center border border-white/10 shadow-inner backdrop-blur-sm">
-                      <Trophy size={32} className="text-white/20" />
-                  </div>
-                  <div>
-                      <h3 className="oswald text-2xl font-black uppercase text-white/40 tracking-widest">Sin partidos programados</h3>
-                      <p className="text-white/20 text-xs font-bold uppercase tracking-[0.2em] mt-2">El calendario está actualizado</p>
+      {/* Layout 2 colonnes: 75% / 25% */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Colonne principale (75%) - Prochain Match + Agenda */}
+        <div className="w-full lg:w-3/4 space-y-6">
+          {/* Next Match Section */}
+          {nextMatch ? (
+              <NextMatchCard match={nextMatch} />
+          ) : (
+              <div className="w-full min-h-[250px] bg-[#001d4a] rounded-[2.5rem] shadow-xl border border-white/5 flex flex-col items-center justify-center text-center p-8 relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center opacity-10 grayscale group-hover:scale-105 transition-transform duration-700"></div>
+                  <div className="relative z-10 flex flex-col items-center gap-4">
+                      <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center border border-white/10 shadow-inner backdrop-blur-sm">
+                          <Trophy size={32} className="text-white/20" />
+                      </div>
+                      <div>
+                          <h3 className="oswald text-2xl font-black uppercase text-white/40 tracking-widest">Sin partidos programados</h3>
+                          <p className="text-white/20 text-xs font-bold uppercase tracking-[0.2em] mt-2">El calendario está actualizado</p>
+                      </div>
                   </div>
               </div>
-          </div>
-      )}
+          )}
 
-      {/* AGENDA SEMANAL - VERSION HORIZONTALE (même style que referente) */}
-      <div className="space-y-4">
+          {/* AGENDA SEMANAL - VERSION HORIZONTALE */}
+          <div className="space-y-4">
           {/* Header avec filtres améliorés */}
           <div className="bg-gradient-to-r from-[#003B94] to-[#001d4a] rounded-2xl p-4 shadow-lg">
               <div className="flex flex-wrap items-center justify-between gap-4">
@@ -436,7 +449,117 @@ export const Dashboard = () => {
                   );
               })}
           </div>
+        </div>
+        </div>
+        {/* Fin colonne principale */}
+
+        {/* Colonne secondaire (25%) - Messages */}
+        <div className="w-full lg:w-1/4">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden sticky top-24">
+            {/* Header Messages */}
+            <div className="bg-gradient-to-r from-[#003B94] to-[#001d4a] p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Mail size={16} className="text-[#FCB131]" />
+                  <h3 className="oswald text-sm font-black text-white uppercase tracking-tight">Mensajes</h3>
+                </div>
+                {messages.length > 0 && (
+                  <span className="bg-[#FCB131] text-[#001d4a] text-[8px] font-black rounded-full px-2 py-0.5">
+                    {messages.length}
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            {/* Liste des messages */}
+            <div className="max-h-[500px] overflow-y-auto">
+              {messages.length > 0 ? (
+                <div className="divide-y divide-gray-100">
+                  {messages.slice(0, 8).map(msg => (
+                    <div 
+                      key={msg.id} 
+                      onClick={() => setViewingMessage(msg)}
+                      className={`p-3 cursor-pointer hover:bg-gray-50 transition-colors ${msg.type === 'URGENTE' ? 'bg-amber-50/50 border-l-2 border-l-[#FCB131]' : ''}`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className={`shrink-0 px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-widest ${msg.type === 'URGENTE' ? 'bg-[#FCB131] text-[#001d4a]' : 'bg-blue-50 text-blue-600'}`}>
+                          {msg.type === 'URGENTE' ? 'URG' : 'INFO'}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-[10px] font-black text-[#001d4a] uppercase truncate leading-tight">{msg.title}</h4>
+                          <p className="text-[8px] text-gray-500 line-clamp-2 mt-0.5 leading-relaxed">{msg.body}</p>
+                          <span className="text-[7px] text-gray-400 font-bold mt-1 block">{msg.date}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-6 text-center">
+                  <Mail size={24} className="mx-auto mb-2 text-gray-200" />
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Sin mensajes</p>
+                </div>
+              )}
+            </div>
+            
+            {/* Footer - Ver todos */}
+            {messages.length > 8 && (
+              <div className="p-3 bg-gray-50 border-t border-gray-100">
+                <Link 
+                  to="/admin/mensajes" 
+                  className="block text-center text-[8px] font-black text-[#003B94] uppercase tracking-widest hover:text-[#FCB131] transition-colors"
+                >
+                  Ver todos ({messages.length}) →
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
+      {/* Fin layout 2 colonnes */}
+
+      {/* Message Detail Modal */}
+      {viewingMessage && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#001d4a]/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95">
+            <div className={`p-5 ${viewingMessage.type === 'URGENTE' ? 'bg-gradient-to-r from-[#FCB131] to-amber-400' : 'bg-gradient-to-r from-[#003B94] to-[#001d4a]'}`}>
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl ${viewingMessage.type === 'URGENTE' ? 'bg-[#001d4a]/20' : 'bg-white/10'}`}>
+                    <Mail size={20} className={viewingMessage.type === 'URGENTE' ? 'text-[#001d4a]' : 'text-[#FCB131]'} />
+                  </div>
+                  <div>
+                    <span className={`text-[8px] font-black uppercase tracking-widest ${viewingMessage.type === 'URGENTE' ? 'text-[#001d4a]/60' : 'text-white/60'}`}>
+                      {viewingMessage.type === 'URGENTE' ? 'Mensaje Urgente' : 'Mensaje Informativo'}
+                    </span>
+                    <h2 className={`oswald text-lg font-black uppercase tracking-tight ${viewingMessage.type === 'URGENTE' ? 'text-[#001d4a]' : 'text-white'}`}>
+                      {viewingMessage.title}
+                    </h2>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setViewingMessage(null)}
+                  className={`p-1.5 rounded-full transition-all ${viewingMessage.type === 'URGENTE' ? 'hover:bg-[#001d4a]/20 text-[#001d4a]' : 'hover:bg-white/20 text-white'}`}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{viewingMessage.body}</p>
+              <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{viewingMessage.date}</span>
+                <button 
+                  onClick={() => setViewingMessage(null)}
+                  className="px-4 py-2 bg-[#003B94] text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#001d4a] transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Detail Modal */}
       {selectedDay && (

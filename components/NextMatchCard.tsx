@@ -15,16 +15,16 @@ const getFlag = (code: string) => {
 };
 
 const CountdownUnit = ({ value, label }: { value: number, label: string }) => (
-  <div className="flex flex-col items-center gap-0.5 group">
-    <div className="relative w-10 h-12 md:w-11 md:h-14 bg-[#FCB131] rounded-lg flex items-center justify-center shadow-[0_4px_15px_rgba(252,177,49,0.4)] overflow-hidden group-hover:scale-105 transition-all duration-300 border border-[#FFD23F]">
+  <div className="flex flex-col items-center gap-0 group">
+    <div className="relative w-6 h-7 md:w-7 md:h-8 bg-[#FCB131] rounded flex items-center justify-center shadow-[0_2px_8px_rgba(252,177,49,0.3)] overflow-hidden group-hover:scale-105 transition-all duration-300 border border-[#FFD23F]">
         <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <div key={value} className="relative z-10 animate-in slide-in-from-bottom-2 fade-in duration-500">
-            <span className="oswald text-2xl md:text-3xl font-black text-[#001d4a] leading-none tracking-tighter">
+            <span className="oswald text-sm md:text-base font-black text-[#001d4a] leading-none tracking-tighter">
                 {value.toString().padStart(2, '0')}
             </span>
         </div>
     </div>
-    <span className="text-[6px] md:text-[7px] text-[#FCB131] font-black uppercase tracking-[0.2em] opacity-80">{label}</span>
+    <span className="text-[4px] md:text-[5px] text-[#FCB131] font-black uppercase tracking-[0.1em] opacity-70">{label}</span>
   </div>
 );
 
@@ -222,112 +222,109 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
 
       <div className="relative z-10 flex flex-col items-center py-8 px-4 gap-6">
           
-          {/* 1. COMPETITION HEADER */}
-          <div className="flex flex-col items-center gap-2 w-full">
+          {/* 1. COMPETITION HEADER - Compact */}
+          <div className="flex flex-col items-center gap-1 w-full">
               {/* Logo and Competition Name on Same Line */}
-              <div className="flex items-center justify-center gap-4">
+              <div className="flex items-center justify-center gap-2">
                   {/* Dynamic Competition Logo */}
-                  <div className="relative h-20 flex items-center justify-center shrink-0">
+                  <div className="relative h-10 flex items-center justify-center shrink-0">
                       {compLogo ? (
                           (compLogo.startsWith('data:') || compLogo.startsWith('http') || compLogo.length > 5) ? (
                               <img 
                                 src={compLogo} 
                                 alt={match.competition} 
-                                className="h-full w-auto object-contain drop-shadow-[0_0_15px_rgba(252,177,49,0.4)] relative z-10 filter brightness-110"
+                                className="h-full w-auto object-contain drop-shadow-[0_0_10px_rgba(252,177,49,0.3)] relative z-10 filter brightness-110"
                               />
                           ) : (
                               // Fallback Text Code
-                              <div className="h-16 w-16 bg-[#001d4a] rounded-xl border border-[#FCB131] flex items-center justify-center shadow-lg">
-                                  <span className="oswald text-2xl font-black text-[#FCB131] tracking-tighter">{compLogo}</span>
+                              <div className="h-8 w-8 bg-[#001d4a] rounded-lg border border-[#FCB131] flex items-center justify-center shadow-md">
+                                  <span className="oswald text-sm font-black text-[#FCB131] tracking-tighter">{compLogo}</span>
                               </div>
                           )
                       ) : (
-                          <Trophy className="text-[#FCB131] drop-shadow-lg" size={40} />
+                          <Trophy className="text-[#FCB131] drop-shadow-lg" size={20} />
                       )}
                   </div>
 
                   <div className="flex flex-col items-start">
-                      <h2 className="oswald text-xl md:text-2xl font-black uppercase text-white tracking-[0.2em] leading-none drop-shadow-md">
+                      <h2 className="oswald text-sm md:text-base font-black uppercase text-white tracking-[0.15em] leading-none drop-shadow-md">
                           {match.competition}
                       </h2>
-                      <span className="text-[#FCB131] oswald text-lg font-bold uppercase tracking-[0.25em] mt-1 drop-shadow-sm">
+                      <span className="text-[#FCB131] oswald text-[10px] font-bold uppercase tracking-[0.2em] drop-shadow-sm">
                           {match.fecha_jornada || 'PRÓXIMO PARTIDO'}{match.venue ? ` - ${match.venue}` : ''}
                       </span>
                   </div>
               </div>
           </div>
 
-          {/* 2. MATCH INFO (Teams vs Clock) */}
-          <div className="w-full flex items-center justify-center gap-4 md:gap-16 flex-1">
+          {/* 2. COUNTDOWN - Petit et en haut */}
+          <div className="flex items-center gap-1 bg-black/30 backdrop-blur-xl px-3 py-1.5 rounded-lg border border-white/5 shadow-lg">
+              <CountdownUnit value={timeLeft.days} label="D" />
+              <span className="oswald text-sm text-[#FCB131] mt-[-8px] font-bold animate-pulse">:</span>
+              <CountdownUnit value={timeLeft.hours} label="H" />
+              <span className="oswald text-sm text-[#FCB131] mt-[-8px] font-bold animate-pulse">:</span>
+              <CountdownUnit value={timeLeft.mins} label="M" />
+              <span className="oswald text-sm text-[#FCB131] mt-[-8px] font-bold animate-pulse">:</span>
+              <CountdownUnit value={timeLeft.secs} label="S" />
+          </div>
+
+          {/* 3. TEAMS - Logos au centre, proches */}
+          <div className="w-full flex items-center justify-center gap-6 md:gap-10">
               
-              {/* Boca Logic */}
-              <div className="flex-1 flex flex-col items-center justify-start gap-2 text-center group/team -mt-24">
+              {/* Boca Logo */}
+              <div className="flex flex-col items-center gap-1 text-center group/team">
                   <div className="relative drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] group-hover/team:scale-110 transition-transform duration-500 flex items-center justify-center">
                       {bocaLogo ? (
                         <img 
                             src={bocaLogo} 
                             alt="Boca" 
-                            style={{ width: `${logoMatchSize}px`, height: `${logoMatchSize}px` }}
+                            style={{ width: `${logoMatchSize * 0.7}px`, height: `${logoMatchSize * 0.7}px` }}
                             className="object-contain filter brightness-110"
-                            onError={() => {
-                              // Fallback vers SVG si erreur
-                              setBocaLogo(null);
-                            }}
+                            onError={() => setBocaLogo(null)}
                         />
                       ) : (
                         <BocaLogoSVG 
-                            style={{ width: `${logoMatchSize}px`, height: `${logoMatchSize}px` }}
+                            style={{ width: `${logoMatchSize * 0.7}px`, height: `${logoMatchSize * 0.7}px` }}
                             className="filter brightness-110" 
                         />
                       )}
                   </div>
-                  <h3 className="oswald text-base md:text-base font-black uppercase text-white tracking-tight drop-shadow-md">Boca Juniors</h3>
+                  <h3 className="oswald text-[10px] md:text-xs font-black uppercase text-white tracking-tight drop-shadow-md">Boca Juniors</h3>
               </div>
 
-              {/* Central Info */}
-              <div className="flex flex-col items-center gap-6 shrink-0 z-20">
-                  
-                  {/* Clock (Strictly HH:mm, no seconds) - REDUCED SIZE */}
-                  <div className="flex items-baseline gap-2 animate-in zoom-in duration-700">
-                      <span className="oswald text-[28px] md:text-[28px] font-black tracking-tighter drop-shadow-[0_0_20px_rgba(252,177,49,0.4)] leading-none">
-                          <span className="text-white">{formatDateDisplay(match.date)}</span>
-                          <span className="text-white mx-2">-</span>
-                          <span className="text-[#FCB131]">{displayTime}</span>
+              {/* VS + Date/Heure */}
+              <div className="flex flex-col items-center gap-1">
+                  <span className="oswald text-xl md:text-2xl font-black text-white/20 tracking-tighter">VS</span>
+                  <div className="flex flex-col items-center">
+                      <span className="oswald text-base md:text-lg font-black text-white tracking-tighter leading-none">
+                          {formatDateDisplay(match.date)}
+                      </span>
+                      <span className="oswald text-sm md:text-base font-black text-[#FCB131] tracking-tight">
+                          {displayTime}
                       </span>
                   </div>
-
-                  {/* Countdown (Smaller, Yellow BG, Blue Text, WITH SECONDS) */}
-                  <div className="flex items-center gap-1.5 md:gap-2 bg-black/40 backdrop-blur-xl p-3 md:p-4 rounded-xl border border-white/5 shadow-2xl">
-                      <CountdownUnit value={timeLeft.days} label="DÍAS" />
-                      <span className="oswald text-2xl md:text-2xl text-[#FCB131] mt-[-15px] font-bold animate-pulse">:</span>
-                      <CountdownUnit value={timeLeft.hours} label="HRS" />
-                      <span className="oswald text-2xl md:text-2xl text-[#FCB131] mt-[-15px] font-bold animate-pulse">:</span>
-                      <CountdownUnit value={timeLeft.mins} label="MIN" />
-                      <span className="oswald text-2xl md:text-2xl text-[#FCB131] mt-[-15px] font-bold animate-pulse">:</span>
-                      <CountdownUnit value={timeLeft.secs} label="SEG" />
-                  </div>
               </div>
 
-              {/* Rival Logic */}
-              <div className="flex-1 flex flex-col items-center justify-start gap-2 text-center group/team -mt-24">
+              {/* Rival Logo */}
+              <div className="flex flex-col items-center gap-1 text-center group/team">
                   <div className="relative flex items-center justify-center drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] group-hover/team:scale-110 transition-transform duration-500">
                       {rivalLogo ? (
                           <img 
                               src={rivalLogo} 
                               alt={match.rival} 
-                              style={{ width: `${logoRivalSize}px`, height: `${logoRivalSize}px` }}
+                              style={{ width: `${logoRivalSize * 0.7}px`, height: `${logoRivalSize * 0.7}px` }}
                               className="object-contain filter brightness-110" 
                           />
                       ) : (
                           <span 
                               className="oswald font-black text-white/10 italic tracking-tighter select-none"
-                              style={{ fontSize: `${logoRivalSize * 0.4}px` }}
+                              style={{ fontSize: `${logoRivalSize * 0.25}px` }}
                           >
                               {match.rival_short}
                           </span>
                       )}
                   </div>
-                  <h3 className="oswald text-lg md:text-base font-black uppercase text-white/80 tracking-tight truncate w-full max-w-[140px]" title={match.rival}>
+                  <h3 className="oswald text-[10px] md:text-xs font-black uppercase text-white/80 tracking-tight truncate max-w-[100px]" title={match.rival}>
                       {match.rival}
                   </h3>
               </div>

@@ -1381,6 +1381,27 @@ class DataService {
                       data: { match_id: m.id, rival: m.rival, competition: m.competition, apertura_date: m.apertura_date, apertura_hour: m.apertura_hour }
                   };
                   await this.addNotification(notification);
+
+                  // Créer automatiquement un message URGENT pour informer de l'ouverture de la ventana
+                  const mensajeHabilitacion: Mensaje = {
+                      id: crypto.randomUUID(),
+                      title: `¡Ventana de Habilitaciones Abierta! - ${m.rival}`,
+                      body: `📢 ATENCIÓN PRESIDENTES Y REFERENTES\n\n` +
+                            `La ventana de habilitaciones para el partido contra ${m.rival} (${m.competition}) está ABIERTA.\n\n` +
+                            `📅 Apertura: ${m.apertura_date} a las ${m.apertura_hour}\n` +
+                            `📅 Cierre: ${m.cierre_date} a las ${m.cierre_hour}\n\n` +
+                            `Es el momento de enviar las solicitudes de habilitación para sus socios.\n\n` +
+                            `¡No olviden completar sus solicitudes antes del cierre!`,
+                      type: 'URGENTE',
+                      date: m.apertura_date || new Date().toISOString().split('T')[0],
+                      start_date: m.apertura_date || undefined,
+                      end_date: m.cierre_date || undefined,
+                      target_consulado_id: 'ALL',
+                      target_consulado_name: 'Todos los Consulados',
+                      created_at: Date.now(),
+                      is_automatic: true
+                  };
+                  await this.addMensaje(mensajeHabilitacion);
               }
               
               return mappedMatch;
