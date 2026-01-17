@@ -49,16 +49,22 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
       const loadData = () => {
           setSocios(dataService.getSocios(consulado_id));
           setConsulados(dataService.getConsulados());
-          if (currentConsulado) {
-              const transfers = dataService.getTransfers(currentConsulado);
-              setOutgoingTransfers(transfers.outgoing);
-              setIncomingTransfers(transfers.incoming);
-          }
       };
       loadData();
       const unsubscribe = dataService.subscribe(loadData);
       return () => unsubscribe();
-  }, [consulado_id, currentConsulado]);
+  }, [consulado_id]);
+  
+  // Charger les transferts quand currentConsulado est défini
+  useEffect(() => {
+      if (currentConsulado) {
+          console.log(`🔄 Chargement des transferts pour: ${currentConsulado}`);
+          const transfers = dataService.getTransfers(currentConsulado);
+          console.log(`📥 Transferts entrants: ${transfers.incoming.length}, sortants: ${transfers.outgoing.length}`);
+          setOutgoingTransfers(transfers.outgoing);
+          setIncomingTransfers(transfers.incoming);
+      }
+  }, [currentConsulado]);
 
   const calculateAge = (dateStr?: string) => {
       if (!dateStr) return null;

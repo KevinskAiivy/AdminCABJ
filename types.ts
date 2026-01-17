@@ -21,7 +21,7 @@ export interface Socio {
   avatar_color: string;
   consulado?: string;
   role?: string;
-  foto?: string; // URL de la photo du socio stockée dans Supabase Storage
+  // foto?: string; // SUPPRIMÉ - Les socios n'ont plus de photo
   transfer_history?: TransferHistoryEntry[]; // Historique des transferts
   habilitation_stats?: SocioHabilitacionStats; // Statistiques d'habilitations (calculées)
 }

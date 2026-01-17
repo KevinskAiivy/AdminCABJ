@@ -44,6 +44,7 @@ const parseTransferHistory = (value: any): any[] | undefined => {
 };
 
 // Helper pour nettoyer et normaliser les données de la DB (déjà en snake_case)
+// NOTE: Le champ 'foto' a été supprimé - les socios n'ont plus de photo
 const normalizeSocio = (db: any): Socio => ({
     id: db.id || '',
     numero_socio: db.numero_socio || db.id || '',
@@ -66,7 +67,7 @@ const normalizeSocio = (db: any): Socio => ({
     expiration_date: db.expiration_date || '',
     twitter: db.twitter || undefined,
     youtube: db.youtube || undefined,
-    foto: db.foto || undefined,
+    // foto: supprimé - les socios n'ont plus de photo
     transfer_history: parseTransferHistory(db.transfer_history)
 });
 
@@ -76,6 +77,8 @@ const mapSocioToDB = (s: Partial<Socio>) => {
     const payload: any = { ...s };
     // Supprimer 'name' car c'est un champ calculé (first_name + last_name), pas une colonne de la DB
     delete payload.name;
+    // Supprimer 'foto' car les socios n'ont plus de photo (colonne supprimée de la DB)
+    delete payload.foto;
 
     // Le consulado est directement dans la colonne 'consulado' de la DB
     // La correspondance se fait par nom : consulado (table socios) === name (table consulados)
@@ -1013,7 +1016,14 @@ class DataService {
               // Traitement des TransferRequests
               if (transfersResult.data && !transfersResult.error) {
                   this.transfers = transfersResult.data.map(mapTransferFromDB);
-                  if (isDevelopment) console.log(`✅ ${this.transfers.length} transferts chargés`);
+                  if (isDevelopment) {
+                      console.log(`✅ ${this.transfers.length} transferts chargés`);
+                      this.transfers.forEach(t => {
+                          console.log(`   📦 Transfer: ${t.socio_name} | ${t.from_consulado_name} → ${t.to_consulado_name} | Status: ${t.status}`);
+                      });
+                  }
+              } else if (transfersResult.error) {
+                  console.error("❌ Erreur chargement transferts:", transfersResult.error);
               }
           } catch (error) {
               // Les tables peuvent ne pas exister, ce n'est pas critique
@@ -2881,14 +2891,30 @@ async deleteConsulado(id: string) {
   
   // Obtenir les transferts pour un consulado spécifique
   getTransfers(consulado_name: string) {
+      const isDev = import.meta.env.DEV;
+      if (isDev) {
+          console.log(`🔍 getTransfers pour consulado: "${consulado_name}"`);
+          console.log(`🔍 Total transferts en mémoire: ${this.transfers.length}`);
+          this.transfers.forEach(t => {
+              console.log(`   - Transfer ${t.id}: from="${t.from_consulado_name}" to="${t.to_consulado_name}" status="${t.status}"`);
+          });
+      }
+      
       // Transferts entrants: seulement ceux en attente d'approbation
+      // Comparaison insensible à la casse et aux espaces
+      const normalizedName = consulado_name.trim().toLowerCase();
       const incoming = this.transfers.filter(t =>
-          t.to_consulado_name === consulado_name && t.status === 'PENDING'
+          t.to_consulado_name?.trim().toLowerCase() === normalizedName && t.status === 'PENDING'
       );
       // Transferts sortants: ceux en attente (pour pouvoir les annuler) et ceux approuvés (pour voir l'historique)
       const outgoing = this.transfers.filter(t =>
-          t.from_consulado_name === consulado_name && (t.status === 'PENDING' || t.status === 'APPROVED' || t.status === 'REJECTED' || t.status === 'CANCELLED')
+          t.from_consulado_name?.trim().toLowerCase() === normalizedName && (t.status === 'PENDING' || t.status === 'APPROVED' || t.status === 'REJECTED' || t.status === 'CANCELLED')
       );
+      
+      if (isDev) {
+          console.log(`🔍 Résultat: ${incoming.length} entrants, ${outgoing.length} sortants`);
+      }
+      
       return { incoming, outgoing };
   }
   
