@@ -913,7 +913,7 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                                             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
                                                 <div className="flex items-center gap-2 text-[8px] font-bold text-white/80 uppercase tracking-widest">
                                                     <span className="opacity-70">Desde:</span>
-                                                    <span className="font-black text-[#FCB131]">{formData.consulado || 'Consulado Central'}</span>
+                                                    <span className="font-black text-[#FCB131]">{formData.consulado || 'SEDE CENTRAL'}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 my-1.5">
                                                     <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#FCB131] to-transparent"></div>
@@ -922,7 +922,7 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                                                 </div>
                                                 <div className="flex items-center gap-2 text-[8px] font-bold text-white/80 uppercase tracking-widest">
                                                     <span className="opacity-70">Hacia:</span>
-                                                    <span className="font-black text-[#FCB131]">{pendingConsulado || 'Consulado Central'}</span>
+                                                    <span className="font-black text-[#FCB131]">{pendingConsulado || 'SEDE CENTRAL'}</span>
                                                 </div>
                                             </div>
                                             <div className="space-y-1.5">

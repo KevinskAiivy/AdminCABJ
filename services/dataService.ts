@@ -785,11 +785,6 @@ class DataService {
                   
                   // Notifier les listeners après le chargement
                   this.notify();
-                  
-                  // Créer CONSULADO CENTRAL de manière asynchrone (ne bloque pas)
-                  this.ensureSedeCentralExists().catch(err => {
-                      console.error("Erreur lors de la création de CONSULADO CENTRAL:", err);
-                  });
               } else {
                   console.warn("⚠️ consuladosResult.data n'est pas un tableau:", typeof consuladosResult.data, consuladosResult.data);
                   this.consulados = [];
@@ -799,10 +794,6 @@ class DataService {
               console.warn("⚠️ Aucune donnée retournée pour consulados (data est null/undefined)");
               this.consulados = [];
               this.notify();
-              // Créer CONSULADO CENTRAL même si aucune donnée
-              this.ensureSedeCentralExists().catch(err => {
-                  console.error("Erreur lors de la création de CONSULADO CENTRAL:", err);
-              });
           }
 
           // 2. Chargement paginé des Socios (peut être long)
@@ -899,7 +890,7 @@ class DataService {
               if (isDevelopment) console.log("ℹ️ Tables solicitudes/notifications/transfer_requests non disponibles");
           }
 
-          // Assigner CONSULADO CENTRAL en arrière-plan (ne bloque pas l'initialisation)
+          // Assigner SEDE CENTRAL en arrière-plan (ne bloque pas l'initialisation)
           this.assignSociosToSedeCentral().catch(() => {
               // Erreurs silencieuses pour ne pas ralentir
           });
@@ -1115,21 +1106,15 @@ class DataService {
       this.notify(); 
   }
 
-  // CONSULADO CENTRAL est un consulado virtuel intégré à l'application, pas dans la base de données
-  // Cette fonction ne fait rien car CONSULADO CENTRAL est géré virtuellement dans getConsulados()
-  // Il n'a pas de président car c'est un consulado administratif
-  private async ensureSedeCentralExists() {
-      // CONSULADO CENTRAL est toujours créé virtuellement dans getConsulados()
-      // Il n'est jamais créé dans la base de données
-      const isDevelopment = import.meta.env.DEV;
-      if (isDevelopment) {
-          console.log("ℹ️ CONSULADO CENTRAL est un consulado virtuel, géré dans getConsulados()");
-      }
-  }
-
-  // Assigner "CONSULADO CENTRAL" aux socios qui n'ont pas de consulado (en arrière-plan, ne bloque pas)
+  // Les socios sans consulado sont affichés sous "SEDE CENTRAL" (label uniquement, pas un consulado)
+  // Cette fonction n'est plus nécessaire car on n'assigne plus de consulado aux socios sans consulado
   private async assignSociosToSedeCentral() {
-      const sedeCentralName = 'CONSULADO CENTRAL';
+      // Ne rien faire - les socios sans consulado restent sans consulado
+      // Ils seront affichés sous "SEDE CENTRAL" dans l'interface
+      return;
+      
+      // Code obsolète ci-dessous (conservé pour référence)
+      const sedeCentralName = 'SEDE CENTRAL';
       const allConsulados = this.getConsulados();
       const sedeCentral = allConsulados.find(
           c => c.name && c.name.toUpperCase() === sedeCentralName.toUpperCase()
@@ -1169,7 +1154,7 @@ class DataService {
 
       // Exécuter les updates en parallèle (max 100 à la fois pour éviter de surcharger)
       Promise.all(updatePromises).catch(err => {
-          console.error("Erreur lors de l'assignation des socios à CONSULADO CENTRAL:", err);
+          console.error("Erreur lors de l'assignation des socios à SEDE CENTRAL:", err);
       });
       
       // Si plus de 100 socios, traiter le reste en arrière-plan
@@ -1190,108 +1175,28 @@ class DataService {
   }
 
   getConsulados() {
-      // S'assurer que "CONSULADO CENTRAL" est toujours présent dans la liste
-      // CONSULADO CENTRAL est un consulado virtuel intégré à l'application, pas dans la base de données
-      // Il n'a pas de président car c'est un consulado administratif
-      const sedeCentralName = 'CONSULADO CENTRAL';
-
-      // Filtrer CONSULADO CENTRAL de la liste des consulados de la DB (s'il existe)
-      const consuladosFromDB = this.consulados.filter(
-          c => !(c.name && c.name.toUpperCase() === sedeCentralName.toUpperCase())
-      );
-
-      // Créer "CONSULADO CENTRAL" virtuellement (toujours présent, jamais dans la DB)
-      const sedeCentral: Consulado = {
-          id: 'sede-central-virtual',
-          name: sedeCentralName,
-          city: 'Buenos Aires',
-          country: 'Argentina',
-          country_code: 'AR',
-          president: '', // Pas de président - consulado administratif
-          referente: '',
-          foundation_year: '',
-          address: 'La Bombonera, Brandsen 805, C1161 CABA, Argentina',
-          timezone: 'UTC-03:00 (Buenos Aires)',
-          banner: '',
-          logo: '',
-          is_official: true,
-          email: undefined,
-          phone: undefined,
-          social_instagram: undefined,
-          social_facebook: undefined,
-          social_x: undefined,
-          social_tiktok: undefined,
-          social_youtube: undefined,
-          website: undefined
-      };
-      
-      // Toujours retourner CONSULADO CENTRAL en premier, suivi des consulados de la DB
-      return [sedeCentral, ...consuladosFromDB]; 
+      // Retourner uniquement les consulados de la base de données
+      // Les socios sans consulado sont assignés à "SEDE CENTRAL" (pas un consulado, juste un label)
+      return this.consulados; 
   }
   
   getConsuladoById(id: string) { 
-      // Si on cherche "CONSULADO CENTRAL" et qu'il n'existe pas, le retourner virtuellement
-      if (id === 'sede-central-virtual') {
-          const sedeCentral: Consulado = {
-              id: 'sede-central-virtual',
-              name: 'CONSULADO CENTRAL',
-              city: 'Buenos Aires',
-              country: 'Argentina',
-              country_code: 'AR',
-              president: '',
-              referente: '',
-              foundation_year: '',
-              address: 'La Bombonera, Brandsen 805, C1161 CABA, Argentina',
-              timezone: 'UTC-03:00 (Buenos Aires)',
-              banner: '',
-              logo: '',
-              is_official: true,
-              email: undefined,
-              phone: undefined,
-              social_instagram: undefined,
-              social_facebook: undefined,
-              social_x: undefined,
-              social_tiktok: undefined,
-              social_youtube: undefined,
-              website: undefined
-          };
-          return sedeCentral;
-      }
-      
       return this.consulados.find(c => c.id === id); 
   }
   async addConsulado(c: Consulado) {
-      // CONSULADO CENTRAL est un consulado virtuel, ne peut pas être ajouté à la base de données
-      if (c.id === 'sede-central-virtual' || (c.name && c.name.toUpperCase() === 'CONSULADO CENTRAL')) {
-          console.warn("⚠️ CONSULADO CENTRAL est un consulado virtuel et ne peut pas être sauvegardé dans la base de données");
-          return;
-      }
-      
       this.consulados.push(c); 
       this.notify();
       const { error } = await supabase.from('consulados').insert([mapConsuladoToDB(c)]);
       if (error) throw new Error(error.message);
   }
-  async updateConsulado(c: Consulado) {
-      // CONSULADO CENTRAL est un consulado virtuel, ne peut pas être modifié dans la base de données
-      if (c.id === 'sede-central-virtual' || (c.name && c.name.toUpperCase() === 'CONSULADO CENTRAL')) {
-          console.warn("⚠️ CONSULADO CENTRAL est un consulado virtuel et ne peut pas être modifié dans la base de données");
-          return;
-      }
-      
-      this.consulados = this.consulados.map(x => x.id === c.id ? c : x); 
+async updateConsulado(c: Consulado) {
+      this.consulados = this.consulados.map(x => x.id === c.id ? c : x);
       this.notify();
       const { error } = await supabase.from('consulados').update(mapConsuladoToDB(c)).eq('id', c.id);
       if (error) throw new Error(error.message);
   }
-  async deleteConsulado(id: string) {
-      // CONSULADO CENTRAL est un consulado virtuel, ne peut pas être supprimé
-      if (id === 'sede-central-virtual') {
-          console.warn("⚠️ CONSULADO CENTRAL est un consulado virtuel et ne peut pas être supprimé");
-          return;
-      }
-      
-      this.consulados = this.consulados.filter(x => x.id !== id); 
+async deleteConsulado(id: string) {
+      this.consulados = this.consulados.filter(x => x.id !== id);
       this.notify();
       const { error } = await supabase.from('consulados').delete().eq('id', id);
       if (error) throw new Error(error.message);
@@ -2971,10 +2876,6 @@ class DataService {
               
               if (consuladosError) throw consuladosError;
               this.consulados = (consuladosData || []).map(mapConsuladoFromDB);
-              // Créer CONSULADO CENTRAL si nécessaire
-              await this.ensureSedeCentralExists().catch(() => {});
-              // Assigner les socios à CONSULADO CENTRAL en arrière-plan
-              this.assignSociosToSedeCentral().catch(() => {});
               results[table] = { success: true, count: this.consulados.length };
               break;
               

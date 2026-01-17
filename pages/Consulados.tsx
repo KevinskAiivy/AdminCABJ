@@ -320,17 +320,6 @@ export const Consulados = () => {
   };
 
   const executeSave = async () => {
-      // CONSULADO CENTRAL est un consulado virtuel, ne peut pas être sauvegardé dans la base de données
-      const isSedeCentral = editingConsulado.id === 'sede-central-virtual' ||
-                           (editingConsulado.name && editingConsulado.name.toUpperCase() === 'CONSULADO CENTRAL');
-
-      if (isSedeCentral) {
-          // Ne pas sauvegarder CONSULADO CENTRAL dans la base de données
-          setShowSaveConfirm(false);
-          setIsEditModalOpen(false);
-          return;
-      }
-      
       // Upload des images vers Supabase Storage si des fichiers ont été sélectionnés
       // Si l'utilisateur a entré une URL directement (pas de fichier sélectionné), on l'utilise telle quelle
       let logoUrl = editingConsulado.logo || '';
@@ -701,14 +690,10 @@ export const Consulados = () => {
                         {consulado.is_official && (<div className="absolute top-3 right-3 bg-[#FCB131] w-10 h-10 rounded-full shadow-lg z-20 flex items-center justify-center animate-in zoom-in duration-500"><Star size={28} className="text-[#001d4a] fill-[#001d4a] animate-pulse" strokeWidth={0.3} /></div>)}
                         <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-[-10px] group-hover:translate-y-0 z-30">
                             <div className={`flex gap-2 ${consulado.is_official ? 'mr-12' : ''}`}>
-                                {consulado.id !== 'sede-central-virtual' ? (
-                                    <>
+                                <>
                                         <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleEdit(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white text-white hover:text-[#003B94] rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110"><Edit2 size={14} /></button>
                                         <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); requestDelete(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-red-500 text-white hover:text-white rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110"><Trash2 size={14} /></button>
                                     </>
-                                ) : (
-                                    <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleEdit(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white text-white hover:text-[#003B94] rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110" title="Ver información (CONSULADO CENTRAL no es editable)"><Edit2 size={14} /></button>
-                                )}
                             </div>
                         </div>
                     </div>
@@ -761,9 +746,6 @@ export const Consulados = () => {
 
                 <div className="flex justify-center backdrop-blur-md border-b border-[#003B94]/30 px-6 pt-3 gap-2 overflow-x-auto shrink-0 shadow-[0_2px_10px_rgba(0,0,0,0.1)]" style={{ backgroundColor: 'unset', background: 'unset', backgroundImage: 'none' }}>
                     {(() => {
-                        const isSedeCentral = editingConsulado.id === 'sede-central-virtual' ||
-                                             (editingConsulado.name && editingConsulado.name.toUpperCase() === 'CONSULADO CENTRAL');
-
                         const allTabs = [
                             { id: 'INFO', label: 'Info General', icon: Building2 }, 
                             { id: 'SOCIAL', label: 'Redes Sociales', icon: Globe }, 
@@ -771,12 +753,7 @@ export const Consulados = () => {
                             { id: 'BOARD', label: 'Directiva', icon: Users }
                         ];
                         
-                        // Pour Consulado Central, exclure LOCATION et BOARD
-                        const availableTabs = isSedeCentral
-                            ? allTabs.filter(tab => tab.id !== 'LOCATION' && tab.id !== 'BOARD')
-                            : allTabs;
-                        
-                        return availableTabs.map(tab => (
+                        return allTabs.map(tab => (
                             <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex items-center gap-1.5 px-5 py-2.5 rounded-t-xl text-[9px] font-black uppercase tracking-widest transition-all duration-300 relative whitespace-nowrap ${
                                 activeTab === tab.id 
                                     ? 'bg-[#003B94] backdrop-blur-sm text-[#FCB131] shadow-[0_-4px_15px_rgba(252,177,49,0.2)] border-t-2 border-x-2 border-[#FCB131]/40 border-b-0 z-10 translate-y-[1px] before:absolute before:inset-0 before:bg-gradient-to-b before:from-[#FCB131]/20 before:to-transparent before:rounded-t-xl' 
@@ -1069,32 +1046,6 @@ export const Consulados = () => {
                             <h3 className="text-[#FCB131] text-[9px] font-black uppercase tracking-widest mb-3 border-b border-white/10 pb-1 flex items-center gap-2"><Star size={10} fill="currentColor"/> Alta Dirección</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 {(() => {
-                                    const isSedeCentral = editingConsulado.id === 'sede-central-virtual' || 
-                                                         (editingConsulado.name && editingConsulado.name.toUpperCase() === 'SEDE CENTRAL');
-                                    
-                                    // CONSULADO CENTRAL n'a pas de président
-                                    if (isSedeCentral) {
-                                        const referenteSocio = allSocios.find(s => s.name === editingConsulado.referente || `${s.first_name} ${s.last_name}` === editingConsulado.referente);
-                                        return (
-                                            <div className="col-span-2 space-y-2">
-                                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                                                    <p className="text-[9px] font-bold text-yellow-800 uppercase">
-                                                        CONSULADO CENTRAL es un consulado administrativo y no tiene presidente
-                                                    </p>
-                                                </div>
-                                                <CustomSelect 
-                                                    label={getGenderRoleLabel('REFERENTE', referenteSocio?.gender || 'M')} 
-                                                    value={editingConsulado.referente || ''} 
-                                                    onChange={(val) => setEditingConsulado({...editingConsulado, referente: val})} 
-                                                    options={[{value: '', label: 'Vacante'}, ...boardCandidates]} 
-                                                    searchable 
-                                                    placeholder="Asignar..." 
-                                                    className="text-white" 
-                                                />
-                                            </div>
-                                        );
-                                    }
-                                    
                                     const presidentSocio = allSocios.find(s => s.name === editingConsulado.president || `${s.first_name} ${s.last_name}` === editingConsulado.president);
                                     const referenteSocio = allSocios.find(s => s.name === editingConsulado.referente || `${s.first_name} ${s.last_name}` === editingConsulado.referente);
                                     return (
