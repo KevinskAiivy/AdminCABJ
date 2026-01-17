@@ -1174,13 +1174,48 @@ class DataService {
       }
   }
 
+  // SEDE CENTRAL - Consulado virtuel intégré à l'application (non supprimable)
+  private getSedeCentral(): Consulado {
+      return {
+          id: 'sede-central',
+          name: 'SEDE CENTRAL',
+          city: 'Buenos Aires',
+          country: 'Argentina',
+          country_code: 'AR',
+          president: '',
+          referente: '',
+          foundation_year: '1905',
+          address: 'La Bombonera, Brandsen 805, CABA',
+          timezone: 'UTC-03:00 (Buenos Aires)',
+          banner: '',
+          logo: '',
+          is_official: true,
+          email: undefined,
+          phone: undefined,
+          social_instagram: undefined,
+          social_facebook: undefined,
+          social_x: undefined,
+          social_tiktok: undefined,
+          social_youtube: undefined,
+          website: undefined
+      };
+  }
+
   getConsulados() {
-      // Retourner uniquement les consulados de la base de données
-      // Les socios sans consulado sont assignés à "SEDE CENTRAL" (pas un consulado, juste un label)
-      return this.consulados; 
+      // SEDE CENTRAL toujours en premier, puis les consulados de la DB
+      const sedeCentral = this.getSedeCentral();
+      // Filtrer SEDE CENTRAL de la DB s'il existe (pour éviter les doublons)
+      const dbConsulados = this.consulados.filter(c => 
+          c.id !== 'sede-central' && 
+          c.name?.toUpperCase() !== 'SEDE CENTRAL'
+      );
+      return [sedeCentral, ...dbConsulados]; 
   }
   
   getConsuladoById(id: string) { 
+      if (id === 'sede-central') {
+          return this.getSedeCentral();
+      }
       return this.consulados.find(c => c.id === id); 
   }
   async addConsulado(c: Consulado) {
@@ -1196,6 +1231,11 @@ async updateConsulado(c: Consulado) {
       if (error) throw new Error(error.message);
   }
 async deleteConsulado(id: string) {
+      // SEDE CENTRAL ne peut pas être supprimé (fait partie du code)
+      if (id === 'sede-central') {
+          console.warn("⚠️ SEDE CENTRAL ne peut pas être supprimé");
+          return;
+      }
       this.consulados = this.consulados.filter(x => x.id !== id);
       this.notify();
       const { error } = await supabase.from('consulados').delete().eq('id', id);

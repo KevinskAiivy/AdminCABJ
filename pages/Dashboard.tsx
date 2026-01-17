@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { GlassCard } from '../components/GlassCard';
-import { Calendar, Activity, Star, Trophy, X, MapPin, Gift, Building2, Users, Globe, Cake, ChevronLeft, ChevronRight, RotateCcw, Mail } from 'lucide-react';
+import { Calendar, Activity, Star, Trophy, X, MapPin, Gift, Building2, Users, Globe, Cake, ChevronLeft, ChevronRight, RotateCcw, Mail, Bell, Check } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import { AgendaEvent, Match, Socio, Mensaje } from '../types';
 import { NextMatchCard } from '../components/NextMatchCard';
@@ -73,6 +73,40 @@ export const Dashboard = () => {
   const [weekOffset, setWeekOffset] = useState<number>(0);
   const [messages, setMessages] = useState<Mensaje[]>([]);
   const [viewingMessage, setViewingMessage] = useState<Mensaje | null>(null);
+  const [readMessages, setReadMessages] = useState<Set<string>>(() => {
+    // Charger les messages lus depuis localStorage
+    const saved = localStorage.getItem('dashboard_read_messages');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
+  const [dismissedMessages, setDismissedMessages] = useState<Set<string>>(() => {
+    // Charger les messages supprimés depuis localStorage
+    const saved = localStorage.getItem('dashboard_dismissed_messages');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
+
+  // Marquer un message comme lu
+  const markAsRead = (msgId: string) => {
+    setReadMessages(prev => {
+      const newSet = new Set(prev);
+      newSet.add(msgId);
+      localStorage.setItem('dashboard_read_messages', JSON.stringify([...newSet]));
+      return newSet;
+    });
+  };
+
+  // Supprimer un message du dashboard
+  const dismissMessage = (msgId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDismissedMessages(prev => {
+      const newSet = new Set(prev);
+      newSet.add(msgId);
+      localStorage.setItem('dashboard_dismissed_messages', JSON.stringify([...newSet]));
+      return newSet;
+    });
+  };
+
+  // Messages filtrés (non supprimés)
+  const visibleMessages = messages.filter(m => !dismissedMessages.has(m.id));
 
   // Calculate week start (Monday) based on weekOffset
   const getWeekStart = useCallback((offset: number) => {
@@ -453,7 +487,7 @@ export const Dashboard = () => {
         </div>
         {/* Fin colonne principale */}
 
-        {/* Colonne secondaire (25%) - Messages */}
+{/* Colonne secondaire (25%) - Messages */}
         <div className="w-full lg:w-1/4">
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden sticky top-24">
             {/* Header Messages */}
@@ -463,36 +497,82 @@ export const Dashboard = () => {
                   <Mail size={16} className="text-[#FCB131]" />
                   <h3 className="oswald text-sm font-black text-white uppercase tracking-tight">Mensajes</h3>
                 </div>
-                {messages.length > 0 && (
-                  <span className="bg-[#FCB131] text-[#001d4a] text-[8px] font-black rounded-full px-2 py-0.5">
-                    {messages.length}
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {visibleMessages.filter(m => !readMessages.has(m.id)).length > 0 && (
+                    <span className="bg-[#FCB131] text-[#001d4a] text-[8px] font-black rounded-full px-2 py-0.5">
+                      {visibleMessages.filter(m => !readMessages.has(m.id)).length} nuevo{visibleMessages.filter(m => !readMessages.has(m.id)).length > 1 ? 's' : ''}
+                    </span>
+                  )}
+                  <Link
+                    to="/notificaciones"
+                    className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all"
+                    title="Centro de Notificaciones"
+                  >
+                    <Bell size={14} className="text-white" />
+                  </Link>
+                </div>
               </div>
             </div>
-            
+
             {/* Liste des messages */}
             <div className="max-h-[500px] overflow-y-auto">
-              {messages.length > 0 ? (
+              {visibleMessages.length > 0 ? (
                 <div className="divide-y divide-gray-100">
-                  {messages.slice(0, 8).map(msg => (
-                    <div 
-                      key={msg.id} 
-                      onClick={() => setViewingMessage(msg)}
-                      className={`p-3 cursor-pointer hover:bg-gray-50 transition-colors ${msg.type === 'URGENTE' ? 'bg-amber-50/50 border-l-2 border-l-[#FCB131]' : ''}`}
-                    >
-                      <div className="flex items-start gap-2">
-                        <span className={`shrink-0 px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-widest ${msg.type === 'URGENTE' ? 'bg-[#FCB131] text-[#001d4a]' : 'bg-blue-50 text-blue-600'}`}>
-                          {msg.type === 'URGENTE' ? 'URG' : 'INFO'}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-[10px] font-black text-[#001d4a] uppercase truncate leading-tight">{msg.title}</h4>
-                          <p className="text-[8px] text-gray-500 line-clamp-2 mt-0.5 leading-relaxed">{msg.body}</p>
-                          <span className="text-[7px] text-gray-400 font-bold mt-1 block">{msg.date}</span>
+                  {visibleMessages.slice(0, 10).map(msg => {
+                    const isRead = readMessages.has(msg.id);
+                    return (
+                      <div
+                        key={msg.id}
+                        onClick={() => {
+                          markAsRead(msg.id);
+                          setViewingMessage(msg);
+                        }}
+                        className={`relative group cursor-pointer transition-all ${
+                          isRead 
+                            ? 'p-2 bg-gray-50/50 opacity-60 hover:opacity-80' 
+                            : `p-3 hover:bg-gray-50 ${msg.type === 'URGENTE' ? 'bg-amber-50 border-l-3 border-l-[#FCB131]' : 'bg-blue-50/30 border-l-3 border-l-[#003B94]'}`
+                        }`}
+                      >
+                        {/* Bouton supprimer */}
+                        <button
+                          onClick={(e) => dismissMessage(msg.id, e)}
+                          className="absolute top-1 right-1 p-1 rounded-full bg-gray-200/50 hover:bg-red-100 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all z-10"
+                          title="Quitar del dashboard"
+                        >
+                          <X size={10} />
+                        </button>
+                        
+                        <div className="flex items-start gap-2">
+                          {/* Indicateur lu/non-lu */}
+                          {!isRead && (
+                            <div className="w-2 h-2 rounded-full bg-[#003B94] shrink-0 mt-1 animate-pulse"></div>
+                          )}
+                          {isRead && (
+                            <Check size={10} className="text-gray-400 shrink-0 mt-0.5" />
+                          )}
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className={`shrink-0 px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-widest ${
+                                msg.type === 'URGENTE' 
+                                  ? 'bg-[#FCB131] text-[#001d4a]' 
+                                  : isRead ? 'bg-gray-200 text-gray-500' : 'bg-blue-100 text-blue-600'
+                              }`}>
+                                {msg.type === 'URGENTE' ? 'URG' : 'INFO'}
+                              </span>
+                            </div>
+                            <h4 className={`font-black uppercase truncate leading-tight ${
+                              isRead ? 'text-[8px] text-gray-500' : 'text-[10px] text-[#001d4a]'
+                            }`}>{msg.title}</h4>
+                            {!isRead && (
+                              <p className="text-[8px] text-gray-500 line-clamp-2 mt-0.5 leading-relaxed">{msg.body}</p>
+                            )}
+                            <span className={`font-bold mt-1 block ${isRead ? 'text-[6px] text-gray-400' : 'text-[7px] text-gray-400'}`}>{msg.date}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="p-6 text-center">
@@ -501,12 +581,12 @@ export const Dashboard = () => {
                 </div>
               )}
             </div>
-            
+
             {/* Footer - Ver todos */}
-            {messages.length > 8 && (
+            {visibleMessages.length > 10 && (
               <div className="p-3 bg-gray-50 border-t border-gray-100">
-                <Link 
-                  to="/admin/mensajes" 
+                <Link
+                  to="/admin/mensajes"
                   className="block text-center text-[8px] font-black text-[#003B94] uppercase tracking-widest hover:text-[#FCB131] transition-colors"
                 >
                   Ver todos ({messages.length}) →

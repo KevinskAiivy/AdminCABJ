@@ -693,7 +693,9 @@ export const Consulados = () => {
                         <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-[-10px] group-hover:translate-y-0 z-30">
                             <div className={`flex gap-2 ${consulado.is_official ? 'mr-12' : ''}`}>
                                 <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleEdit(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white text-white hover:text-[#003B94] rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110" title="Editar"><Edit2 size={14} /></button>
-                                <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); requestDelete(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-red-500 text-white hover:text-white rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110" title="Eliminar"><Trash2 size={14} /></button>
+                                {consulado.id !== 'sede-central' && consulado.name?.toUpperCase() !== 'SEDE CENTRAL' && (
+                                  <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); requestDelete(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-red-500 text-white hover:text-white rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110" title="Eliminar"><Trash2 size={14} /></button>
+                                )}
                             </div>
                         </div>
                     </div>
