@@ -383,15 +383,15 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
               <div className="flex flex-col items-end gap-1">
                   <div className="flex items-center gap-1.5">
                       <span className="text-[10px] text-white/50">🇦🇷</span>
-                      <span className="oswald text-lg md:text-2xl font-black text-[#FCB131] tracking-tight leading-none">
-                          {match.hour} hs
+                      <span className="oswald text-base md:text-lg font-black text-[#FCB131] tracking-tight leading-none">
+                          {match.hour?.split(':').slice(0, 2).join(':')} hs
                       </span>
                   </div>
                   {displayTime !== match.hour && displayTime !== `${match.hour} hs` && !displayTime.includes(match.hour) && (
                       <div className="flex items-center gap-1.5">
                           <span className="text-[10px] text-white/50">{displayFlag}</span>
-                          <span className="oswald text-sm md:text-base font-bold text-white/70 tracking-tight leading-none">
-                              {displayTime.replace(' hs', '')} hs
+                          <span className="oswald text-base md:text-lg font-black text-white/70 tracking-tight leading-none">
+                              {displayTime.replace(' hs', '').split(':').slice(0, 2).join(':')} hs
                           </span>
                       </div>
                   )}
