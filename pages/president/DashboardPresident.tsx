@@ -216,92 +216,51 @@ export const DashboardPresident = ({ consulado_id }: { consulado_id: string }) =
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-12 px-4 animate-boca-entrance">
+    <div className="max-w-7xl mx-auto pb-12 px-4 animate-boca-entrance">
         
-        {/* MATCH DAY HERO SECTION */}
-        {nextMatch ? (
-            <NextMatchCard 
-                match={nextMatch} 
-                userTimezone={consulado?.timezone}
-                userCountryCode={consulado?.country_code}
-            />
-        ) : (
-            <div className="h-[200px] bg-[#001d4a] rounded-[2.5rem] flex flex-col items-center justify-center text-white/10 border border-white/5 shadow-xl">
-                <Calendar size={32} className="mb-4 opacity-5" />
-                <p className="oswald text-xl font-black uppercase tracking-widest">Sin partidos próximos</p>
-            </div>
-        )}
-
-        {/* DASHBOARD CONTENT GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8">
-                {/* Notifications */}
-                {notifications.length > 0 && (
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-3 px-2">
-                            <Bell size={18} className="text-[#FCB131]" />
-                            <h3 className="oswald text-xl font-black text-[#001d4a] uppercase tracking-tight">Notificaciones</h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {notifications.map(n => (
-                                <GlassCard key={n.id} className="p-4 flex items-start gap-4 border-l-4 border-l-[#FCB131] bg-white group relative hover:shadow-lg">
-                                    <button onClick={(e) => { e.stopPropagation(); setNotifications(prev => prev.filter(notif => notif.id !== n.id)); }} className="absolute top-2 right-2 p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full opacity-0 group-hover:opacity-100 transition-all"><X size={12} /></button>
-                                    <div className={`mt-1 p-2.5 rounded-xl shrink-0 ${n.type === 'MESSAGE' ? 'bg-blue-50 text-blue-600' : n.type === 'HABILITACION' ? 'bg-amber-50 text-amber-600' : n.type === 'TRANSFER' ? 'bg-emerald-50 text-emerald-600' : 'bg-purple-50 text-purple-600'}`}>
-                                        {n.type === 'MESSAGE' ? <Mail size={16}/> : n.type === 'HABILITACION' ? <Ticket size={16}/> : n.type === 'TRANSFER' ? <AlertTriangle size={16}/> : <UserPlus size={16}/>}
-                                    </div>
-                                    <div className="pr-4">
-                                        <h4 className="font-bold text-[#001d4a] text-xs uppercase leading-tight mb-1">{n.title}</h4>
-                                        <span className="text-[9px] text-gray-400 font-bold flex items-center gap-1"><Clock size={10} /> {n.date}</span>
-                                    </div>
-                                </GlassCard>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Messages - Compact horizontal layout */}
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between px-2">
-                        <div className="flex items-center gap-3">
-                            <Mail size={16} className="text-[#003B94]" />
-                            <h3 className="oswald text-lg font-black text-[#001d4a] uppercase tracking-tight">Mensajes Oficiales</h3>
-                        </div>
-                        {messages.length > 5 && (
-                            <a href="#/admin/mensajes" className="text-[9px] font-black text-[#003B94] uppercase tracking-widest hover:text-[#FCB131] transition-colors flex items-center gap-1">
-                                Ver todos ({messages.length}) <ChevronRight size={12} />
-                            </a>
-                        )}
-                    </div>
-                    {messages.length > 0 ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                            {messages.slice(0, 5).map(msg => (
-                                <GlassCard key={msg.id} onClick={() => setViewingMessage(msg)} className={`p-3 transition-all hover:shadow-lg cursor-pointer group relative overflow-hidden ${msg.type === 'URGENTE' ? 'bg-gradient-to-br from-white to-amber-50 border-l-2 border-l-[#FCB131]' : 'bg-white border-l-2 border-l-[#003B94]'}`}>
-                                    <div className="flex justify-between items-start mb-1.5">
-                                        <span className={`px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-widest ${msg.type === 'URGENTE' ? 'bg-[#FCB131] text-[#001d4a]' : 'bg-blue-50 text-blue-600'}`}>
-                                            {msg.type === 'URGENTE' ? 'URGENTE' : 'INFO'}
-                                        </span>
-                                    </div>
-                                    <h4 className="oswald text-xs font-black text-[#001d4a] uppercase mb-1 truncate group-hover:text-[#003B94] transition-colors">{msg.title}</h4>
-                                    <p className="text-[8px] text-gray-500 line-clamp-2 leading-relaxed">{msg.body}</p>
-                                    <div className="mt-2 pt-1.5 border-t border-gray-100 flex items-center justify-between">
-                                        <span className="text-[7px] font-bold text-gray-400">{msg.date}</span>
-                                        <ChevronRight size={10} className="text-[#003B94] opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </div>
-                                </GlassCard>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="p-8 text-center bg-white rounded-xl border border-dashed border-gray-200 text-gray-400">
-                             <Mail size={24} className="mx-auto mb-3 opacity-10" />
-                             <p className="text-[10px] font-bold uppercase tracking-widest">Sin mensajes activos</p>
-                        </div>
-                    )}
+        {/* Layout 2 colonnes: 75% / 25% */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Colonne principale (75%) - Prochain Match + Agenda */}
+          <div className="w-full lg:w-3/4 space-y-6">
+            {/* MATCH DAY HERO SECTION */}
+            {nextMatch ? (
+                <NextMatchCard 
+                    match={nextMatch} 
+                    userTimezone={consulado?.timezone}
+                    userCountryCode={consulado?.country_code}
+                />
+            ) : (
+                <div className="h-[200px] bg-[#001d4a] rounded-[2.5rem] flex flex-col items-center justify-center text-white/10 border border-white/5 shadow-xl">
+                    <Calendar size={32} className="mb-4 opacity-5" />
+                    <p className="oswald text-xl font-black uppercase tracking-widest">Sin partidos próximos</p>
                 </div>
-            </div>
+            )}
 
-        </div>
-        
-        {/* AGENDA SEMANAL - VERSION HORIZONTALE */}
+            {/* Notifications (si présentes) */}
+            {notifications.length > 0 && (
+                <div className="space-y-4">
+                    <div className="flex items-center gap-3 px-2">
+                        <Bell size={18} className="text-[#FCB131]" />
+                        <h3 className="oswald text-xl font-black text-[#001d4a] uppercase tracking-tight">Notificaciones</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {notifications.map(n => (
+                            <GlassCard key={n.id} className="p-4 flex items-start gap-4 border-l-4 border-l-[#FCB131] bg-white group relative hover:shadow-lg">
+                                <button onClick={(e) => { e.stopPropagation(); setNotifications(prev => prev.filter(notif => notif.id !== n.id)); }} className="absolute top-2 right-2 p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full opacity-0 group-hover:opacity-100 transition-all"><X size={12} /></button>
+                                <div className={`mt-1 p-2.5 rounded-xl shrink-0 ${n.type === 'MESSAGE' ? 'bg-blue-50 text-blue-600' : n.type === 'HABILITACION' ? 'bg-amber-50 text-amber-600' : n.type === 'TRANSFER' ? 'bg-emerald-50 text-emerald-600' : 'bg-purple-50 text-purple-600'}`}>
+                                    {n.type === 'MESSAGE' ? <Mail size={16}/> : n.type === 'HABILITACION' ? <Ticket size={16}/> : n.type === 'TRANSFER' ? <AlertTriangle size={16}/> : <UserPlus size={16}/>}
+                                </div>
+                                <div className="pr-4">
+                                    <h4 className="font-bold text-[#001d4a] text-xs uppercase leading-tight mb-1">{n.title}</h4>
+                                    <span className="text-[9px] text-gray-400 font-bold flex items-center gap-1"><Clock size={10} /> {n.date}</span>
+                                </div>
+                            </GlassCard>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* AGENDA SEMANAL - VERSION HORIZONTALE */}
         <div className="space-y-4">
             {/* Header avec filtres améliorés */}
             <div className="bg-gradient-to-r from-[#003B94] to-[#001d4a] rounded-2xl p-4 shadow-lg">
@@ -433,7 +392,75 @@ export const DashboardPresident = ({ consulado_id }: { consulado_id: string }) =
                     );
                 })}
             </div>
+          </div>
+          {/* Fin Agenda */}
+          </div>
+          {/* Fin colonne principale */}
+
+          {/* Colonne secondaire (25%) - Messages */}
+          <div className="w-full lg:w-1/4">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden sticky top-24">
+              {/* Header Messages */}
+              <div className="bg-gradient-to-r from-[#003B94] to-[#001d4a] p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Mail size={16} className="text-[#FCB131]" />
+                    <h3 className="oswald text-sm font-black text-white uppercase tracking-tight">Mensajes</h3>
+                  </div>
+                  {messages.length > 0 && (
+                    <span className="bg-[#FCB131] text-[#001d4a] text-[8px] font-black rounded-full px-2 py-0.5">
+                      {messages.length}
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              {/* Liste des messages */}
+              <div className="max-h-[500px] overflow-y-auto">
+                {messages.length > 0 ? (
+                  <div className="divide-y divide-gray-100">
+                    {messages.slice(0, 8).map(msg => (
+                      <div 
+                        key={msg.id} 
+                        onClick={() => setViewingMessage(msg)}
+                        className={`p-3 cursor-pointer hover:bg-gray-50 transition-colors ${msg.type === 'URGENTE' ? 'bg-amber-50/50 border-l-2 border-l-[#FCB131]' : ''}`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <span className={`shrink-0 px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-widest ${msg.type === 'URGENTE' ? 'bg-[#FCB131] text-[#001d4a]' : 'bg-blue-50 text-blue-600'}`}>
+                            {msg.type === 'URGENTE' ? 'URG' : 'INFO'}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-[10px] font-black text-[#001d4a] uppercase truncate leading-tight">{msg.title}</h4>
+                            <p className="text-[8px] text-gray-500 line-clamp-2 mt-0.5 leading-relaxed">{msg.body}</p>
+                            <span className="text-[7px] text-gray-400 font-bold mt-1 block">{msg.date}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-6 text-center">
+                    <Mail size={24} className="mx-auto mb-2 text-gray-200" />
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Sin mensajes</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Footer - Ver todos */}
+              {messages.length > 8 && (
+                <div className="p-3 bg-gray-50 border-t border-gray-100">
+                  <a 
+                    href="#/admin/mensajes" 
+                    className="block text-center text-[8px] font-black text-[#003B94] uppercase tracking-widest hover:text-[#FCB131] transition-colors"
+                  >
+                    Ver todos ({messages.length}) →
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+        {/* Fin layout 2 colonnes */}
         
         {/* Message Modal */}
         {viewingMessage && (
