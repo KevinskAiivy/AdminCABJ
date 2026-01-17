@@ -962,6 +962,10 @@ class DataService {
           this.connectionError = null;
           
           console.log(`✅ Initialisation terminée en ${duration}s`);
+          
+          // Vérifier et créer les messages automatiques pour les ventanas ouvertes
+          await this.checkAndCreateHabilitacionMessages();
+          
       } catch (error: any) {
           console.error("❌ Erreur lors de l'initialisation Supabase:", error);
           this.connectionError = error.message || 'Erreur de connexion à la base de données';
@@ -970,6 +974,106 @@ class DataService {
       } finally {
           this.loadingMessage = '';
           this.notify();
+      }
+  }
+  
+  // Vérifier et créer les messages automatiques pour les ventanas d'habilitaciones ouvertes
+  private async checkAndCreateHabilitacionMessages() {
+      const isDevelopment = import.meta.env.DEV;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (isDevelopment) console.log('🔍 Vérification des ventanas d\'habilitaciones ouvertes...');
+      
+      // Trouver tous les matchs avec une ventana actuellement ouverte
+      const matchesWithOpenVentana = this.matches.filter(match => {
+          if (!match.apertura_date || !match.cierre_date) return false;
+          
+          // Parser les dates
+          const parseDate = (dateStr: string): Date | null => {
+              if (!dateStr) return null;
+              let d, m, y;
+              if (dateStr.includes('-')) {
+                  [y, m, d] = dateStr.split('-').map(Number);
+              } else if (dateStr.includes('/')) {
+                  [d, m, y] = dateStr.split('/').map(Number);
+              } else if (dateStr.includes('.')) {
+                  [d, m, y] = dateStr.split('.').map(Number);
+              } else {
+                  return null;
+              }
+              return new Date(y, m - 1, d);
+          };
+          
+          const aperturaDate = parseDate(match.apertura_date);
+          const cierreDate = parseDate(match.cierre_date);
+          
+          if (!aperturaDate || !cierreDate) return false;
+          
+          // Vérifier si aujourd'hui est dans la période d'ouverture
+          return today >= aperturaDate && today <= cierreDate;
+      });
+      
+      if (isDevelopment) console.log(`📋 ${matchesWithOpenVentana.length} match(s) avec ventana ouverte`);
+      
+      // Pour chaque match avec ventana ouverte, vérifier si un message automatique existe déjà
+      for (const match of matchesWithOpenVentana) {
+          // Chercher si un message automatique existe déjà pour ce match
+          const existingMessage = this.mensajes.find(m => 
+              m.is_automatic === true && 
+              m.title?.includes(match.rival || '') &&
+              m.title?.toLowerCase().includes('habilitacion')
+          );
+          
+          if (!existingMessage) {
+              if (isDevelopment) console.log(`📝 Création du message automatique pour ${match.rival}`);
+              
+              // Formater les dates pour l'affichage
+              const formatDateDisplay = (dateStr: string): string => {
+                  if (!dateStr) return '--.--.----';
+                  if (dateStr.includes('-')) {
+                      const [y, m, d] = dateStr.split('-');
+                      return `${d.padStart(2, '0')}.${m.padStart(2, '0')}.${y}`;
+                  }
+                  if (dateStr.includes('/')) {
+                      const [d, m, y] = dateStr.split('/');
+                      return `${d.padStart(2, '0')}.${m.padStart(2, '0')}.${y}`;
+                  }
+                  return dateStr;
+              };
+              
+              // Créer le message automatique
+              const mensajeHabilitacion: Mensaje = {
+                  id: crypto.randomUUID(),
+                  title: `🎫 ¡Ventana de Habilitaciones Abierta! - ${match.rival}`,
+                  body: `📢 MENSAJE AUTOMÁTICO\n\n` +
+                        `La ventana de habilitaciones para el partido contra ${match.rival} (${match.competition}) está ABIERTA.\n\n` +
+                        `📅 Apertura: ${formatDateDisplay(match.apertura_date || '')} a las ${match.apertura_hour || '--:--'}\n` +
+                        `📅 Cierre: ${formatDateDisplay(match.cierre_date || '')} a las ${match.cierre_hour || '--:--'}\n\n` +
+                        `⚽ ${match.venue ? `Estadio: ${match.venue}` : ''}\n\n` +
+                        `Es el momento de enviar las solicitudes de habilitación para sus socios.\n\n` +
+                        `¡No olviden completar sus solicitudes antes del cierre!\n\n` +
+                        `───────────────────\n` +
+                        `Este mensaje fue generado automáticamente por el sistema.`,
+                  type: 'URGENTE',
+                  date: match.apertura_date || new Date().toISOString().split('T')[0],
+                  start_date: match.apertura_date || undefined,
+                  end_date: match.cierre_date || undefined,
+                  target_consulado_id: 'ALL',
+                  target_consulado_name: 'Todos los Consulados',
+                  created_at: Date.now(),
+                  is_automatic: true
+              };
+              
+              try {
+                  await this.addMensaje(mensajeHabilitacion);
+                  if (isDevelopment) console.log(`✅ Message automatique créé pour ${match.rival}`);
+              } catch (error) {
+                  console.error(`❌ Erreur lors de la création du message pour ${match.rival}:`, error);
+              }
+          } else {
+              if (isDevelopment) console.log(`ℹ️ Message automatique déjà existant pour ${match.rival}`);
+          }
       }
   }
 
