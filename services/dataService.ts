@@ -2140,36 +2140,35 @@ async deleteConsulado(id: string) {
 
   getNotificationsForUser(u: any) { 
       // Filtrer par utilisateur selon son rôle et consulado
-      // Les notifications sont uniquement pour les PRESIDENTE et REFERENTE
+      // Les notifications sont accessibles à tous les utilisateurs
       const userRole = (u.role || '').toUpperCase();
+      const consulado = u.consulado_id ? this.consulados.find(c => c.id === u.consulado_id) : null;
+      const consuladoName = consulado?.name || '';
       
-      // Les SUPERADMIN et ADMIN ne voient pas les notifications (ils ont accès à tout directement)
-      if (userRole === 'SUPERADMIN' || userRole === 'ADMIN') {
-          return [];
+      // Si aucune notification n'existe, créer une notification de bienvenue
+      if (this.notifications.length === 0) {
+          const welcomeNotification: AppNotification = {
+              id: 'welcome-' + (u.consulado_id || 'admin'),
+              type: 'SYSTEM',
+              title: '¡Bienvenido al centro de notificaciones!',
+              message: `Aquí recibirás alertas sobre nuevos mensajes, habilitaciones, socios y transferencias${consuladoName ? ` para ${consuladoName}` : ''}.`,
+              date: new Date().toISOString().split('T')[0],
+              read: false,
+              data: { welcome: true }
+          };
+          this.notifications.push(welcomeNotification);
+          this.notify();
       }
       
-      // Les PRESIDENTE et REFERENTE voient les notifications
+      // SUPERADMIN et ADMIN voient toutes les notifications
+      if (userRole === 'SUPERADMIN' || userRole === 'ADMIN') {
+          return this.notifications;
+      }
+      
+      // PRESIDENTE et REFERENTE voient les notifications de leur consulado + globales
       if (userRole === 'PRESIDENTE' || userRole === 'REFERENTE') {
-          const consulado = u.consulado_id ? this.consulados.find(c => c.id === u.consulado_id) : null;
-          const consuladoName = consulado?.name || '';
-          
-          // Si aucune notification n'existe, créer une notification de bienvenue
-          if (this.notifications.length === 0) {
-              const welcomeNotification: AppNotification = {
-                  id: 'welcome-' + u.consulado_id,
-                  type: 'SYSTEM',
-                  title: '¡Bienvenido al sistema de notificaciones!',
-                  message: `Aquí recibirás alertas sobre nuevos mensajes, habilitaciones, socios y transferencias${consuladoName ? ` para ${consuladoName}` : ''}.`,
-                  date: new Date().toISOString().split('T')[0],
-                  read: false,
-                  data: { welcome: true }
-              };
-              this.notifications.push(welcomeNotification);
-              this.notify();
-          }
-          
           return this.notifications.filter(n => {
-              // Notifications globales (sans target_consulado_id) - visibles par tous les présidents/référents
+              // Notifications globales (sans target_consulado_id)
               if (!n.target_consulado_id) {
                   return true;
               }
@@ -2187,7 +2186,7 @@ async deleteConsulado(id: string) {
                   }
               }
               
-              // Pour les notifications de type SOCIO, vérifier si le socio appartient au consulado
+              // Pour les notifications de type SOCIO
               if (n.type === 'SOCIO' && n.data && consuladoName && n.data.consulado_name === consuladoName) {
                   return true;
               }
@@ -2201,8 +2200,8 @@ async deleteConsulado(id: string) {
           });
       }
       
-      // Par défaut, ne rien retourner
-      return [];
+      // SOCIO voit uniquement les notifications globales
+      return this.notifications.filter(n => !n.target_consulado_id);
   }
   
   // Getter pour debug - retourne toutes les notifications

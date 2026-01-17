@@ -227,8 +227,7 @@ export const Navbar = ({
 
         {/* User Actions */}
         <div className="flex items-center gap-3 shrink-0 pl-4 border-l border-white/10">
-          {/* Notifications Bell - Uniquement pour PRESIDENTE et REFERENTE */}
-          {(user.role?.toUpperCase() === 'PRESIDENTE' || user.role?.toUpperCase() === 'REFERENTE') && (
+          {/* Notifications Bell - Accessible à tous les utilisateurs */}
           <div className="relative" ref={notificationsRef}>
             <button
               onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
@@ -360,7 +359,6 @@ export const Navbar = ({
               </div>
             )}
           </div>
-          )}
           
           <div className="hidden sm:flex flex-col items-end leading-none">
             <span className="text-white text-[9px] font-black uppercase tracking-widest">{user.name}</span>
