@@ -31,6 +31,12 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
   const [outgoingTransfers, setOutgoingTransfers] = useState<TransferRequest[]>([]);
   const [incomingTransfers, setIncomingTransfers] = useState<TransferRequest[]>([]);
   
+  // ID Management states (pour modification du numéro de socio)
+  const [isIdLocked, setIsIdLocked] = useState(true);
+  const [tempId, setTempId] = useState('');
+  const [idStatus, setIdStatus] = useState<'IDLE' | 'ERROR' | 'VALID' | 'CONFIRMED'>('IDLE');
+  const [pendingIdChange, setPendingIdChange] = useState<{old: string, new: string} | null>(null);
+  
   // Get current consulado name
   const currentConsulado = useMemo(() => {
     if (!consulado_id) return null;
@@ -174,9 +180,9 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
     const joinDateFormatted = formatDateFromDB(socio.join_date || '');
     const expirationDateFormatted = formatDateFromDB(socio.expiration_date || '');
     
-    setFormData({ 
-        ...socio, 
-        last_month_paid: paidDate, 
+    setFormData({
+        ...socio,
+        last_month_paid: paidDate,
         birth_date: birthDateFormatted,
         join_date: joinDateFormatted,
         expiration_date: expirationDateFormatted
@@ -185,12 +191,39 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
     setConsuladoSelection(socio.consulado || '');
     setIsConsuladoLocked(true);
     setSocioTransfers(dataService.getSocioTransfers ? dataService.getSocioTransfers(socio.id) : []);
+    // Initialiser les états pour la modification du numéro de socio
+    setTempId(socio.numero_socio || socio.id);
+    setIsIdLocked(true);
+    setIdStatus('IDLE');
+    setPendingIdChange(null);
     setIsEditModalOpen(true);
     setShowSaveConfirm(false);
   };
 
   const requestSave = () => {
     setShowSaveConfirm(true);
+  };
+
+  // Fonction pour vérifier si un numéro de socio est disponible
+  const checkId = (val: string) => {
+      const clean = val.replace(/\D/g,'').slice(0,10);
+      setTempId(clean);
+      setFormData({...formData, numero_socio: clean});
+
+      // Si le numéro est identique à l'original, pas de changement
+      if(clean === selectedSocio?.numero_socio || clean === selectedSocio?.id) {
+          setIdStatus('IDLE');
+          return;
+      }
+
+      // Vérifier si le numéro est déjà utilisé (dans id OU numero_socio)
+      const allSocios = dataService.getSocios();
+      const isUsed = allSocios.some(s =>
+          (s.id === clean || s.numero_socio === clean) &&
+          s.id !== selectedSocio?.id // Exclure le socio actuel
+      );
+
+      setIdStatus(isUsed ? 'ERROR' : 'VALID');
   };
 
   const executeSave = async () => {
@@ -223,16 +256,57 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
             
             alert('Solicitud de transferencia creada. El consulado de destino debe aprobarla.');
         } else {
-            // Sinon, mettre à jour normalement le socio (sans changer le consulado)
-            const updatedSocio: Socio = {
-                ...selectedSocio,
-                ...formData,
-                last_month_paid: formData.last_month_paid ? formatDateToDB(formData.last_month_paid) : selectedSocio.last_month_paid || null,
-                birth_date: formData.birth_date ? formatDateToDB(formData.birth_date) : selectedSocio.birth_date || null,
-                join_date: formData.join_date ? formatDateToDB(formData.join_date) : selectedSocio.join_date || null,
-                expiration_date: formData.expiration_date ? formatDateToDB(formData.expiration_date) : selectedSocio.expiration_date || null,
-            } as Socio;
-            await dataService.updateSocio(updatedSocio);
+            // Gérer le changement de numéro de socio si en attente
+            let finalId = selectedSocio.id;
+            let finalNumeroSocio = selectedSocio.numero_socio || selectedSocio.id;
+            
+            if (pendingIdChange) {
+                // Vérifier que le nouvel ID n'existe pas
+                const allSocios = dataService.getSocios();
+                const existingWithNewId = allSocios.find(s => s.id === pendingIdChange.new || s.numero_socio === pendingIdChange.new);
+                if (existingWithNewId && existingWithNewId.id !== selectedSocio.id) {
+                    alert(`Error: Ya existe un socio con el número ${pendingIdChange.new}`);
+                    setIsSaving(false);
+                    return;
+                }
+                finalId = pendingIdChange.new;
+                finalNumeroSocio = pendingIdChange.new;
+                
+                // Supprimer l'ancien puis ajouter le nouveau
+                const oldSocio = { ...selectedSocio };
+                try {
+                    await dataService.deleteSocio(selectedSocio.id);
+                    const newSocio: Socio = {
+                        ...selectedSocio,
+                        ...formData,
+                        id: finalId,
+                        numero_socio: finalNumeroSocio,
+                        last_month_paid: formData.last_month_paid ? formatDateToDB(formData.last_month_paid) : selectedSocio.last_month_paid || null,
+                        birth_date: formData.birth_date ? formatDateToDB(formData.birth_date) : selectedSocio.birth_date || null,
+                        join_date: formData.join_date ? formatDateToDB(formData.join_date) : selectedSocio.join_date || null,
+                        expiration_date: formData.expiration_date ? formatDateToDB(formData.expiration_date) : selectedSocio.expiration_date || null,
+                    } as Socio;
+                    await dataService.addSocio(newSocio);
+                } catch (e) {
+                    // Restaurer l'ancien socio si l'ajout échoue
+                    try {
+                        await dataService.addSocio(oldSocio);
+                    } catch {}
+                    throw e;
+                }
+            } else {
+                // Sinon, mettre à jour normalement le socio (sans changer le consulado)
+                const updatedSocio: Socio = {
+                    ...selectedSocio,
+                    ...formData,
+                    numero_socio: tempId || selectedSocio.numero_socio,
+                    last_month_paid: formData.last_month_paid ? formatDateToDB(formData.last_month_paid) : selectedSocio.last_month_paid || null,
+                    birth_date: formData.birth_date ? formatDateToDB(formData.birth_date) : selectedSocio.birth_date || null,
+                    join_date: formData.join_date ? formatDateToDB(formData.join_date) : selectedSocio.join_date || null,
+                    expiration_date: formData.expiration_date ? formatDateToDB(formData.expiration_date) : selectedSocio.expiration_date || null,
+                } as Socio;
+                await dataService.updateSocio(updatedSocio);
+            }
         }
         
         setIsEditModalOpen(false);
@@ -242,6 +316,9 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
         setPendingConsulado(null);
         setConsuladoSelection('');
         setIsConsuladoLocked(true);
+        setPendingIdChange(null);
+        setIsIdLocked(true);
+        setIdStatus('IDLE');
         setFormData((prev: any) => {
             const newData = {...prev};
             delete newData.transferComments;
@@ -756,6 +833,77 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                                         placeholder="+54 9 11 1234-5678"
                                     />
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Section Numéro de Socio */}
+                        <div className="bg-gradient-to-r from-[#001d4a] to-[#003B94] p-3 rounded-xl border border-[#FCB131]/30 shadow-lg">
+                            <div className="space-y-1">
+                                <label className="text-[8px] font-black text-[#FCB131] uppercase tracking-widest flex items-center gap-1"><BadgeCheck size={9} /> {getGenderLabel('Numéro de Socio', formData.gender || 'M')}</label>
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <input 
+                                            type="text" 
+                                            disabled={isIdLocked} 
+                                            maxLength={10} 
+                                            className={`w-full rounded-lg py-2 px-3 font-black text-xs outline-none transition-all border ${isIdLocked ? 'bg-white/10 text-white border-white/20' : idStatus === 'ERROR' ? 'bg-red-50 text-red-600 border-red-300' : 'bg-white text-[#001d4a] border-[#FCB131]'}`} 
+                                            value={tempId} 
+                                            onChange={e => checkId(e.target.value)} 
+                                        />
+                                        <button onClick={() => { setIsIdLocked(false); setIdStatus('IDLE'); setPendingIdChange(null); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-[#FCB131] transition-colors">{isIdLocked ? <Lock size={12} /> : <Unlock size={12} />}</button>
+                                    </div>
+                                    {idStatus === 'VALID' && !isIdLocked && (
+                                        <button 
+                                            onClick={() => { 
+                                                setPendingIdChange({ 
+                                                    old: selectedSocio?.numero_socio || selectedSocio?.id || '', 
+                                                    new: tempId 
+                                                }); 
+                                                setIdStatus('CONFIRMED'); 
+                                                setIsIdLocked(true); 
+                                            }} 
+                                            className="bg-[#FCB131] text-[#001d4a] px-2.5 rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-white transition-all shadow-lg"
+                                        >
+                                            Validar
+                                        </button>
+                                    )}
+                                    {idStatus === 'ERROR' && !isIdLocked && (
+                                        <button 
+                                            disabled
+                                            className="bg-gray-400 text-white px-2.5 rounded-lg font-black text-[8px] uppercase tracking-widest cursor-not-allowed opacity-50"
+                                        >
+                                            Ocupado
+                                        </button>
+                                    )}
+                                </div>
+                                {/* Alerte si le numéro est en cours de modification */}
+                                {!isIdLocked && tempId !== (selectedSocio?.numero_socio || selectedSocio?.id) && tempId.length > 0 && (
+                                    <div className={`mt-1.5 p-2 rounded-lg text-[7px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${idStatus === 'ERROR' ? 'bg-red-100 text-red-700 border border-red-200' : idStatus === 'VALID' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
+                                        {idStatus === 'ERROR' && <AlertTriangle size={10} />}
+                                        {idStatus === 'VALID' && <CheckCircle2 size={10} />}
+                                        {idStatus === 'ERROR' ? 'Número ya utilizado' : idStatus === 'VALID' ? 'Número disponible' : 'Verificando...'}
+                                    </div>
+                                )}
+                                {/* Message de confirmation intermédiaire */}
+                                {pendingIdChange && idStatus === 'CONFIRMED' && (
+                                    <div className="mt-1.5 bg-[#FFFCE4] border border-[#FCB131] rounded-lg p-2 flex items-center justify-between text-[8px] font-bold text-[#001d4a]">
+                                        <span className="flex items-center gap-1.5">
+                                            <CheckCircle2 size={10} className="text-[#FCB131]" />
+                                            Cambio: <span className="font-black">{pendingIdChange.old}</span> → <span className="font-black text-[#003B94]">{pendingIdChange.new}</span>
+                                        </span>
+                                        <button 
+                                            onClick={() => { 
+                                                setPendingIdChange(null); 
+                                                setIdStatus('IDLE'); 
+                                                setTempId(selectedSocio?.numero_socio || selectedSocio?.id || ''); 
+                                                setIsIdLocked(true);
+                                            }} 
+                                            className="text-red-500 hover:text-red-700 font-black uppercase text-[7px] tracking-widest"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
