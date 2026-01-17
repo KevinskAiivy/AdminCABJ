@@ -16,7 +16,7 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
       const load = () => {
           setNotifications(dataService.getNotificationsForUser(user));
           // Charger les messages actifs
-          const allMensajes = dataService.getActiveMensajes();
+          const allMensajes = dataService.getMensajes();
           // Filtrer selon le rôle de l'utilisateur
           const userRole = (user.role || '').toUpperCase();
           if (userRole === 'SUPERADMIN' || userRole === 'ADMIN') {
