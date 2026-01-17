@@ -83,7 +83,7 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
         {/* Toolbar */}
         <div className="bg-white p-4 rounded-xl shadow-sm border border-[#003B94]/10 flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="flex gap-2 overflow-x-auto w-full md:w-auto">
-                {['ALL', 'TRANSFER', 'MESSAGE', 'HABILITACION', 'SOCIO', 'SYSTEM', 'ALERT'].map(type => (
+                {['ALL', 'TRANSFER', 'MESSAGE', 'HABILITACION', 'ALERT'].map(type => (
                     <button 
                         key={type}
                         onClick={() => setFilterType(type)}
@@ -97,8 +97,7 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
                          type === 'TRANSFER' ? 'Transferencias' : 
                          type === 'MESSAGE' ? 'Mensajes' :
                          type === 'HABILITACION' ? 'Habilitaciones' :
-                         type === 'SOCIO' ? 'Socios' :
-                         type === 'ALERT' ? 'Alertas' : 'Sistema'}
+                         'Alertas'}
                     </button>
                 ))}
             </div>
@@ -125,61 +124,88 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
         {/* List */}
         <div className="space-y-3">
             {filteredNotifications.length > 0 ? (
-                filteredNotifications.map(notif => (
-                    <GlassCard key={notif.id} className={`p-4 bg-white border group transition-all relative ${notif.read ? 'border-gray-100 opacity-80 hover:opacity-100' : 'border-l-4 border-l-[#FCB131] shadow-md'}`}>
-                        <div className="flex items-start gap-4">
-                            <div className={`p-3 rounded-xl shrink-0 ${
-                                notif.type === 'TRANSFER' ? 'bg-amber-50 text-amber-600' :
-                                notif.type === 'ALERT' ? 'bg-red-50 text-red-600' :
-                                notif.type === 'MESSAGE' ? 'bg-purple-50 text-purple-600' :
-                                notif.type === 'HABILITACION' ? 'bg-emerald-50 text-emerald-600' :
-                                notif.type === 'SOCIO' ? 'bg-cyan-50 text-cyan-600' :
-                                'bg-blue-50 text-blue-600'
-                            }`}>
-                                {notif.type === 'TRANSFER' ? <ArrowRightLeft size={20} /> : 
-                                 notif.type === 'ALERT' ? <AlertCircle size={20} /> : 
-                                 notif.type === 'MESSAGE' ? <MessageSquare size={20} /> :
-                                 notif.type === 'HABILITACION' ? <Ticket size={20} /> :
-                                 notif.type === 'SOCIO' ? <UserPlus size={20} /> :
-                                 <Mail size={20} />}
-                            </div>
-                            
-                            <div className="flex-1 min-w-0 pt-1">
-                                <div className="flex justify-between items-start mb-1">
-                                    <h4 className={`text-sm font-black uppercase ${notif.read ? 'text-gray-500' : 'text-[#001d4a]'}`}>
-                                        {notif.title}
-                                    </h4>
-                                    <span className="text-[9px] font-bold text-gray-400 flex items-center gap-1">
-                                        {notif.date}
-                                        {notif.read && <CheckCircle2 size={12} className="text-emerald-500" />}
-                                    </span>
+                filteredNotifications.map(notif => {
+                    // Déterminer si c'est un message important (ALERT ou HABILITACION automatique)
+                    const isImportant = notif.type === 'ALERT' || notif.type === 'HABILITACION' || notif.data?.is_urgent;
+                    
+                    return (
+                        <div 
+                            key={notif.id} 
+                            className={`p-4 rounded-xl group transition-all relative ${
+                                isImportant 
+                                    ? 'bg-gradient-to-br from-[#001d4a] via-[#002d6a] to-[#001d4a] border-2 border-[#FCB131]/30 shadow-lg' 
+                                    : `bg-white border ${notif.read ? 'border-gray-100 opacity-80 hover:opacity-100' : 'border-l-4 border-l-[#FCB131] shadow-md'}`
+                            }`}
+                        >
+                            <div className="flex items-start gap-4">
+                                <div className={`p-3 rounded-xl shrink-0 ${
+                                    isImportant ? 'bg-[#FCB131]/20 text-[#FCB131]' :
+                                    notif.type === 'TRANSFER' ? 'bg-amber-50 text-amber-600' :
+                                    notif.type === 'MESSAGE' ? 'bg-purple-50 text-purple-600' :
+                                    'bg-blue-50 text-blue-600'
+                                }`}>
+                                    {notif.type === 'TRANSFER' ? <ArrowRightLeft size={20} /> : 
+                                     notif.type === 'ALERT' ? <AlertCircle size={20} /> : 
+                                     notif.type === 'MESSAGE' ? <MessageSquare size={20} /> :
+                                     notif.type === 'HABILITACION' ? <Ticket size={20} /> :
+                                     <Mail size={20} />}
                                 </div>
-                                <p className="text-xs text-gray-600 leading-relaxed">
-                                    {notif.message}
-                                </p>
-                            </div>
+                                
+                                <div className="flex-1 min-w-0 pt-1">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <h4 className={`text-sm font-black uppercase ${
+                                                isImportant ? 'text-white' : notif.read ? 'text-gray-500' : 'text-[#001d4a]'
+                                            }`}>
+                                                {notif.title}
+                                            </h4>
+                                            {isImportant && (
+                                                <Lock size={12} className="text-[#FCB131]/60" title="Mensaje importante - No eliminable" />
+                                            )}
+                                        </div>
+                                        <span className={`text-[9px] font-bold flex items-center gap-1 ${
+                                            isImportant ? 'text-[#FCB131]/70' : 'text-gray-400'
+                                        }`}>
+                                            {notif.date}
+                                            {notif.read && <CheckCircle2 size={12} className={isImportant ? 'text-[#FCB131]' : 'text-emerald-500'} />}
+                                        </span>
+                                    </div>
+                                    <p className={`text-xs leading-relaxed ${
+                                        isImportant ? 'text-white/80' : 'text-gray-600'
+                                    }`}>
+                                        {notif.message}
+                                    </p>
+                                </div>
 
-                            <div className="flex items-center gap-1 self-center ml-2">
-                                {!notif.read && (
-                                    <button 
-                                        onClick={() => handleMarkAsRead(notif.id)}
-                                        className="p-2 text-gray-300 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
-                                        title="Marcar como leída"
-                                    >
-                                        <CheckCircle2 size={16} />
-                                    </button>
-                                )}
-                                <button 
-                                    onClick={() => handleDelete(notif.id)}
-                                    className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                    title="Eliminar permanentemente"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+                                <div className="flex items-center gap-1 self-center ml-2">
+                                    {!notif.read && (
+                                        <button 
+                                            onClick={() => handleMarkAsRead(notif.id)}
+                                            className={`p-2 rounded-lg transition-all ${
+                                                isImportant 
+                                                    ? 'text-white/50 hover:text-[#FCB131] hover:bg-white/10' 
+                                                    : 'text-gray-300 hover:text-emerald-500 hover:bg-emerald-50'
+                                            }`}
+                                            title="Marcar como leída"
+                                        >
+                                            <CheckCircle2 size={16} />
+                                        </button>
+                                    )}
+                                    {/* Les messages importants ne sont pas supprimables */}
+                                    {!isImportant && (
+                                        <button 
+                                            onClick={() => handleDelete(notif.id)}
+                                            className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                            title="Eliminar permanentemente"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </GlassCard>
-                ))
+                    );
+                })
             ) : (
                 <div className="text-center py-20 bg-white/50 rounded-2xl border border-dashed border-gray-200">
                     <Bell size={48} className="mx-auto mb-4 text-gray-200" />
