@@ -28,6 +28,21 @@ export interface FieldMapping {
 
 // --- HELPERS (Snake_case uniquement - pas de conversion) ---
 
+// Helper pour parser transfer_history (peut être string JSON, array, ou null)
+const parseTransferHistory = (value: any): any[] | undefined => {
+    if (!value) return undefined;
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : undefined;
+        } catch {
+            return undefined;
+        }
+    }
+    return undefined;
+};
+
 // Helper pour nettoyer et normaliser les données de la DB (déjà en snake_case)
 const normalizeSocio = (db: any): Socio => ({
     id: db.id || '',
@@ -51,7 +66,8 @@ const normalizeSocio = (db: any): Socio => ({
     expiration_date: db.expiration_date || '',
     twitter: db.twitter || undefined,
     youtube: db.youtube || undefined,
-    foto: db.foto || undefined
+    foto: db.foto || undefined,
+    transfer_history: parseTransferHistory(db.transfer_history)
 });
 
 // Pour compatibilité, garder les noms mais utiliser directement les données snake_case
@@ -60,14 +76,14 @@ const mapSocioToDB = (s: Partial<Socio>) => {
     const payload: any = { ...s };
     // Supprimer 'name' car c'est un champ calculé (first_name + last_name), pas une colonne de la DB
     delete payload.name;
-    
+
     // Le consulado est directement dans la colonne 'consulado' de la DB
     // La correspondance se fait par nom : consulado (table socios) === name (table consulados)
     // Pas besoin de conversion, 'consulado' est déjà le nom de la colonne DB
-    
+
     // Liste des champs de date dans la table socios
     const dateFields = ['birth_date', 'join_date', 'last_month_paid', 'expiration_date'];
-    
+
     // Nettoyer les valeurs : undefined -> null, chaînes vides pour les dates -> null
     Object.keys(payload).forEach(key => {
         if (payload[key] === undefined) {
@@ -79,6 +95,14 @@ const mapSocioToDB = (s: Partial<Socio>) => {
             }
         }
     });
+    
+    // Convertir transfer_history en JSON si c'est un array
+    if (payload.transfer_history !== undefined && payload.transfer_history !== null) {
+        if (Array.isArray(payload.transfer_history)) {
+            payload.transfer_history = JSON.stringify(payload.transfer_history);
+        }
+    }
+    
     return payload;
 };
 
@@ -2452,16 +2476,35 @@ async deleteConsulado(id: string) {
       });
   }
   
+  // Obtenir les transferts pour un consulado spécifique
   getTransfers(consulado_name: string) {
       // Transferts entrants: seulement ceux en attente d'approbation
-      const incoming = this.transfers.filter(t => 
+      const incoming = this.transfers.filter(t =>
           t.to_consulado_name === consulado_name && t.status === 'PENDING'
       );
       // Transferts sortants: ceux en attente (pour pouvoir les annuler) et ceux approuvés (pour voir l'historique)
-      const outgoing = this.transfers.filter(t => 
+      const outgoing = this.transfers.filter(t =>
           t.from_consulado_name === consulado_name && (t.status === 'PENDING' || t.status === 'APPROVED' || t.status === 'REJECTED' || t.status === 'CANCELLED')
       );
       return { incoming, outgoing };
+  }
+  
+  // Obtenir tous les transferts (pour admins/superadmins)
+  getAllTransfers() {
+      return this.transfers;
+  }
+  
+  // Obtenir les transferts concernant un consulado (entrants ou sortants)
+  getTransfersForConsulado(consulado_id: string) {
+      const consulado = this.consulados.find(c => c.id === consulado_id);
+      if (!consulado) return [];
+      
+      return this.transfers.filter(t => 
+          t.from_consulado_id === consulado_id || 
+          t.to_consulado_id === consulado_id ||
+          t.from_consulado_name === consulado.name ||
+          t.to_consulado_name === consulado.name
+      );
   }
   
   getSocioTransfers(socio_id: string) {
@@ -2533,11 +2576,30 @@ async deleteConsulado(id: string) {
           this.transfers = this.transfers.map(t => t.id === transferId ? updatedTransfer : t);
           this.notify();
           
-          // Si approuvé, modifier le consulado du socio dans la base de données
+          // Si approuvé, modifier le consulado du socio et enregistrer dans l'historique
           if (status === 'APPROVED') {
               const socio = this.socios.find(s => s.id === transfer.socio_id);
               if (socio) {
-                  const updatedSocio: Socio = { ...socio, consulado: transfer.to_consulado_name };
+                  // Créer l'entrée d'historique de transfert
+                  const transferHistoryEntry = {
+                      id: crypto.randomUUID(),
+                      from_consulado_id: transfer.from_consulado_id,
+                      from_consulado_name: transfer.from_consulado_name,
+                      to_consulado_id: transfer.to_consulado_id,
+                      to_consulado_name: transfer.to_consulado_name,
+                      transfer_date: new Date().toISOString().split('T')[0],
+                      request_id: transferId,
+                      approved_by: 'Sistema', // Sera mis à jour avec le nom de l'admin si disponible
+                      comments: transfer.comments || 'Transferencia aprobada'
+                  };
+                  
+                  // Mettre à jour le socio avec le nouveau consulado et l'historique
+                  const existingHistory = socio.transfer_history || [];
+                  const updatedSocio: Socio = { 
+                      ...socio, 
+                      consulado: transfer.to_consulado_name,
+                      transfer_history: [...existingHistory, transferHistoryEntry]
+                  };
                   await this.updateSocio(updatedSocio);
               }
               
@@ -2549,6 +2611,7 @@ async deleteConsulado(id: string) {
                   message: `El consulado "${transfer.to_consulado_name}" ha aprobado el traslado del socio ${transfer.socio_name}.`,
                   date: new Date().toISOString(),
                   read: false,
+                  target_consulado_id: transfer.from_consulado_id,
                   data: { transfer_id: transferId, socio_id: transfer.socio_id }
               };
               await this.addNotification(notification);

@@ -22,6 +22,20 @@ export interface Socio {
   consulado?: string;
   role?: string;
   foto?: string; // URL de la photo du socio stockée dans Supabase Storage
+  transfer_history?: TransferHistoryEntry[]; // Historique des transferts
+}
+
+// Entrée dans l'historique des transferts d'un socio
+export interface TransferHistoryEntry {
+  id: string;
+  from_consulado_id: string;
+  from_consulado_name: string;
+  to_consulado_id: string;
+  to_consulado_name: string;
+  transfer_date: string; // Date du transfert effectif
+  request_id?: string; // ID de la demande de transfert originale
+  approved_by?: string; // Nom de l'admin qui a approuvé
+  comments?: string;
 }
 
 export interface Consulado {
