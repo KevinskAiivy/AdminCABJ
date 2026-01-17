@@ -16,17 +16,17 @@ const getFlag = (code: string) => {
 
 // Circular Countdown Unit - Style moderne avec cercle de points animés
 const CircularCountdownUnit = ({ value, maxValue, label }: { value: number, maxValue: number, label: string }) => {
-    const totalDots = 60; // Nombre de points dans le cercle
+    const totalDots = 48; // Nombre de points dans le cercle
     const activeDots = Math.round((value / maxValue) * totalDots);
-    const radius = 38; // Rayon du cercle
-    const centerX = 45;
-    const centerY = 45;
+    const radius = 30; // Rayon du cercle
+    const centerX = 36;
+    const centerY = 36;
 
     return (
-        <div className="flex flex-col items-center gap-2">
-            <div className="relative w-[90px] h-[90px] md:w-[100px] md:h-[100px]">
+        <div className="flex flex-col items-center gap-1">
+            <div className="relative w-[72px] h-[72px] md:w-[80px] md:h-[80px]">
                 {/* SVG avec cercle de points */}
-                <svg className="w-full h-full" viewBox="0 0 90 90">
+                <svg className="w-full h-full" viewBox="0 0 72 72">
                     {/* Points du cercle */}
                     {Array.from({ length: totalDots }).map((_, i) => {
                         const angle = (i / totalDots) * 2 * Math.PI - Math.PI / 2; // Commence en haut
@@ -73,7 +73,7 @@ const CircularCountdownUnit = ({ value, maxValue, label }: { value: number, maxV
                 <div className="absolute inset-0 flex items-center justify-center">
                     <span 
                         key={value}
-                        className="oswald text-3xl md:text-4xl font-black text-white leading-none tracking-tight animate-count-change"
+                        className="oswald text-2xl md:text-3xl font-black text-white leading-none tracking-tight animate-count-change"
                     >
                         {value.toString().padStart(2, '0')}
                     </span>
@@ -81,7 +81,7 @@ const CircularCountdownUnit = ({ value, maxValue, label }: { value: number, maxV
             </div>
             
             {/* Label */}
-            <span className="text-[9px] md:text-[10px] text-white/70 font-bold uppercase tracking-[0.2em]">{label}</span>
+            <span className="text-[8px] md:text-[9px] text-white/70 font-bold uppercase tracking-[0.15em]">{label}</span>
 
             {/* CSS pour les animations */}
             <style>{`
