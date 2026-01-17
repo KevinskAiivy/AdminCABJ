@@ -1,4 +1,4 @@
-import { AppSettings, Socio, Consulado, Match, Team, Competition, Mensaje, AgendaEvent, AppUser, UserSession, AppNotification, Solicitud, TransferRequest, Logo, AppAsset } from '../types';
+import { AppSettings, Socio, Consulado, Match, Team, Competition, Mensaje, AgendaEvent, AppUser, UserSession, AppNotification, Solicitud, TransferRequest, Logo, AppAsset, HabilitacionHistory, SocioHabilitacionStats } from '../types';
 import { supabase, getConsuladoLogoUrl } from '../lib/supabase';
 
 export interface IntegrityResult {
@@ -670,6 +670,98 @@ const mapTransferToDB = (t: Partial<TransferRequest>) => {
     return payload;
 };
 
+// Mapping pour HabilitacionHistory
+const VALID_REQUEST_STATUS = ['SOLICITADO', 'ACEPTADO', 'RECHAZADO', 'CANCELADO_SOCIO', 'CANCELADO_ADMIN', 'CANCELADO_POST_ACEPTACION', 'EXPIRADO'];
+const VALID_ATTENDANCE_STATUS = ['PRESENTE', 'AUSENTE_SIN_AVISO', 'AUSENTE_CON_AVISO', 'ENTRADA_ANULADA'];
+
+const mapHabilitacionHistoryFromDB = (db: any): HabilitacionHistory => ({
+    id: db.id || crypto.randomUUID(),
+    // Socio
+    socio_id: db.socio_id || '',
+    socio_numero: db.socio_numero || undefined,
+    socio_name: db.socio_name || '',
+    socio_dni: db.socio_dni || undefined,
+    socio_category: db.socio_category || undefined,
+    socio_status: db.socio_status || undefined,
+    socio_email: db.socio_email || undefined,
+    socio_phone: db.socio_phone || undefined,
+    // Consulado
+    consulado_id: db.consulado_id || undefined,
+    consulado_name: db.consulado_name || '',
+    consulado_city: db.consulado_city || undefined,
+    consulado_country: db.consulado_country || undefined,
+    // Match
+    match_id: db.match_id?.toString() || '',
+    match_date: db.match_date || '',
+    match_hour: db.match_hour || undefined,
+    match_rival: db.match_rival || '',
+    match_rival_short: db.match_rival_short || undefined,
+    match_competition: db.match_competition || undefined,
+    match_competition_id: db.match_competition_id || undefined,
+    match_venue: db.match_venue || undefined,
+    match_city: db.match_city || undefined,
+    match_is_home: db.match_is_home !== undefined ? Boolean(db.match_is_home) : true,
+    match_fecha_jornada: db.match_fecha_jornada || undefined,
+    // Ventana
+    ventana_apertura_date: db.ventana_apertura_date || undefined,
+    ventana_apertura_hour: db.ventana_apertura_hour || undefined,
+    ventana_cierre_date: db.ventana_cierre_date || undefined,
+    ventana_cierre_hour: db.ventana_cierre_hour || undefined,
+    // Statuts
+    request_status: VALID_REQUEST_STATUS.includes(db.request_status) ? db.request_status : 'SOLICITADO',
+    attendance_status: VALID_ATTENDANCE_STATUS.includes(db.attendance_status) ? db.attendance_status : undefined,
+    // Raisons
+    rejection_reason: db.rejection_reason || undefined,
+    cancellation_reason: db.cancellation_reason || undefined,
+    absence_reason: db.absence_reason || undefined,
+    admin_notes: db.admin_notes || undefined,
+    // Annulation post-acceptation
+    cancellation_requested: db.cancellation_requested === true,
+    cancellation_requested_at: db.cancellation_requested_at || undefined,
+    cancellation_requested_by: db.cancellation_requested_by || undefined,
+    cancellation_request_reason: db.cancellation_request_reason || undefined,
+    cancellation_approved: db.cancellation_approved,
+    cancellation_processed_at: db.cancellation_processed_at || undefined,
+    cancellation_processed_by: db.cancellation_processed_by || undefined,
+    // Places
+    places_requested: db.places_requested || 1,
+    places_granted: db.places_granted || undefined,
+    ticket_number: db.ticket_number || undefined,
+    sector: db.sector || undefined,
+    row_number: db.row_number || undefined,
+    seat_number: db.seat_number || undefined,
+    // Métadonnées création
+    created_at: db.created_at || new Date().toISOString(),
+    created_by: db.created_by || undefined,
+    // Métadonnées traitement
+    processed_at: db.processed_at || undefined,
+    processed_by: db.processed_by || undefined,
+    processed_by_name: db.processed_by_name || undefined,
+    // Métadonnées présence
+    attendance_recorded_at: db.attendance_recorded_at || undefined,
+    attendance_recorded_by: db.attendance_recorded_by || undefined,
+    attendance_recorded_by_name: db.attendance_recorded_by_name || undefined,
+    // Mise à jour
+    updated_at: db.updated_at || undefined,
+    // Référence
+    original_solicitud_id: db.original_solicitud_id || undefined,
+    // Flags
+    is_vip: db.is_vip === true,
+    is_priority: db.is_priority === true,
+    is_first_match: db.is_first_match === true,
+    has_special_needs: db.has_special_needs === true,
+    special_needs_notes: db.special_needs_notes || undefined
+});
+
+const mapHabilitacionHistoryToDB = (h: Partial<HabilitacionHistory>) => {
+    const payload: any = { ...h };
+    Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined) payload[key] = null;
+    });
+    if (!payload.created_at) payload.created_at = new Date().toISOString();
+    return payload;
+};
+
 // --- DATA SERVICE ---
 
 class DataService {
@@ -707,6 +799,7 @@ class DataService {
   private solicitudes: Solicitud[] = [];
   private notifications: AppNotification[] = [];
   private transfers: TransferRequest[] = [];
+  private habilitacionesHistory: HabilitacionHistory[] = []; // Historique complet des habilitations
   private appAssets: AppAsset[] = []; // Assets de l'application (logos, etc.)
   private mappings: Record<string, Record<string, string>> = {};
 
@@ -2004,12 +2097,15 @@ async deleteConsulado(id: string) {
           throw error;
       }
   }
-  async updateSolicitudStatus(id: string, status: 'PENDING' | 'APPROVED' | 'REJECTED') { 
+  async updateSolicitudStatus(id: string, status: 'PENDING' | 'APPROVED' | 'REJECTED', processedBy?: string, rejectionReason?: string) {
       try {
+          // Récupérer la solicitud avant mise à jour
+          const solicitud = this.solicitudes.find(s => s.id === id);
+          
           // Mettre à jour localement
           this.solicitudes = this.solicitudes.map(s => s.id === id ? { ...s, status } : s);
           this.notify();
-          
+
           // Sauvegarder dans Supabase (si la table existe)
           try {
               const { error } = await supabase.from('solicitudes').update({ status }).eq('id', id);
@@ -2021,6 +2117,12 @@ async deleteConsulado(id: string) {
               if (dbError.code !== '42P01') {
                   throw dbError;
               }
+          }
+          
+          // Créer une entrée dans l'historique si accepté ou refusé
+          if (solicitud && (status === 'APPROVED' || status === 'REJECTED')) {
+              const historyStatus = status === 'APPROVED' ? 'ACEPTADO' : 'RECHAZADO';
+              await this.createHistoryFromSolicitud(solicitud, historyStatus, processedBy, rejectionReason);
           }
       } catch (error: any) {
           console.error("❌ Erreur lors de la mise à jour de la solicitud:", error);
@@ -2209,6 +2311,280 @@ async deleteConsulado(id: string) {
       }
   }
   
+  // =====================================================
+  // HABILITACIONES HISTORY - Historique complet
+  // =====================================================
+  
+  // Obtenir tout l'historique des habilitations
+  getHabilitacionesHistory(filters?: {
+      socio_id?: string;
+      consulado_id?: string;
+      consulado_name?: string;
+      match_id?: string;
+      request_status?: string;
+      attendance_status?: string;
+      from_date?: string;
+      to_date?: string;
+  }): HabilitacionHistory[] {
+      let result = [...this.habilitacionesHistory];
+      
+      if (filters) {
+          if (filters.socio_id) {
+              result = result.filter(h => h.socio_id === filters.socio_id);
+          }
+          if (filters.consulado_id) {
+              result = result.filter(h => h.consulado_id === filters.consulado_id);
+          }
+          if (filters.consulado_name) {
+              result = result.filter(h => h.consulado_name === filters.consulado_name);
+          }
+          if (filters.match_id) {
+              result = result.filter(h => h.match_id === filters.match_id);
+          }
+          if (filters.request_status) {
+              result = result.filter(h => h.request_status === filters.request_status);
+          }
+          if (filters.attendance_status) {
+              result = result.filter(h => h.attendance_status === filters.attendance_status);
+          }
+          if (filters.from_date) {
+              result = result.filter(h => h.match_date >= filters.from_date!);
+          }
+          if (filters.to_date) {
+              result = result.filter(h => h.match_date <= filters.to_date!);
+          }
+      }
+      
+      // Trier par date de création décroissante
+      return result.sort((a, b) => {
+          const dateA = new Date(a.created_at || 0).getTime();
+          const dateB = new Date(b.created_at || 0).getTime();
+          return dateB - dateA;
+      });
+  }
+  
+  // Obtenir l'historique d'un socio spécifique
+  getSocioHabilitacionesHistory(socio_id: string): HabilitacionHistory[] {
+      return this.getHabilitacionesHistory({ socio_id });
+  }
+  
+  // Calculer les statistiques d'un socio
+  getSocioHabilitacionStats(socio_id: string): SocioHabilitacionStats {
+      const history = this.getSocioHabilitacionesHistory(socio_id);
+      
+      const total_solicitudes = history.length;
+      const total_aceptadas = history.filter(h => h.request_status === 'ACEPTADO').length;
+      const total_rechazadas = history.filter(h => h.request_status === 'RECHAZADO').length;
+      const total_canceladas = history.filter(h => 
+          h.request_status === 'CANCELADO_SOCIO' || 
+          h.request_status === 'CANCELADO_ADMIN' || 
+          h.request_status === 'CANCELADO_POST_ACEPTACION'
+      ).length;
+      const total_presencias = history.filter(h => h.attendance_status === 'PRESENTE').length;
+      const total_ausencias_sin_aviso = history.filter(h => h.attendance_status === 'AUSENTE_SIN_AVISO').length;
+      const total_ausencias_con_aviso = history.filter(h => h.attendance_status === 'AUSENTE_CON_AVISO').length;
+      
+      // Taux d'asistencia sur les demandes acceptées avec présence enregistrée
+      const accepteesAvecPresence = history.filter(h => 
+          h.request_status === 'ACEPTADO' && h.attendance_status
+      );
+      const tasa_asistencia = accepteesAvecPresence.length > 0 
+          ? (total_presencias / accepteesAvecPresence.length) * 100 
+          : null;
+      
+      // Taux de no-show
+      const tasa_no_show = accepteesAvecPresence.length > 0
+          ? (total_ausencias_sin_aviso / accepteesAvecPresence.length) * 100
+          : null;
+      
+      return {
+          total_solicitudes,
+          total_aceptadas,
+          total_rechazadas,
+          total_canceladas,
+          total_presencias,
+          total_ausencias_sin_aviso,
+          total_ausencias_con_aviso,
+          tasa_asistencia,
+          tasa_no_show
+      };
+  }
+  
+  // Créer une entrée dans l'historique
+  async createHabilitacionHistory(entry: Omit<HabilitacionHistory, 'id'>): Promise<HabilitacionHistory> {
+      const newEntry: HabilitacionHistory = {
+          ...entry,
+          id: crypto.randomUUID(),
+          created_at: new Date().toISOString()
+      };
+      
+      // Ajouter localement
+      this.habilitacionesHistory.push(newEntry);
+      this.notify();
+      
+      // Sauvegarder dans Supabase
+      try {
+          const payload = mapHabilitacionHistoryToDB(newEntry);
+          const { data, error } = await supabase
+              .from('habilitaciones_history')
+              .insert([payload])
+              .select()
+              .single();
+          
+          if (error) {
+              if (error.code !== '42P01') {
+                  console.error("❌ Erreur création habilitacion history:", error);
+              }
+          } else if (data) {
+              const mapped = mapHabilitacionHistoryFromDB(data);
+              this.habilitacionesHistory = this.habilitacionesHistory.map(h => 
+                  h.id === newEntry.id ? mapped : h
+              );
+              this.notify();
+              return mapped;
+          }
+      } catch (dbError: any) {
+          if (dbError.code !== '42P01') {
+              console.error("❌ Erreur DB création habilitacion history:", dbError);
+          }
+      }
+      
+      return newEntry;
+  }
+  
+  // Mettre à jour une entrée
+  async updateHabilitacionHistory(id: string, updates: Partial<HabilitacionHistory>): Promise<HabilitacionHistory | null> {
+      const existing = this.habilitacionesHistory.find(h => h.id === id);
+      if (!existing) return null;
+      
+      const updated: HabilitacionHistory = {
+          ...existing,
+          ...updates,
+          updated_at: new Date().toISOString()
+      };
+      
+      // Mettre à jour localement
+      this.habilitacionesHistory = this.habilitacionesHistory.map(h => 
+          h.id === id ? updated : h
+      );
+      this.notify();
+      
+      // Sauvegarder dans Supabase
+      try {
+          const payload = mapHabilitacionHistoryToDB(updates);
+          payload.updated_at = new Date().toISOString();
+          
+          const { error } = await supabase
+              .from('habilitaciones_history')
+              .update(payload)
+              .eq('id', id);
+          
+          if (error && error.code !== '42P01') {
+              console.error("❌ Erreur update habilitacion history:", error);
+          }
+      } catch (dbError: any) {
+          if (dbError.code !== '42P01') {
+              console.error("❌ Erreur DB update habilitacion history:", dbError);
+          }
+      }
+      
+      return updated;
+  }
+  
+  // Charger l'historique depuis Supabase
+  async loadHabilitacionesHistory(): Promise<void> {
+      const isDev = import.meta.env.DEV;
+      try {
+          const { data, error } = await supabase
+              .from('habilitaciones_history')
+              .select('*')
+              .order('created_at', { ascending: false });
+          
+          if (error) {
+              if (error.code === '42P01' || error.code === 'PGRST116') {
+                  if (isDev) console.log("ℹ️ Table habilitaciones_history non disponible");
+                  return;
+              }
+              console.error("❌ Erreur chargement habilitaciones history:", error);
+              return;
+          }
+          
+          if (data) {
+              this.habilitacionesHistory = data.map(mapHabilitacionHistoryFromDB);
+              if (isDev) console.log(`✅ ${this.habilitacionesHistory.length} entrées d'historique chargées`);
+          }
+      } catch (error: any) {
+          if (error?.code === '42P01' || error?.code === 'PGRST116') {
+              if (isDev) console.log("ℹ️ Table habilitaciones_history non disponible");
+              return;
+          }
+          console.error("❌ Erreur chargement habilitaciones history:", error);
+      }
+  }
+  
+  // Créer une entrée d'historique à partir d'une solicitud (quand elle est traitée)
+  async createHistoryFromSolicitud(
+      solicitud: Solicitud, 
+      status: 'ACEPTADO' | 'RECHAZADO', 
+      processedBy?: string,
+      rejectionReason?: string
+  ): Promise<HabilitacionHistory | null> {
+      // Récupérer les infos complètes
+      const socio = this.socios.find(s => s.id === solicitud.socio_id);
+      const match = this.matches.find(m => m.id === solicitud.match_id);
+      const consulado = this.consulados.find(c => c.name === solicitud.consulado);
+      
+      if (!match) {
+          console.error("Match non trouvé pour la solicitud:", solicitud.match_id);
+          return null;
+      }
+      
+      const entry: Omit<HabilitacionHistory, 'id'> = {
+          // Socio
+          socio_id: solicitud.socio_id,
+          socio_numero: socio?.numero_socio,
+          socio_name: solicitud.socio_name,
+          socio_dni: solicitud.socio_dni,
+          socio_category: solicitud.socio_category,
+          socio_status: socio?.status,
+          socio_email: socio?.email,
+          socio_phone: socio?.phone,
+          // Consulado
+          consulado_id: consulado?.id,
+          consulado_name: solicitud.consulado,
+          consulado_city: consulado?.city,
+          consulado_country: consulado?.country,
+          // Match
+          match_id: match.id.toString(),
+          match_date: match.date,
+          match_hour: match.hour,
+          match_rival: match.rival,
+          match_rival_short: match.rival_short,
+          match_competition: match.competition,
+          match_competition_id: match.competition_id,
+          match_venue: match.venue,
+          match_city: match.city,
+          match_is_home: match.is_home,
+          match_fecha_jornada: match.fecha_jornada,
+          // Ventana
+          ventana_apertura_date: match.apertura_date,
+          ventana_apertura_hour: match.apertura_hour,
+          ventana_cierre_date: match.cierre_date,
+          ventana_cierre_hour: match.cierre_hour,
+          // Statut
+          request_status: status,
+          rejection_reason: rejectionReason,
+          // Métadonnées
+          created_at: solicitud.timestamp,
+          processed_at: new Date().toISOString(),
+          processed_by: processedBy,
+          original_solicitud_id: solicitud.id,
+          places_requested: 1
+      };
+      
+      return this.createHabilitacionHistory(entry);
+  }
+
   // Fonction helper pour parser la date d'un match
   private parseMatchDate(dateStr: string, hourStr: string): Date | null {
       try {

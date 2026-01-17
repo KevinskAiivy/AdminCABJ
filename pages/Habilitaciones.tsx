@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { GlassCard } from '../components/GlassCard';
-import { Ticket, CheckCircle2, XCircle, Calendar, MapPin, X, UserCheck, UserX, Filter, Timer, Archive, Home, Plane, FileText, RefreshCw, AlertCircle, ChevronDown, ChevronRight, Building2 } from 'lucide-react';
+import { Ticket, CheckCircle2, XCircle, Calendar, MapPin, X, UserCheck, UserX, Filter, Timer, Archive, Home, Plane, FileText, RefreshCw, AlertCircle, ChevronDown, ChevronRight, Building2, History } from 'lucide-react';
 import { Match, Solicitud, Socio, Team } from '../types';
 import { dataService } from '../services/dataService';
 import { BocaLogoSVG } from '../constants';
@@ -1281,15 +1282,25 @@ export const Habilitaciones = () => {
               <p className="text-[#FCB131] text-[10px] font-black uppercase tracking-[0.4em] mt-1">Control de Acceso al Estadio</p>
             </div>
           </div>
-          <button
-            onClick={handleRefreshSolicitudes}
-            disabled={isRefreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-[#FCB131] text-[#001d4a] rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-[#FFD23F] transition-all shadow-lg relative z-10 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Actualizar solicitudes desde la base de datos"
-          >
-            <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-            {isRefreshing ? 'Actualizando...' : 'Actualizar'}
-          </button>
+          <div className="flex items-center gap-2 relative z-10">
+            <Link
+              to="/habilitaciones/historial"
+              className="flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/20 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-white/20 transition-all"
+              title="Ver historial completo de habilitaciones"
+            >
+              <History size={16} />
+              Historial
+            </Link>
+            <button
+              onClick={handleRefreshSolicitudes}
+              disabled={isRefreshing}
+              className="flex items-center gap-2 px-4 py-2 bg-[#FCB131] text-[#001d4a] rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-[#FFD23F] transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Actualizar solicitudes desde la base de datos"
+            >
+              <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+              {isRefreshing ? 'Actualizando...' : 'Actualizar'}
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4">

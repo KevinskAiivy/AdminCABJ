@@ -61,6 +61,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard.tsx'));
 const Consulados = lazy(() => import('./pages/Consulados.tsx'));
 const Socios = lazy(() => import('./pages/Socios.tsx').then(module => ({ default: module.Socios || module.default })));
 const Habilitaciones = lazy(() => import('./pages/Habilitaciones.tsx'));
+const HistorialHabilitaciones = lazy(() => import('./pages/admin/HistorialHabilitaciones.tsx'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage.tsx'));
 
 // Admin Sub-routes Lazy
@@ -485,7 +486,8 @@ export const App: React.FC = () => {
                       </PageTransition>
                     } />
                     <Route path="/habilitaciones" element={<PageTransition><Habilitaciones /></PageTransition>} />
-                    
+                    <Route path="/habilitaciones/historial" element={<PageTransition><HistorialHabilitaciones /></PageTransition>} />
+
                     <Route path="/admin/futbol" element={<PageTransition><Futbol /></PageTransition>} />
                     <Route path="/admin/agenda" element={<PageTransition><Agenda /></PageTransition>} />
                     <Route path="/admin/mensajes" element={<PageTransition><Mensajes /></PageTransition>} />

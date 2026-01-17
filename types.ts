@@ -23,6 +23,7 @@ export interface Socio {
   role?: string;
   foto?: string; // URL de la photo du socio stockée dans Supabase Storage
   transfer_history?: TransferHistoryEntry[]; // Historique des transferts
+  habilitation_stats?: SocioHabilitacionStats; // Statistiques d'habilitations (calculées)
 }
 
 // Entrée dans l'historique des transferts d'un socio
@@ -260,7 +261,116 @@ export interface AppNotification {
   target_consulado_id?: string; // Pour cibler un consulado spécifique (null = tous)
 }
 
-// Historique des présences aux matchs
+// Historique complet des demandes d'habilitations
+export interface HabilitacionHistory {
+  id: string;
+  
+  // Informations du socio (dénormalisées pour historique)
+  socio_id: string;
+  socio_numero?: string;
+  socio_name: string;
+  socio_dni?: string;
+  socio_category?: string;
+  socio_status?: string;
+  socio_email?: string;
+  socio_phone?: string;
+  
+  // Informations du consulado (dénormalisées)
+  consulado_id?: string;
+  consulado_name: string;
+  consulado_city?: string;
+  consulado_country?: string;
+  
+  // Informations du match (dénormalisées pour historique)
+  match_id: string;
+  match_date: string;
+  match_hour?: string;
+  match_rival: string;
+  match_rival_short?: string;
+  match_competition?: string;
+  match_competition_id?: string;
+  match_venue?: string;
+  match_city?: string;
+  match_is_home?: boolean;
+  match_fecha_jornada?: string;
+  
+  // Fenêtre d'habilitation
+  ventana_apertura_date?: string;
+  ventana_apertura_hour?: string;
+  ventana_cierre_date?: string;
+  ventana_cierre_hour?: string;
+  
+  // Statut de la demande
+  request_status: 'SOLICITADO' | 'ACEPTADO' | 'RECHAZADO' | 'CANCELADO_SOCIO' | 'CANCELADO_ADMIN' | 'CANCELADO_POST_ACEPTACION' | 'EXPIRADO';
+  
+  // Statut de présence au match (post-match)
+  attendance_status?: 'PRESENTE' | 'AUSENTE_SIN_AVISO' | 'AUSENTE_CON_AVISO' | 'ENTRADA_ANULADA' | null;
+  
+  // Raisons et commentaires
+  rejection_reason?: string;
+  cancellation_reason?: string;
+  absence_reason?: string;
+  admin_notes?: string;
+  
+  // Demande d'annulation post-acceptation
+  cancellation_requested?: boolean;
+  cancellation_requested_at?: string;
+  cancellation_requested_by?: string;
+  cancellation_request_reason?: string;
+  cancellation_approved?: boolean;
+  cancellation_processed_at?: string;
+  cancellation_processed_by?: string;
+  
+  // Places / Entrées
+  places_requested?: number;
+  places_granted?: number;
+  ticket_number?: string;
+  sector?: string;
+  row_number?: string;
+  seat_number?: string;
+  
+  // Métadonnées de création
+  created_at?: string;
+  created_by?: string;
+  
+  // Métadonnées de traitement
+  processed_at?: string;
+  processed_by?: string;
+  processed_by_name?: string;
+  
+  // Métadonnées de présence
+  attendance_recorded_at?: string;
+  attendance_recorded_by?: string;
+  attendance_recorded_by_name?: string;
+  
+  // Métadonnées de mise à jour
+  updated_at?: string;
+  
+  // Référence à la solicitud originale
+  original_solicitud_id?: string;
+  
+  // Flags spéciaux
+  is_vip?: boolean;
+  is_priority?: boolean;
+  is_first_match?: boolean;
+  has_special_needs?: boolean;
+  special_needs_notes?: string;
+}
+
+// Statistiques d'habilitations d'un socio
+export interface SocioHabilitacionStats {
+  total_solicitudes: number;
+  total_aceptadas: number;
+  total_rechazadas: number;
+  total_canceladas: number;
+  total_presencias: number;
+  total_ausencias_sin_aviso: number;
+  total_ausencias_con_aviso: number;
+  tasa_asistencia: number | null; // Pourcentage de présence sur les acceptées
+  tasa_no_show: number | null;    // Pourcentage de no-shows
+}
+
+// Historique des présences aux matchs (legacy - gardé pour compatibilité)
 export interface MatchAttendance {
   id: string;
   match_id: string;
