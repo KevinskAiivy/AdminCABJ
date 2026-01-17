@@ -222,13 +222,13 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
 
       <div className="relative z-10 flex flex-col py-6 px-4 gap-4">
           
-          {/* ROW 1: LOGOS (gauche) + COMPETITION INFO (centre) */}
+          {/* ROW 1: LOGOS (gauche) + COMPETITION INFO (centre) + HEURE (droite) */}
           <div className="flex items-center justify-between w-full">
               
-              {/* LOGOS - En haut à gauche, côte à côte */}
-              <div className="flex items-center gap-3">
+              {/* LOGOS - En haut à gauche, côte à côte (sans VS ni noms) */}
+              <div className="flex items-center gap-2">
                   {/* Boca Logo */}
-                  <div className="flex flex-col items-center gap-1 group/team">
+                  <div className="group/team">
                       <div className="relative drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] group-hover/team:scale-110 transition-transform duration-500 flex items-center justify-center">
                           {bocaLogo ? (
                             <img 
@@ -245,14 +245,10 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
                             />
                           )}
                       </div>
-                      <h3 className="oswald text-[8px] md:text-[10px] font-black uppercase text-white tracking-tight drop-shadow-md">Boca</h3>
                   </div>
 
-                  {/* VS */}
-                  <span className="oswald text-lg md:text-xl font-black text-white/30 tracking-tighter">VS</span>
-
                   {/* Rival Logo */}
-                  <div className="flex flex-col items-center gap-1 group/team">
+                  <div className="group/team">
                       <div className="relative flex items-center justify-center drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] group-hover/team:scale-110 transition-transform duration-500">
                           {rivalLogo ? (
                               <img 
@@ -270,9 +266,6 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
                               </span>
                           )}
                       </div>
-                      <h3 className="oswald text-[8px] md:text-[10px] font-black uppercase text-white/80 tracking-tight truncate max-w-[60px]" title={match.rival}>
-                          {match.rival_short || match.rival?.substring(0, 6)}
-                      </h3>
                   </div>
               </div>
 
@@ -301,33 +294,49 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
                       <h2 className="oswald text-sm md:text-lg font-black uppercase text-white tracking-[0.1em] leading-none drop-shadow-md">
                           {match.competition}
                       </h2>
-                      <span className="text-[#FCB131] oswald text-[9px] md:text-[11px] font-bold uppercase tracking-[0.15em] drop-shadow-sm">
-                          {match.fecha_jornada || 'PRÓXIMO PARTIDO'}
-                      </span>
-                      {match.venue && (
-                          <div className="flex items-center gap-1 mt-0.5">
-                              <MapPin size={10} className="text-white/50" />
-                              <span className="text-white/60 oswald text-[8px] md:text-[10px] font-bold uppercase tracking-wider">
-                                  {match.venue}
-                              </span>
-                          </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                          <span className="text-[#FCB131] oswald text-[9px] md:text-[11px] font-bold uppercase tracking-[0.15em] drop-shadow-sm">
+                              {match.fecha_jornada || 'PRÓXIMO PARTIDO'}
+                          </span>
+                          {match.venue && (
+                              <>
+                                  <span className="text-white/30">•</span>
+                                  <span className="text-white oswald text-[9px] md:text-[11px] font-bold uppercase tracking-wider">
+                                      {match.venue}
+                                  </span>
+                              </>
+                          )}
+                      </div>
                   </div>
               </div>
 
-              {/* DATE/HEURE - En haut à droite */}
+              {/* HEURE - En haut à droite (heure Argentine + heure locale) */}
               <div className="flex flex-col items-end gap-0.5">
-                  <span className="oswald text-base md:text-xl font-black text-white tracking-tighter leading-none">
-                      {formatDateDisplay(match.date)}
-                  </span>
-                  <span className="oswald text-sm md:text-lg font-black text-[#FCB131] tracking-tight">
-                      {displayTime}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-white/50">🇦🇷</span>
+                      <span className="oswald text-lg md:text-2xl font-black text-[#FCB131] tracking-tight leading-none">
+                          {match.hour}
+                      </span>
+                  </div>
+                  {displayTime !== match.hour && displayTime !== `${match.hour} hs` && (
+                      <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-white/50">{displayFlag}</span>
+                          <span className="oswald text-sm md:text-base font-bold text-white/70 tracking-tight leading-none">
+                              {displayTime}
+                          </span>
+                      </div>
+                  )}
               </div>
           </div>
 
-          {/* ROW 2: COUNTDOWN - En bas au centre */}
-          <div className="flex justify-center w-full pt-2">
+          {/* ROW 2: DATE + COUNTDOWN - En bas au centre */}
+          <div className="flex flex-col items-center justify-center w-full pt-2 gap-2">
+              {/* Date au dessus du countdown */}
+              <span className="oswald text-lg md:text-xl font-black text-white tracking-tighter leading-none">
+                  {formatDateDisplay(match.date)}
+              </span>
+              
+              {/* Countdown */}
               <div className="flex items-center gap-2 bg-black/40 backdrop-blur-xl px-6 py-3 rounded-xl border border-white/10 shadow-lg">
                   <CountdownUnit value={timeLeft.days} label="DÍAS" />
                   <span className="oswald text-lg text-[#FCB131] mt-[-12px] font-bold animate-pulse">:</span>
