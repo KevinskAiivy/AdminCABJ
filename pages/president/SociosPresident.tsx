@@ -964,8 +964,9 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                             </div>
                         </div>
 
-                        {/* Numéro de Socio + Consulado sur la même ligne (50/50) */}
+                        {/* Numéro de Socio + Transferir a Otro Consulado sur la même ligne (50/50) */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#001d4a] p-3 rounded-lg border border-[#FCB131]/30 shadow-lg relative overflow-hidden">
+                            {/* Numéro de Socio */}
                             <div className="space-y-1 relative z-10">
                                 <label className="text-[8px] font-black text-[#FCB131] uppercase tracking-widest flex items-center gap-1"><BadgeCheck size={9} /> {getGenderLabel('Numéro de Socio', formData.gender)}</label>
                                 <div className="flex gap-2">
@@ -1033,141 +1034,82 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                                     </div>
                                 )}
                             </div>
-                            <div className="space-y-1 relative z-10">
-                                <label className="text-[8px] font-black text-white uppercase tracking-widest flex items-center gap-1"><Building2 size={9} /> Consulado</label>
-                                <div className="bg-white/10 rounded-lg py-2 px-3 border border-white/20">
-                                    <span className="text-white font-bold text-xs">{currentConsulado || 'SEDE CENTRAL'}</span>
-                                </div>
-                                <p className="text-white/50 text-[7px] mt-1">Para cambiar de consulado, use la sección de transferencia abajo.</p>
-                            </div>
-                        </div>
 
-                        <div className="space-y-3">
-                            <h3 className="text-[#003B94] font-black uppercase text-[9px] tracking-widest border-b border-[#003B94]/10 pb-1 flex items-center gap-1.5">
-                                <ArrowRightLeft size={11} className="text-[#FCB131]" /> 
-                                Transferir a Otro Consulado
-                            </h3>
-                            
-                            <div className="bg-gradient-to-br from-[#001d4a] to-[#003B94] p-4 rounded-xl border border-[#FCB131]/30 shadow-lg relative overflow-hidden">
-                                <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none">
-                                    <ArrowRightLeft size={100} className="text-white" />
-                                </div>
-                                
+                            {/* Transferir a Otro Consulado */}
+                            <div className="space-y-1 relative z-10">
+                                <label className="text-[8px] font-black text-white uppercase tracking-widest flex items-center gap-1">
+                                    <ArrowRightLeft size={9} className="text-[#FCB131]" /> Transferir a Otro Consulado
+                                </label>
                                 {pendingConsulado === null ? (
-                                    <div className="space-y-3 relative z-10">
-                                        <div className="flex items-center gap-2">
-                                            <CustomSelect
-                                                label="Consulado de Destino"
-                                                value={consuladoSelection}
-                                                onChange={(val) => setConsuladoSelection(val)}
-                                                options={[
-                                                    {value: '', label: 'Seleccionar Consulado...'},
-                                                    ...consulados.filter(c => c.name !== currentConsulado).map(c => ({
-                                                        value: c.name,
-                                                        label: `${c.name} - ${c.city}, ${c.country}`
-                                                    }))
-                                                ]}
-                                                searchable
-                                                disabled={isConsuladoLocked}
-                                                placeholder="Seleccionar consulado..."
-                                                className="text-white flex-1"
-                                            />
+                                    <div className="space-y-1.5">
+                                        <div className="flex gap-2">
+                                            <div className="flex-1">
+                                                <CustomSelect
+                                                    value={consuladoSelection}
+                                                    onChange={(val) => setConsuladoSelection(val)}
+                                                    options={[
+                                                        {value: '', label: currentConsulado || 'SEDE CENTRAL'},
+                                                        ...consulados.filter(c => c.name !== currentConsulado).map(c => ({
+                                                            value: c.name,
+                                                            label: c.name
+                                                        }))
+                                                    ]}
+                                                    searchable
+                                                    disabled={isConsuladoLocked}
+                                                    placeholder={currentConsulado || 'SEDE CENTRAL'}
+                                                    className="text-white text-xs"
+                                                />
+                                            </div>
                                             <button 
                                                 onClick={() => { 
-                                                    setIsConsuladoLocked(!isConsuladoLocked);
+                                                    setIsConsuladoLocked(!isConsuladoLocked); 
                                                     if (isConsuladoLocked) {
                                                         setPendingConsulado(null);
                                                     }
                                                 }} 
-                                                className={`p-2.5 rounded-lg transition-all shadow-lg border ${
-                                                    isConsuladoLocked 
-                                                        ? 'bg-white/10 text-white/50 border-white/20 hover:bg-white/20' 
-                                                        : 'bg-[#FCB131]/20 text-[#FCB131] border-[#FCB131]/30 hover:bg-[#FCB131]/30'
-                                                }`}
-                                                title={isConsuladoLocked ? 'Desbloquear selección' : 'Bloquear selección'}
+                                                className="text-white/50 hover:text-[#FCB131] transition-colors"
                                             >
-                                                {isConsuladoLocked ? <Lock size={16} /> : <Unlock size={16} />}
+                                                {isConsuladoLocked ? <Lock size={12} /> : <Unlock size={12} />}
                                             </button>
-                                        </div>
-                                        
-                                        {!isConsuladoLocked && consuladoSelection !== '' && consuladoSelection !== (formData.consulado || '') && (
-                                            <>
-                                                <div className="p-3 rounded-lg text-[8px] font-bold uppercase tracking-widest flex items-center gap-2 bg-amber-500/20 text-amber-200 border border-amber-400/30 backdrop-blur-sm">
-                                                    <AlertTriangle size={12} className="text-amber-300" />
-                                                    <span>Cambio de consulado pendiente de validación</span>
-                                                </div>
+                                            {!isConsuladoLocked && consuladoSelection !== '' && consuladoSelection !== (formData.consulado || '') && (
                                                 <button 
                                                     onClick={() => { 
-                                                        if (consuladoSelection && consuladoSelection !== (formData.consulado || '')) {
-                                                            setPendingConsulado(consuladoSelection); 
-                                                            setIsConsuladoLocked(true);
-                                                        }
+                                                        setPendingConsulado(consuladoSelection); 
+                                                        setIsConsuladoLocked(true);
                                                     }} 
-                                                    className="w-full bg-[#FCB131] text-[#001d4a] px-4 py-2.5 rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-white transition-all shadow-lg flex items-center justify-center gap-2"
+                                                    className="bg-[#FCB131] text-[#001d4a] px-2.5 rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-white transition-all shadow-lg"
                                                 >
-                                                    <CheckCircle2 size={14} /> Validar Transferencia
+                                                    Validar
                                                 </button>
-                                            </>
-                                        )}
-                                        
-                                        {consuladoSelection === (formData.consulado || '') && consuladoSelection !== '' && (
-                                            <div className="p-3 rounded-lg text-[8px] font-bold uppercase tracking-widest flex items-center gap-2 bg-blue-500/20 text-blue-200 border border-blue-400/30 backdrop-blur-sm">
-                                                <AlertTriangle size={12} className="text-blue-300" />
-                                                <span>El socio ya pertenece a este consulado</span>
+                                            )}
+                                        </div>
+                                        {/* Alerte si le consulado est en cours de modification */}
+                                        {!isConsuladoLocked && consuladoSelection !== (formData.consulado || '') && consuladoSelection !== '' && (
+                                            <div className="p-2 rounded-lg text-[7px] font-bold uppercase tracking-widest flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-200">
+                                                <AlertTriangle size={10} />
+                                                Transferencia pendiente
                                             </div>
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="space-y-3 relative z-10">
-                                        <div className="liquid-glass-dark border-2 border-[#FCB131]/40 rounded-xl p-4 flex flex-col gap-3">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <CheckCircle2 size={16} className="text-[#FCB131]" />
-                                                    <span className="text-[9px] font-black text-[#FCB131] uppercase tracking-widest">Transferencia Validada</span>
-                                                </div>
-                                                <button 
-                                                    onClick={() => { 
-                                                        setConsuladoSelection(formData.consulado || ''); 
-                                                        setPendingConsulado(null);
-                                                        setIsConsuladoLocked(true);
-                                                    }} 
-                                                    className="text-red-400 hover:text-red-300 font-black uppercase text-[8px] tracking-widest px-2 py-1 hover:bg-red-500/20 rounded-lg transition-all"
-                                                >
-                                                    Cancelar
-                                                </button>
-                                            </div>
-                                            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
-                                                <div className="flex items-center gap-2 text-[8px] font-bold text-white/80 uppercase tracking-widest">
-                                                    <span className="opacity-70">Desde:</span>
-                                                    <span className="font-black text-[#FCB131]">{formData.consulado || 'SEDE CENTRAL'}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2 my-1.5">
-                                                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#FCB131] to-transparent"></div>
-                                                    <ArrowRightLeft size={12} className="text-[#FCB131]" />
-                                                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#FCB131] to-transparent"></div>
-                                                </div>
-                                                <div className="flex items-center gap-2 text-[8px] font-bold text-white/80 uppercase tracking-widest">
-                                                    <span className="opacity-70">Hacia:</span>
-                                                    <span className="font-black text-[#FCB131]">{pendingConsulado || 'SEDE CENTRAL'}</span>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <label className="text-[7px] font-black text-white/70 uppercase tracking-widest">Comentarios (opcional)</label>
-                                                <textarea
-                                                    rows={2}
-                                                    className="w-full bg-white/10 border border-white/20 rounded-lg py-2 px-3 font-bold text-xs outline-none focus:bg-white/20 focus:border-[#FCB131]/40 text-white placeholder-white/40 resize-none backdrop-blur-sm"
-                                                    placeholder="Agregar comentarios sobre la transferencia..."
-                                                    value={(formData as any).transferComments || ''}
-                                                    onChange={e => setFormData({...formData, transferComments: e.target.value} as any)}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="p-3 rounded-lg text-[7px] font-bold text-white/80 uppercase tracking-widest bg-blue-500/20 border border-blue-400/30 backdrop-blur-sm">
+                                    <div className="space-y-1.5">
+                                        <div className="bg-[#FFFCE4] border border-[#FCB131] rounded-lg p-2 flex items-center justify-between text-[8px] font-bold text-[#001d4a]">
                                             <span className="flex items-center gap-1.5">
-                                                <AlertTriangle size={10} className="text-blue-300" />
-                                                La transferencia será procesada después de guardar. El consulado de destino recibirá una notificación para aprobarla.
+                                                <CheckCircle2 size={10} className="text-[#FCB131]" />
+                                                <span className="font-black">{formData.consulado || 'SEDE CENTRAL'}</span> → <span className="font-black text-[#003B94]">{pendingConsulado}</span>
                                             </span>
+                                            <button 
+                                                onClick={() => { 
+                                                    setConsuladoSelection(formData.consulado || ''); 
+                                                    setPendingConsulado(null);
+                                                    setIsConsuladoLocked(true);
+                                                }} 
+                                                className="text-red-500 hover:text-red-700 font-black uppercase text-[7px] tracking-widest"
+                                            >
+                                                Cancelar
+                                            </button>
                                         </div>
+                                        <p className="text-white/50 text-[7px]">La transferencia se procesará al guardar.</p>
                                     </div>
                                 )}
                             </div>
