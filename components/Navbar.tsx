@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, MapPin, Ticket, Settings, ChevronDown, LogOut, MessageSquare, Database, Calendar, Sword, Shield, Lock, Bell, ArrowRightLeft, AlertCircle, Mail, CheckCircle2, X } from 'lucide-react';
+import { LayoutDashboard, Users, MapPin, Ticket, Settings, ChevronDown, LogOut, MessageSquare, Database, Calendar, Sword, Shield, Lock, Bell, ArrowRightLeft, AlertCircle, Mail, CheckCircle2, X, UserPlus } from 'lucide-react';
 import { BocaLogoSVG } from '../constants';
 import { UserSession, AppNotification } from '../types';
 import { dataService } from '../services/dataService';
@@ -240,7 +240,7 @@ export const Navbar = ({
             >
               <Bell size={18} className={`relative z-10 ${unreadCount > 0 ? 'animate-pulse' : ''}`} />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-black rounded-full w-5 h-5 flex items-center justify-center border-2 border-[#001d4a] shadow-lg">
+                <span className="absolute -top-1 -right-1 bg-[#FCB131] text-[#001d4a] text-[8px] font-black rounded-full w-5 h-5 flex items-center justify-center border-2 border-[#001d4a] shadow-lg">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
@@ -282,10 +282,16 @@ export const Navbar = ({
                             <div className={`p-2 rounded-lg shrink-0 ${
                               notif.type === 'TRANSFER' ? 'bg-amber-500/20 text-amber-300' :
                               notif.type === 'ALERT' ? 'bg-red-500/20 text-red-300' :
+                              notif.type === 'MESSAGE' ? 'bg-purple-500/20 text-purple-300' :
+                              notif.type === 'HABILITACION' ? 'bg-emerald-500/20 text-emerald-300' :
+                              notif.type === 'SOCIO' ? 'bg-cyan-500/20 text-cyan-300' :
                               'bg-blue-500/20 text-blue-300'
                             }`}>
                               {notif.type === 'TRANSFER' ? <ArrowRightLeft size={14} /> :
                                notif.type === 'ALERT' ? <AlertCircle size={14} /> :
+                               notif.type === 'MESSAGE' ? <MessageSquare size={14} /> :
+                               notif.type === 'HABILITACION' ? <Ticket size={14} /> :
+                               notif.type === 'SOCIO' ? <UserPlus size={14} /> :
                                <Mail size={14} />}
                             </div>
                             

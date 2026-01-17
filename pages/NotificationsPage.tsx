@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { GlassCard } from '../components/GlassCard';
-import { Bell, Trash2, ArrowRightLeft, Mail, AlertCircle, Filter, Search, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Bell, Trash2, ArrowRightLeft, Mail, AlertCircle, Filter, Search, CheckCircle2, RotateCcw, MessageSquare, Ticket, UserPlus } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import { AppNotification, UserSession } from '../types';
 
@@ -83,7 +83,7 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
         {/* Toolbar */}
         <div className="bg-white p-4 rounded-xl shadow-sm border border-[#003B94]/10 flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="flex gap-2 overflow-x-auto w-full md:w-auto">
-                {['ALL', 'TRANSFER', 'SYSTEM', 'ALERT'].map(type => (
+                {['ALL', 'TRANSFER', 'MESSAGE', 'HABILITACION', 'SOCIO', 'SYSTEM', 'ALERT'].map(type => (
                     <button 
                         key={type}
                         onClick={() => setFilterType(type)}
@@ -93,7 +93,12 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
                             : 'bg-gray-50 text-gray-400 hover:text-[#001d4a] hover:bg-gray-100'
                         }`}
                     >
-                        {type === 'ALL' ? 'Todas' : type === 'TRANSFER' ? 'Transferencias' : type === 'ALERT' ? 'Alertas' : 'Sistema'}
+                        {type === 'ALL' ? 'Todas' : 
+                         type === 'TRANSFER' ? 'Transferencias' : 
+                         type === 'MESSAGE' ? 'Mensajes' :
+                         type === 'HABILITACION' ? 'Habilitaciones' :
+                         type === 'SOCIO' ? 'Socios' :
+                         type === 'ALERT' ? 'Alertas' : 'Sistema'}
                     </button>
                 ))}
             </div>
@@ -126,9 +131,17 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
                             <div className={`p-3 rounded-xl shrink-0 ${
                                 notif.type === 'TRANSFER' ? 'bg-amber-50 text-amber-600' :
                                 notif.type === 'ALERT' ? 'bg-red-50 text-red-600' :
+                                notif.type === 'MESSAGE' ? 'bg-purple-50 text-purple-600' :
+                                notif.type === 'HABILITACION' ? 'bg-emerald-50 text-emerald-600' :
+                                notif.type === 'SOCIO' ? 'bg-cyan-50 text-cyan-600' :
                                 'bg-blue-50 text-blue-600'
                             }`}>
-                                {notif.type === 'TRANSFER' ? <ArrowRightLeft size={20} /> : notif.type === 'ALERT' ? <AlertCircle size={20} /> : <Mail size={20} />}
+                                {notif.type === 'TRANSFER' ? <ArrowRightLeft size={20} /> : 
+                                 notif.type === 'ALERT' ? <AlertCircle size={20} /> : 
+                                 notif.type === 'MESSAGE' ? <MessageSquare size={20} /> :
+                                 notif.type === 'HABILITACION' ? <Ticket size={20} /> :
+                                 notif.type === 'SOCIO' ? <UserPlus size={20} /> :
+                                 <Mail size={20} />}
                             </div>
                             
                             <div className="flex-1 min-w-0 pt-1">

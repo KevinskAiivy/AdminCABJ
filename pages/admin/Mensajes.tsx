@@ -253,6 +253,8 @@ export const Mensajes = () => {
           }
       }
       
+      // Fermer la fenêtre d'édition et ouvrir la confirmation
+      setIsModalOpen(false);
       setShowSaveConfirm(true);
   };
 
@@ -373,7 +375,7 @@ export const Mensajes = () => {
         )}
 
       {confirmAction && (
-          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" >
+          <div className="fixed inset-0 z-[900] flex items-center justify-center p-4 bg-[#001d4a]/50 backdrop-blur-sm animate-in fade-in duration-300" >
               <div className="relative w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-xl text-center border border-white overflow-hidden animate-in zoom-in-95">
                   <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner relative z-0 ${ confirmAction.type === 'DELETE' || confirmAction.type === 'EMPTY_TRASH' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-[#003B94]' }`}>
                       <AlertTriangle size={32} />
@@ -594,8 +596,8 @@ export const Mensajes = () => {
       )}
 
       {showSaveConfirm && (
-          <div className="fixed inset-0 z-[1500] flex items-center justify-center p-4 bg-[#001d4a]/80 backdrop-blur-lg animate-in fade-in duration-300" >
-              <div className="relative w-full max-w-lg bg-white rounded-3xl p-8 md:p-10 shadow-2xl text-center border border-white/20 overflow-hidden animate-in zoom-in-95 z-[1501] transform transition-all">
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-[#001d4a]/80 backdrop-blur-lg animate-in fade-in duration-300" >
+              <div className="relative w-full max-w-lg bg-white rounded-3xl p-8 md:p-10 shadow-2xl text-center border border-white/20 overflow-hidden animate-in zoom-in-95 z-[2001] transform transition-all">
                   {/* Background gradient decoration */}
                   <div className="absolute inset-0 bg-gradient-to-br from-[#FCB131]/5 via-transparent to-[#003B94]/5 opacity-50"></div>
                   
@@ -642,6 +644,8 @@ export const Mensajes = () => {
                               onClick={() => {
                                   setShowSaveConfirm(false);
                                   setVigenciaWarning(null);
+                                  // Rouvrir la fenêtre d'édition
+                                  setIsModalOpen(true);
                               }} 
                               className="flex-1 py-3.5 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 text-slate-600 uppercase text-[10px] font-black tracking-widest hover:from-slate-200 hover:to-slate-100 transition-all shadow-md border border-slate-200"
                           >
@@ -660,8 +664,8 @@ export const Mensajes = () => {
       )}
 
       {showSuccess && (
-          <div className="fixed inset-0 z-[1600] flex items-center justify-center p-4 bg-[#001d4a]/90 backdrop-blur-xl animate-in fade-in duration-300" >
-              <div className="relative w-full max-w-md bg-white rounded-3xl p-8 md:p-10 shadow-2xl text-center border border-white/20 overflow-hidden animate-in zoom-in-95 z-[1601] transform transition-all">
+          <div className="fixed inset-0 z-[2100] flex items-center justify-center p-4 bg-[#001d4a]/90 backdrop-blur-xl animate-in fade-in duration-300" >
+              <div className="relative w-full max-w-md bg-white rounded-3xl p-8 md:p-10 shadow-2xl text-center border border-white/20 overflow-hidden animate-in zoom-in-95 z-[2101] transform transition-all">
                   {/* Animated success background */}
                   <div className="absolute inset-0 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 opacity-60"></div>
                   <div className="absolute inset-0 bg-gradient-to-t from-[#FCB131]/10 to-transparent"></div>

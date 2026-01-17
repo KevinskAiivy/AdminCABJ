@@ -586,15 +586,17 @@ const mapSolicitudToDB = (s: Partial<Solicitud>) => {
 };
 
 // Mapping pour AppNotification
+const VALID_NOTIFICATION_TYPES = ['TRANSFER', 'SYSTEM', 'ALERT', 'MESSAGE', 'HABILITACION', 'SOCIO'];
 const mapNotificationFromDB = (db: any): AppNotification => ({
     id: db.id || crypto.randomUUID(),
-    type: (db.type === 'TRANSFER' || db.type === 'SYSTEM' || db.type === 'ALERT') ? db.type : 'SYSTEM',
+    type: VALID_NOTIFICATION_TYPES.includes(db.type) ? db.type : 'SYSTEM',
     title: db.title || '',
     message: db.message || '',
     date: db.date || db.created_at || new Date().toISOString(),
     read: db.read !== undefined ? Boolean(db.read) : false,
     link: db.link || undefined,
-    data: db.data ? (typeof db.data === 'string' ? JSON.parse(db.data) : db.data) : undefined
+    data: db.data ? (typeof db.data === 'string' ? JSON.parse(db.data) : db.data) : undefined,
+    target_consulado_id: db.target_consulado_id || undefined
 });
 
 const mapNotificationToDB = (n: Partial<AppNotification>) => {
@@ -606,6 +608,7 @@ const mapNotificationToDB = (n: Partial<AppNotification>) => {
     if (n.read !== undefined) payload.read = Boolean(n.read);
     if (n.link !== undefined) payload.link = n.link || null;
     if (n.data !== undefined) payload.data = n.data ? JSON.stringify(n.data) : null;
+    if (n.target_consulado_id !== undefined) payload.target_consulado_id = n.target_consulado_id || null;
     return payload;
 };
 
@@ -1023,6 +1026,23 @@ class DataService {
       // Si l'insertion réussit, mettre à jour le cache
       this.socios.unshift(s);
       this.notify();
+      
+      // Créer une notification pour le consulado du socio
+      if (s.consulado) {
+          const consulado = this.consulados.find(c => c.name === s.consulado);
+          const notification: AppNotification = {
+              id: crypto.randomUUID(),
+              type: 'SOCIO',
+              title: 'Nuevo Socio Registrado',
+              message: `${s.first_name} ${s.last_name} ha sido registrado como nuevo socio en ${s.consulado}.`,
+              date: new Date().toISOString(),
+              read: false,
+              link: '/socios',
+              data: { socio_id: s.id, socio_name: `${s.first_name} ${s.last_name}`, consulado_name: s.consulado },
+              target_consulado_id: consulado?.id || undefined
+          };
+          await this.addNotification(notification);
+      }
   }
 
   async updateSocio(s: Socio) {
@@ -1314,11 +1334,18 @@ class DataService {
   }
   async updateMatch(m: Match & { _originalId?: string | number }) { 
       try {
+          // Récupérer l'ancien match pour comparer les dates d'ouverture
+          const matchId = m._originalId !== undefined ? m._originalId : m.id;
+          const oldMatch = this.matches.find(x => {
+              const xOriginalId = (x as any)._originalId;
+              if (xOriginalId !== undefined) return xOriginalId === matchId;
+              return x.id === m.id;
+          });
+          
           const payload = mapMatchToDB(m, false);
           // Ne pas inclure l'ID dans le payload de mise à jour (seulement dans la clause WHERE)
           delete payload.id;
           // Utiliser l'ID original (UUID string ou number) pour la mise à jour
-          const matchId = m._originalId !== undefined ? m._originalId : m.id;
           const { data, error } = await supabase.from('matches').update(payload).eq('id', matchId).select().single();
           if (error) {
               console.error("❌ Erreur lors de la mise à jour du match:", error);
@@ -1336,6 +1363,26 @@ class DataService {
                   return x.id === m.id ? mappedMatch : x;
               });
               this.notify();
+              
+              // Vérifier si les dates d'habilitaciones ont été définies/modifiées
+              const hasNewApertura = m.apertura_date && m.apertura_hour && 
+                  (!oldMatch || oldMatch.apertura_date !== m.apertura_date || oldMatch.apertura_hour !== m.apertura_hour);
+              
+              if (hasNewApertura) {
+                  // Créer une notification globale pour l'ouverture de la ventana de habilitaciones
+                  const notification: AppNotification = {
+                      id: crypto.randomUUID(),
+                      type: 'HABILITACION',
+                      title: 'Ventana de Habilitaciones Abierta',
+                      message: `Se ha abierto la ventana de habilitaciones para el partido vs ${m.rival} (${m.competition}). Apertura: ${m.apertura_date} ${m.apertura_hour} - Cierre: ${m.cierre_date} ${m.cierre_hour}`,
+                      date: new Date().toISOString(),
+                      read: false,
+                      link: '/habilitaciones',
+                      data: { match_id: m.id, rival: m.rival, competition: m.competition, apertura_date: m.apertura_date, apertura_hour: m.apertura_hour }
+                  };
+                  await this.addNotification(notification);
+              }
+              
               return mappedMatch;
           }
       } catch (error: any) {
@@ -1662,6 +1709,46 @@ class DataService {
               const mappedMensaje = mapMensajeFromDB(data);
               this.mensajes.push(mappedMensaje);
               this.notify();
+              
+              // Créer une notification pour le nouveau message
+              // Si le message est pour tous les consulados ou pour des consulados spécifiques
+              const isForAll = m.target_consulado_id === 'ALL' || !m.target_consulado_id;
+              const targetIds = m.target_ids || (isForAll ? [] : [m.target_consulado_id]);
+              
+              if (isForAll) {
+                  // Notification globale pour tous les consulados
+                  const notification: AppNotification = {
+                      id: crypto.randomUUID(),
+                      type: 'MESSAGE',
+                      title: `Nuevo Mensaje: ${m.title}`,
+                      message: m.type === 'URGENTE' ? `⚠️ URGENTE: ${m.body.substring(0, 100)}...` : m.body.substring(0, 100) + '...',
+                      date: new Date().toISOString(),
+                      read: false,
+                      link: '/dashboard',
+                      data: { mensaje_id: mappedMensaje.id, type: m.type }
+                  };
+                  await this.addNotification(notification);
+              } else {
+                  // Notifications individuelles pour chaque consulado ciblé
+                  for (const consuladoId of targetIds) {
+                      if (consuladoId && consuladoId !== 'ALL') {
+                          const consulado = this.consulados.find(c => c.id === consuladoId);
+                          const notification: AppNotification = {
+                              id: crypto.randomUUID(),
+                              type: 'MESSAGE',
+                              title: `Nuevo Mensaje: ${m.title}`,
+                              message: m.type === 'URGENTE' ? `⚠️ URGENTE: ${m.body.substring(0, 100)}...` : m.body.substring(0, 100) + '...',
+                              date: new Date().toISOString(),
+                              read: false,
+                              link: '/dashboard',
+                              data: { mensaje_id: mappedMensaje.id, type: m.type, consulado_name: consulado?.name },
+                              target_consulado_id: consuladoId
+                          };
+                          await this.addNotification(notification);
+                      }
+                  }
+              }
+              
               return mappedMensaje;
           }
       } catch (error: any) {
@@ -2097,13 +2184,31 @@ class DataService {
           if ((u.role === 'PRESIDENTE' || u.role === 'REFERENTE') && u.consulado_id) {
               const consulado = this.consulados.find(c => c.id === u.consulado_id);
               if (consulado) {
-                  // Vérifier si la notification concerne leur consulado
+                  // Si la notification a un target_consulado_id, vérifier s'il correspond
+                  if (n.target_consulado_id) {
+                      if (n.target_consulado_id === u.consulado_id) {
+                          return true;
+                      }
+                  }
+                  
+                  // Notifications globales (sans target_consulado_id) - pour tous les consulados
+                  if (!n.target_consulado_id && (n.type === 'HABILITACION' || n.type === 'MESSAGE' || n.type === 'SYSTEM')) {
+                      return true;
+                  }
+                  
+                  // Vérifier si la notification concerne leur consulado via les données
                   if (n.type === 'TRANSFER' && n.data && n.data.transfer_id) {
                       const transfer = this.transfers.find(t => t.id === n.data.transfer_id);
                       if (transfer && (transfer.to_consulado_name === consulado.name || transfer.from_consulado_name === consulado.name)) {
                           return true;
                       }
                   }
+                  
+                  // Pour les notifications de type SOCIO, vérifier si le socio appartient au consulado
+                  if (n.type === 'SOCIO' && n.data && n.data.consulado_name === consulado.name) {
+                      return true;
+                  }
+                  
                   // Pour les autres types, vérifier si le message mentionne le consulado
                   if (n.message && n.message.includes(consulado.name)) {
                       return true;

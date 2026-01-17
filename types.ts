@@ -236,13 +236,14 @@ export interface UserSession {
 
 export interface AppNotification {
   id: string;
-  type: 'TRANSFER' | 'SYSTEM' | 'ALERT';
+  type: 'TRANSFER' | 'SYSTEM' | 'ALERT' | 'MESSAGE' | 'HABILITACION' | 'SOCIO';
   title: string;
   message: string;
   date: string;
   read: boolean; // if true, removed from dropdown but visible in full page
   link?: string;
   data?: any;
+  target_consulado_id?: string; // Pour cibler un consulado spécifique (null = tous)
 }
 
 // Historique des présences aux matchs
