@@ -6,7 +6,8 @@ import { PageTransition } from './components/PageTransition';
 import { UserSession } from './types';
 import { dataService } from './services/dataService';
 import { BocaLogoSVG } from './constants';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, WifiOff, RefreshCw } from 'lucide-react';
+import { supabase } from './lib/supabase';
 
 // Error Boundary pour capturer les erreurs
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
@@ -146,87 +147,211 @@ const FullScreenLoader = ({ message }: { message?: string }) => {
     );
 };
 
+// Écran d'erreur de connexion à la base de données
+const ConnectionErrorScreen = ({ onRetry, errorMessage }: { onRetry: () => void; errorMessage?: string }) => {
+    const [isRetrying, setIsRetrying] = useState(false);
+    
+    const handleRetry = async () => {
+        setIsRetrying(true);
+        await onRetry();
+        setIsRetrying(false);
+    };
+    
+    return (
+        <div className="min-h-screen bg-[#001d4a] flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+            {/* Background effects */}
+            <div className="absolute inset-0 overflow-hidden">
+                <div className="absolute -top-24 left-1/4 w-96 h-96 bg-red-500/10 rounded-full blur-[120px]"></div>
+                <div className="absolute -bottom-24 right-1/4 w-96 h-96 bg-[#FCB131]/10 rounded-full blur-[120px]"></div>
+            </div>
+            
+            <div className="relative z-10 flex flex-col items-center max-w-md">
+                {/* Logo */}
+                <div className="relative mb-6">
+                    <BocaLogoSVG className="w-24 h-24 relative z-10 opacity-50" />
+                </div>
+                
+                {/* Icon */}
+                <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mb-6 border-2 border-red-500/50">
+                    <WifiOff size={40} className="text-red-400" />
+                </div>
+                
+                {/* Title */}
+                <h2 className="oswald text-2xl font-black text-white uppercase tracking-widest mb-4">
+                    Error de Conexión
+                </h2>
+                
+                {/* Message */}
+                <p className="text-white/70 text-sm mb-2 leading-relaxed">
+                    No se pudo establecer conexión con la base de datos.
+                </p>
+                <p className="text-white/50 text-xs mb-6 leading-relaxed">
+                    Verifique su conexión a internet e intente nuevamente.
+                </p>
+                
+                {/* Error details */}
+                {errorMessage && (
+                    <div className="w-full bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6">
+                        <p className="text-red-300 text-[10px] font-mono break-all">
+                            {errorMessage}
+                        </p>
+                    </div>
+                )}
+                
+                {/* Retry button */}
+                <button
+                    onClick={handleRetry}
+                    disabled={isRetrying}
+                    className={`flex items-center gap-3 px-8 py-4 rounded-xl font-black uppercase text-sm tracking-widest transition-all ${
+                        isRetrying 
+                            ? 'bg-white/10 text-white/50 cursor-not-allowed' 
+                            : 'bg-[#FCB131] text-[#001d4a] hover:bg-[#FFD23F] hover:shadow-[0_0_30px_rgba(252,177,49,0.4)]'
+                    }`}
+                >
+                    <RefreshCw size={18} className={isRetrying ? 'animate-spin' : ''} />
+                    {isRetrying ? 'Conectando...' : 'Reintentar Conexión'}
+                </button>
+                
+                {/* Help text */}
+                <p className="text-white/30 text-[10px] mt-8 uppercase tracking-widest">
+                    Si el problema persiste, contacte al administrador
+                </p>
+            </div>
+        </div>
+    );
+};
+
 export const App: React.FC = () => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [isInitializing, setIsInitializing] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isDbConnected, setIsDbConnected] = useState(false);
+
+  // Fonction pour tester la connexion à la base de données
+  const testDatabaseConnection = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      console.log('🔌 Test de connexion à la base de données...');
+      
+      // Test simple: essayer de récupérer une ligne de la table users avec timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout: La connexion a pris trop de temps')), 10000)
+      );
+      
+      const queryPromise = supabase
+        .from('users')
+        .select('id')
+        .limit(1);
+      
+      const { error } = await Promise.race([queryPromise, timeoutPromise]) as any;
+      
+      if (error) {
+        console.error('❌ Erreur de connexion BDD:', error);
+        return { success: false, error: error.message || 'Erreur de connexion à la base de données' };
+      }
+      
+      console.log('✅ Connexion à la base de données établie');
+      return { success: true };
+    } catch (err: any) {
+      console.error('❌ Exception lors du test de connexion:', err);
+      return { success: false, error: err.message || 'Impossible de se connecter à la base de données' };
+    }
+  };
+
+  // Fonction d'initialisation
+  const initApp = useCallback(async () => {
+    setLoading(true);
+    setConnectionError(null);
+    setIsDbConnected(false);
+    
+    try {
+        // 0. Vérifier d'abord la connexion à la base de données
+        const storedUser = localStorage.getItem('cabj_session');
+        const isOfflineMode = storedUser ? JSON.parse(storedUser).name === 'Modo Offline' : false;
+        
+        if (!isOfflineMode) {
+            setIsInitializing(true);
+            
+            const connectionTest = await testDatabaseConnection();
+            if (!connectionTest.success) {
+                setConnectionError(connectionTest.error || 'Erreur de connexion');
+                setLoading(false);
+                setIsInitializing(false);
+                return;
+            }
+            
+            setIsDbConnected(true);
+        }
+        
+        // 1. Settings
+        const settings = dataService.getAppSettings();
+        if (settings) {
+            if (settings.primaryColor) document.documentElement.style.setProperty('--boca-blue', settings.primaryColor);
+            if (settings.secondaryColor) document.documentElement.style.setProperty('--boca-gold', settings.secondaryColor);
+            
+            // Mettre à jour le favicon si configuré
+            if (settings.faviconUrl && settings.faviconUrl.length > 50) {
+                const faviconLink = document.querySelector('#favicon-link') as HTMLLinkElement;
+                if (faviconLink) {
+                    // Déterminer le type de fichier depuis l'URL
+                    const faviconUrl = settings.faviconUrl;
+                    let mimeType = 'image/png';
+                    if (faviconUrl.includes('data:image/svg')) mimeType = 'image/svg+xml';
+                    else if (faviconUrl.includes('data:image/x-icon') || faviconUrl.includes('.ico')) mimeType = 'image/x-icon';
+                    else if (faviconUrl.includes('data:image/jpeg') || faviconUrl.includes('.jpg') || faviconUrl.includes('.jpeg')) mimeType = 'image/jpeg';
+                    
+                    faviconLink.href = faviconUrl;
+                    faviconLink.type = mimeType;
+                    
+                    // Mettre à jour aussi apple-touch-icon
+                    const appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement;
+                    if (appleTouchIcon) {
+                        appleTouchIcon.href = faviconUrl;
+                    }
+                } else {
+                    // Créer le lien favicon s'il n'existe pas
+                    const link = document.createElement('link');
+                    link.id = 'favicon-link';
+                    link.rel = 'icon';
+                    link.type = 'image/png';
+                    link.href = settings.faviconUrl;
+                    document.head.appendChild(link);
+                }
+            }
+        }
+
+        // 2. Always initialize data service (même sans utilisateur pour que le login fonctionne)
+        console.log('🚀 Initialisation de l\'application...');
+        
+        await dataService.initializeData(isOfflineMode);
+        console.log('✅ DataService initialisé');
+
+        // 3. Auth Check - Restaurer la session si elle existe
+        if (storedUser) {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+            console.log('✅ Session utilisateur restaurée:', parsedUser.name);
+          } catch (error) {
+            console.error("❌ Erreur lors de la restauration de la session:", error);
+            localStorage.removeItem('cabj_session');
+          }
+        } else {
+          console.log('ℹ️ Aucune session utilisateur trouvée - Affichage de la page de login');
+        }
+    } catch (error: any) {
+        console.error('❌ Erreur lors de l\'initialisation de l\'application:', error);
+        setConnectionError(error.message || 'Erreur lors de l\'initialisation');
+    } finally {
+        setLoading(false);
+        setIsInitializing(false);
+    }
+  }, []);
 
   // Initial Load
   useEffect(() => {
-    const initApp = async () => {
-        try {
-            // 1. Settings
-            const settings = dataService.getAppSettings();
-            if (settings) {
-                if (settings.primaryColor) document.documentElement.style.setProperty('--boca-blue', settings.primaryColor);
-                if (settings.secondaryColor) document.documentElement.style.setProperty('--boca-gold', settings.secondaryColor);
-                
-                // Mettre à jour le favicon si configuré
-                if (settings.faviconUrl && settings.faviconUrl.length > 50) {
-                    const faviconLink = document.querySelector('#favicon-link') as HTMLLinkElement;
-                    if (faviconLink) {
-                        // Déterminer le type de fichier depuis l'URL
-                        const faviconUrl = settings.faviconUrl;
-                        let mimeType = 'image/png';
-                        if (faviconUrl.includes('data:image/svg')) mimeType = 'image/svg+xml';
-                        else if (faviconUrl.includes('data:image/x-icon') || faviconUrl.includes('.ico')) mimeType = 'image/x-icon';
-                        else if (faviconUrl.includes('data:image/jpeg') || faviconUrl.includes('.jpg') || faviconUrl.includes('.jpeg')) mimeType = 'image/jpeg';
-                        
-                        faviconLink.href = faviconUrl;
-                        faviconLink.type = mimeType;
-                        
-                        // Mettre à jour aussi apple-touch-icon
-                        const appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement;
-                        if (appleTouchIcon) {
-                            appleTouchIcon.href = faviconUrl;
-                        }
-                    } else {
-                        // Créer le lien favicon s'il n'existe pas
-                        const link = document.createElement('link');
-                        link.id = 'favicon-link';
-                        link.rel = 'icon';
-                        link.type = 'image/png';
-                        link.href = settings.faviconUrl;
-                        document.head.appendChild(link);
-                    }
-                }
-            }
-
-            // 2. Always initialize data service (même sans utilisateur pour que le login fonctionne)
-            console.log('🚀 Initialisation de l\'application...');
-            const storedUser = localStorage.getItem('cabj_session');
-            const isOfflineMode = storedUser ? JSON.parse(storedUser).name === 'Modo Offline' : false;
-            
-            // Afficher le loader seulement si on charge vraiment des données (pas en mode offline)
-            if (!isOfflineMode) {
-                setIsInitializing(true);
-            }
-            
-            await dataService.initializeData(isOfflineMode);
-            console.log('✅ DataService initialisé');
-
-            // 3. Auth Check - Restaurer la session si elle existe
-            if (storedUser) {
-              try {
-                const parsedUser = JSON.parse(storedUser);
-                setUser(parsedUser);
-                console.log('✅ Session utilisateur restaurée:', parsedUser.name);
-              } catch (error) {
-                console.error("❌ Erreur lors de la restauration de la session:", error);
-                localStorage.removeItem('cabj_session');
-              }
-            } else {
-              console.log('ℹ️ Aucune session utilisateur trouvée - Affichage de la page de login');
-            }
-        } catch (error) {
-            console.error('❌ Erreur lors de l\'initialisation de l\'application:', error);
-        } finally {
-            setLoading(false);
-            setIsInitializing(false);
-        }
-    };
     initApp();
-  }, []);
+  }, [initApp]);
 
   // Mettre à jour le favicon quand les settings changent
   useEffect(() => {
@@ -304,6 +429,11 @@ export const App: React.FC = () => {
       window.removeEventListener('keydown', reset);
     };
   }, [user, logout]);
+
+  // Afficher l'écran d'erreur de connexion si la BDD n'est pas accessible
+  if (connectionError && !isDbConnected) {
+      return <ConnectionErrorScreen onRetry={initApp} errorMessage={connectionError} />;
+  }
 
   // Afficher le loader seulement lors d'un chargement réel (initialisation des données)
   // Le loader ne s'affiche que si :
