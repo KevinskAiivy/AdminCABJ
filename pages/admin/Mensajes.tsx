@@ -29,6 +29,7 @@ export const Mensajes = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'archived'>('all');
   const [showEndDate, setShowEndDate] = useState(false);
   const [showConsulados, setShowConsulados] = useState(false);
+  const [showAllMessages, setShowAllMessages] = useState(false);
 
   // Fonction pour archiver automatiquement les messages expirés
   const autoArchiveExpiredMessages = React.useCallback(async () => {
@@ -331,40 +332,62 @@ export const Mensajes = () => {
         </div>
 
         {filteredMessages.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredMessages.map(msg => (
-                    <GlassCard key={msg.id} className={`p-5 border-l-4 relative group ${msg.archived ? 'border-l-gray-400 opacity-75' : 'border-l-[#003B94]'}`}>
+            <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                {(showAllMessages ? filteredMessages : filteredMessages.slice(0, 5)).map(msg => (
+                    <GlassCard key={msg.id} className={`p-4 border-l-4 relative group ${msg.archived ? 'border-l-gray-400 opacity-75' : 'border-l-[#003B94]'}`}>
                         {msg.archived && (
-                            <div className="absolute top-2 right-2 bg-gray-200 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-gray-600 flex items-center gap-1">
+                            <div className="absolute top-2 right-2 bg-gray-200 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest text-gray-600 flex items-center gap-1">
                                 <Archive size={8} />
                                 Archivé
                             </div>
                         )}
                         <div className="flex justify-between items-start mb-2">
-                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-widest ${msg.type === 'URGENTE' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-widest ${msg.type === 'URGENTE' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
                                 {msg.type}
                             </span>
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 {!msg.archived && (
-                                    <button onClick={() => handleEdit(msg)} className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"><Edit2 size={12}/></button>
+                                    <button onClick={() => handleEdit(msg)} className="p-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"><Edit2 size={10}/></button>
                                 )}
-                                <button onClick={() => setConfirmAction({ type: 'DELETE', id: msg.id })} className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100"><Trash2 size={12}/></button>
+                                <button onClick={() => setConfirmAction({ type: 'DELETE', id: msg.id })} className="p-1 bg-red-50 text-red-600 rounded hover:bg-red-100"><Trash2 size={10}/></button>
                             </div>
                         </div>
-                        <h4 className="oswald text-lg font-black text-[#001d4a] uppercase leading-tight mb-2 truncate">{msg.title}</h4>
-                        <p className="text-[10px] text-gray-500 line-clamp-2 mb-3">{msg.body}</p>
-                        <div className="flex items-center justify-between text-[9px] font-bold text-gray-400 border-t border-gray-100 pt-2">
-                            <span className="flex items-center gap-1"><Globe size={10}/> {msg.target_consulado_name}</span>
-                            <span>{formatDateDisplay(msg.date)}</span>
+                        <h4 className="oswald text-sm font-black text-[#001d4a] uppercase leading-tight mb-1.5 truncate">{msg.title}</h4>
+                        <p className="text-[9px] text-gray-500 line-clamp-2 mb-2">{msg.body}</p>
+                        <div className="flex items-center justify-between text-[8px] font-bold text-gray-400 border-t border-gray-100 pt-2">
+                            <span className="flex items-center gap-1 truncate max-w-[60%]"><Globe size={9}/> {msg.target_consulado_name}</span>
+                            <span className="shrink-0">{formatDateDisplay(msg.date)}</span>
                         </div>
                         {msg.end_date && (
-                            <div className="text-[8px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
-                                Valide jusqu'au: {formatDateDisplay(msg.end_date)}
+                            <div className="text-[7px] text-gray-400 mt-1.5 pt-1.5 border-t border-gray-100">
+                                Hasta: {formatDateDisplay(msg.end_date)}
                             </div>
                         )}
                     </GlassCard>
                 ))}
             </div>
+            {filteredMessages.length > 5 && !showAllMessages && (
+                <div className="flex justify-center mt-6">
+                    <button 
+                        onClick={() => setShowAllMessages(true)}
+                        className="px-6 py-2.5 rounded-xl bg-[#003B94] text-white font-black uppercase text-[10px] tracking-widest hover:bg-[#001d4a] transition-all shadow-lg flex items-center gap-2"
+                    >
+                        Ver todos ({filteredMessages.length} mensajes)
+                    </button>
+                </div>
+            )}
+            {showAllMessages && filteredMessages.length > 5 && (
+                <div className="flex justify-center mt-6">
+                    <button 
+                        onClick={() => setShowAllMessages(false)}
+                        className="px-6 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all flex items-center gap-2"
+                    >
+                        Ver menos
+                    </button>
+                </div>
+            )}
+            </>
         ) : (
             <div className="text-center py-12">
                 <Archive size={48} className="mx-auto text-gray-300 mb-4" />

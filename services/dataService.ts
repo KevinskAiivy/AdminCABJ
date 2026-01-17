@@ -2174,10 +2174,11 @@ class DataService {
 
   getNotificationsForUser(u: any) { 
       // Filtrer par utilisateur selon son rôle et consulado
+      // Les notifications sont uniquement pour les PRESIDENTE et REFERENTE
       return this.notifications.filter(n => {
-          // Les SUPERADMIN et ADMIN voient toutes les notifications
+          // Les SUPERADMIN et ADMIN ne voient pas les notifications (ils ont accès à tout directement)
           if (u.role === 'SUPERADMIN' || u.role === 'ADMIN') {
-              return true;
+              return false;
           }
           
           // Les PRESIDENTE et REFERENTE voient les notifications liées à leur consulado
