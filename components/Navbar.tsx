@@ -36,8 +36,21 @@ export const Navbar = ({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [consuladoName, setConsuladoName] = useState<string>('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  
+  // Obtenir le nom du consulado de l'utilisateur connecté
+  useEffect(() => {
+    if (user.role === 'SUPERADMIN') {
+      setConsuladoName('Superadmin');
+    } else if (user.role === 'ADMIN') {
+      setConsuladoName('Admin');
+    } else if (user.consulado_id) {
+      const consulado = dataService.getConsuladoById(user.consulado_id);
+      setConsuladoName(consulado?.name || '');
+    }
+  }, [user]);
 
   // Fonction pour obtenir le lien de redirection selon le type de notification
   const getNotificationLink = (notif: AppNotification): string | null => {
@@ -184,7 +197,7 @@ export const Navbar = ({
           <div className="leading-tight hidden lg:block">
             <h1 className="text-white font-black text-sm oswald tracking-tighter uppercase">Consulados CABJ</h1>
             <p className="text-[#FCB131] text-[9px] font-black uppercase tracking-[0.2em]">
-              {user.role}
+              {consuladoName || user.role}
             </p>
           </div>
         </div>

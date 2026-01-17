@@ -58,9 +58,22 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
   // Charger les transferts quand currentConsulado est défini
   useEffect(() => {
       if (currentConsulado) {
-          console.log(`🔄 Chargement des transferts pour: ${currentConsulado}`);
+          console.log(`🔄 Chargement des transferts pour: "${currentConsulado}"`);
+          
+          // Debug: Afficher tous les transferts disponibles
+          const allTransfers = dataService.getAllTransfers();
+          console.log(`📦 Total transferts dans le système: ${allTransfers.length}`);
+          allTransfers.forEach(t => {
+              console.log(`   - ID: ${t.id}`);
+              console.log(`     From: "${t.from_consulado_name}" (ID: ${t.from_consulado_id})`);
+              console.log(`     To: "${t.to_consulado_name}" (ID: ${t.to_consulado_id})`);
+              console.log(`     Status: ${t.status}`);
+              console.log(`     Match currentConsulado (to): ${t.to_consulado_name?.trim().toLowerCase() === currentConsulado.trim().toLowerCase()}`);
+              console.log(`     Match currentConsulado (from): ${t.from_consulado_name?.trim().toLowerCase() === currentConsulado.trim().toLowerCase()}`);
+          });
+          
           const transfers = dataService.getTransfers(currentConsulado);
-          console.log(`📥 Transferts entrants: ${transfers.incoming.length}, sortants: ${transfers.outgoing.length}`);
+          console.log(`📥 Résultat filtré - Entrants: ${transfers.incoming.length}, Sortants: ${transfers.outgoing.length}`);
           setOutgoingTransfers(transfers.outgoing);
           setIncomingTransfers(transfers.incoming);
       }
