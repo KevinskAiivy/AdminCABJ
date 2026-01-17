@@ -995,39 +995,40 @@ class DataService {
           // 4. Charger Solicitudes, Notifications et TransferRequests depuis Supabase (si la table existe)
           this.loadingMessage = "Chargement des demandes...";
           try {
-              const [solicitudesResult, notificationsResult, transfersResult] = await Promise.all([
-                  supabase.from('solicitudes').select('*').catch(() => ({ data: null, error: null })),
-                  supabase.from('notifications').select('*').catch(() => ({ data: null, error: null })),
-                  supabase.from('transfer_requests').select('*').catch(() => ({ data: null, error: null }))
-              ]);
-
-              // Traitement des Solicitudes
+              // Charger les solicitudes
+              const solicitudesResult = await supabase.from('solicitudes').select('*');
               if (solicitudesResult.data && !solicitudesResult.error) {
                   this.solicitudes = solicitudesResult.data.map(mapSolicitudFromDB);
-                  if (isDevelopment) console.log(`✅ ${this.solicitudes.length} solicitudes chargées`);
+                  console.log(`✅ ${this.solicitudes.length} solicitudes chargées`);
+              } else if (solicitudesResult.error) {
+                  console.error("❌ Erreur chargement solicitudes:", solicitudesResult.error);
               }
 
-              // Traitement des Notifications
+              // Charger les notifications
+              const notificationsResult = await supabase.from('notifications').select('*');
               if (notificationsResult.data && !notificationsResult.error) {
                   this.notifications = notificationsResult.data.map(mapNotificationFromDB);
-                  if (isDevelopment) console.log(`✅ ${this.notifications.length} notifications chargées`);
+                  console.log(`✅ ${this.notifications.length} notifications chargées`);
+              } else if (notificationsResult.error) {
+                  console.error("❌ Erreur chargement notifications:", notificationsResult.error);
               }
 
-              // Traitement des TransferRequests
+              // Charger les transferts
+              const transfersResult = await supabase.from('transfer_requests').select('*');
+              console.log("🔍 Résultat brut transfer_requests:", transfersResult);
               if (transfersResult.data && !transfersResult.error) {
                   this.transfers = transfersResult.data.map(mapTransferFromDB);
-                  if (isDevelopment) {
-                      console.log(`✅ ${this.transfers.length} transferts chargés`);
-                      this.transfers.forEach(t => {
-                          console.log(`   📦 Transfer: ${t.socio_name} | ${t.from_consulado_name} → ${t.to_consulado_name} | Status: ${t.status}`);
-                      });
-                  }
+                  console.log(`✅ ${this.transfers.length} transferts chargés depuis Supabase`);
+                  this.transfers.forEach(t => {
+                      console.log(`   📦 Transfer: ${t.socio_name} | "${t.from_consulado_name}" → "${t.to_consulado_name}" | Status: ${t.status}`);
+                  });
               } else if (transfersResult.error) {
                   console.error("❌ Erreur chargement transferts:", transfersResult.error);
+              } else {
+                  console.log("⚠️ Aucun transfert trouvé dans la table transfer_requests");
               }
           } catch (error) {
-              // Les tables peuvent ne pas exister, ce n'est pas critique
-              if (isDevelopment) console.log("ℹ️ Tables solicitudes/notifications/transfer_requests non disponibles");
+              console.error("❌ Exception lors du chargement des demandes:", error);
           }
 
           // Assigner SEDE CENTRAL en arrière-plan (ne bloque pas l'initialisation)
@@ -2246,6 +2247,58 @@ async deleteConsulado(id: string) {
       } catch (error: any) {
           console.error("❌ Erreur lors de la suppression de la solicitud:", error);
           // Ne pas lever d'erreur pour ne pas bloquer l'UI
+      }
+  }
+
+  // Recharger les transferts depuis Supabase
+  async reloadTransfers() {
+      try {
+          console.log("🔄 Rechargement des transferts depuis Supabase...");
+          const { data, error } = await supabase.from('transfer_requests').select('*');
+          console.log("📦 Résultat brut:", { data, error });
+          
+          if (error) {
+              console.error("❌ Erreur lors du rechargement des transferts:", error);
+              return;
+          }
+          
+          if (data) {
+              this.transfers = data.map(mapTransferFromDB);
+              console.log(`✅ ${this.transfers.length} transferts rechargés`);
+              this.transfers.forEach(t => {
+                  console.log(`   📦 Transfer ID: ${t.id}`);
+                  console.log(`      Socio: ${t.socio_name} (${t.socio_id})`);
+                  console.log(`      From: "${t.from_consulado_name}" (${t.from_consulado_id})`);
+                  console.log(`      To: "${t.to_consulado_name}" (${t.to_consulado_id})`);
+                  console.log(`      Status: ${t.status}`);
+              });
+              this.notify();
+          } else {
+              console.log("⚠️ Aucun transfert trouvé");
+          }
+      } catch (error) {
+          console.error("❌ Exception lors du rechargement des transferts:", error);
+      }
+  }
+
+  // Recharger les notifications depuis Supabase
+  async reloadNotifications() {
+      try {
+          console.log("🔄 Rechargement des notifications depuis Supabase...");
+          const { data, error } = await supabase.from('notifications').select('*');
+          
+          if (error) {
+              console.error("❌ Erreur lors du rechargement des notifications:", error);
+              return;
+          }
+          
+          if (data) {
+              this.notifications = data.map(mapNotificationFromDB);
+              console.log(`✅ ${this.notifications.length} notifications rechargées`);
+              this.notify();
+          }
+      } catch (error) {
+          console.error("❌ Exception lors du rechargement des notifications:", error);
       }
   }
 
