@@ -209,18 +209,21 @@ export const Consulados = () => {
       return matchesSearch && matchesCountry && matchesOfficial;
     });
     
-    // Tri par nom si activé
-    if (sortOrder !== 'none') {
-      filtered = [...filtered].sort((a, b) => {
-        const nameA = (a.name || '').toLowerCase();
-        const nameB = (b.name || '').toLowerCase();
-        if (sortOrder === 'asc') {
-          return nameA.localeCompare(nameB);
-        } else {
-          return nameB.localeCompare(nameA);
-        }
-      });
-    }
+    // Tri: SEDE CENTRAL toujours en premier, puis par ordre alphabétique
+    filtered = [...filtered].sort((a, b) => {
+      const nameA = (a.name || '').toUpperCase();
+      const nameB = (b.name || '').toUpperCase();
+      
+      // SEDE CENTRAL toujours en premier
+      if (nameA === 'SEDE CENTRAL') return -1;
+      if (nameB === 'SEDE CENTRAL') return 1;
+      
+      // Puis tri alphabétique (ou selon sortOrder)
+      if (sortOrder === 'desc') {
+        return nameB.localeCompare(nameA);
+      }
+      return nameA.localeCompare(nameB);
+    });
     
     return filtered;
   }, [consulados, searchQuery, countryFilter, officialFilter, sortOrder]);
@@ -681,8 +684,7 @@ export const Consulados = () => {
             return (
             <div key={consulado.id} className="relative group">
                 <GlassCard 
-                    onClick={handleCardClick}
-                    className={`p-0 overflow-hidden h-full flex flex-col rounded-xl border transition-all duration-500 hover:-translate-y-2 backdrop-blur-xl cursor-pointer ${consulado.is_official ? 'bg-gradient-to-br from-[#FCB131] via-[#FFD23F] to-[#E6A800] border-[#001d4a]/20 shadow-[0_20px_50px_-10px_rgba(252,177,49,0.3)]' : 'bg-gradient-to-br from-white/90 via-white/70 to-white/40 border-white/60 shadow-[0_15px_40px_-5px_rgba(0,59,148,0.15)]'}`}>
+                    className={`p-0 overflow-hidden h-full flex flex-col rounded-xl border transition-all duration-500 hover:-translate-y-2 backdrop-blur-xl ${consulado.is_official ? 'bg-gradient-to-br from-[#FCB131] via-[#FFD23F] to-[#E6A800] border-[#001d4a]/20 shadow-[0_20px_50px_-10px_rgba(252,177,49,0.3)]' : 'bg-gradient-to-br from-white/90 via-white/70 to-white/40 border-white/60 shadow-[0_15px_40px_-5px_rgba(0,59,148,0.15)]'}`}>
                     <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent pointer-events-none z-10"></div>
                     <div className="h-36 relative shrink-0 overflow-hidden">
                         {consulado.banner ? (<img src={consulado.banner} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />) : (<div className="w-full h-full bg-gradient-to-br from-[#003B94] via-[#001d4a] to-black"></div>)}
@@ -690,10 +692,8 @@ export const Consulados = () => {
                         {consulado.is_official && (<div className="absolute top-3 right-3 bg-[#FCB131] w-10 h-10 rounded-full shadow-lg z-20 flex items-center justify-center animate-in zoom-in duration-500"><Star size={28} className="text-[#001d4a] fill-[#001d4a] animate-pulse" strokeWidth={0.3} /></div>)}
                         <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-[-10px] group-hover:translate-y-0 z-30">
                             <div className={`flex gap-2 ${consulado.is_official ? 'mr-12' : ''}`}>
-                                <>
-                                        <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleEdit(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white text-white hover:text-[#003B94] rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110"><Edit2 size={14} /></button>
-                                        <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); requestDelete(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-red-500 text-white hover:text-white rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110"><Trash2 size={14} /></button>
-                                    </>
+                                <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleEdit(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white text-white hover:text-[#003B94] rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110" title="Editar"><Edit2 size={14} /></button>
+                                <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); requestDelete(consulado); }} className="w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-red-500 text-white hover:text-white rounded-full backdrop-blur-md shadow-lg border border-white/30 transition-all transform hover:scale-110" title="Eliminar"><Trash2 size={14} /></button>
                             </div>
                         </div>
                     </div>
@@ -710,7 +710,15 @@ export const Consulados = () => {
                         </div>
                         <div className={`mt-auto pt-4 border-t ${consulado.is_official ? 'border-[#001d4a]/10' : 'border-[#003B94]/5'}`}>
                             <div className="grid grid-cols-3 gap-2">
-                                <div className="flex flex-col items-center justify-center p-2 bg-white/40 rounded-xl border border-white/50 shadow-sm"><Users size={14} className="text-[#003B94] mb-1 opacity-70"/><span className="text-xl font-black text-[#001d4a] oswald leading-none">{memberCount}</span><span className="text-[6px] font-bold text-gray-500 uppercase tracking-widest">Socios</span></div>
+                                <div 
+                                    onClick={handleCardClick}
+                                    className="flex flex-col items-center justify-center p-2 bg-white/40 rounded-xl border border-white/50 shadow-sm cursor-pointer hover:bg-[#003B94] hover:text-white transition-all group/socios"
+                                    title="Ver socios"
+                                >
+                                    <Users size={14} className="text-[#003B94] mb-1 opacity-70 group-hover/socios:text-white"/>
+                                    <span className="text-xl font-black text-[#001d4a] oswald leading-none group-hover/socios:text-white">{memberCount}</span>
+                                    <span className="text-[6px] font-bold text-gray-500 uppercase tracking-widest group-hover/socios:text-white/80">Ver Socios</span>
+                                </div>
                                 <div className="col-span-2 flex flex-col justify-center p-2 bg-white/40 rounded-xl border border-white/50 px-3 shadow-sm">
                                     <span className="text-[6px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">{getGenderRoleLabel('PRESIDENTE', presidentGender)}</span>
                                     <span className="text-[9px] font-black text-[#001d4a] uppercase truncate" title={consulado.president}>{consulado.president || 'Vacante'}</span>
