@@ -63,7 +63,8 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
   }, [notifications, filterType, searchQuery]);
 
   // Les notifications sont uniquement pour les présidents et référents
-  if (user.role !== 'PRESIDENTE' && user.role !== 'REFERENTE') {
+  const userRole = (user.role || '').toUpperCase();
+  if (userRole !== 'PRESIDENTE' && userRole !== 'REFERENTE') {
       return (
           <div className="max-w-2xl mx-auto py-20 px-4 text-center">
               <div className="bg-white rounded-2xl p-12 shadow-lg border border-gray-100">

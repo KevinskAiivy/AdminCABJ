@@ -2175,16 +2175,32 @@ class DataService {
   getNotificationsForUser(u: any) { 
       // Filtrer par utilisateur selon son rôle et consulado
       // Les notifications sont uniquement pour les PRESIDENTE et REFERENTE
+      const userRole = (u.role || '').toUpperCase();
       
       // Les SUPERADMIN et ADMIN ne voient pas les notifications (ils ont accès à tout directement)
-      if (u.role === 'SUPERADMIN' || u.role === 'ADMIN') {
+      if (userRole === 'SUPERADMIN' || userRole === 'ADMIN') {
           return [];
       }
       
       // Les PRESIDENTE et REFERENTE voient les notifications
-      if (u.role === 'PRESIDENTE' || u.role === 'REFERENTE') {
+      if (userRole === 'PRESIDENTE' || userRole === 'REFERENTE') {
           const consulado = u.consulado_id ? this.consulados.find(c => c.id === u.consulado_id) : null;
           const consuladoName = consulado?.name || '';
+          
+          // Si aucune notification n'existe, créer une notification de bienvenue
+          if (this.notifications.length === 0) {
+              const welcomeNotification: AppNotification = {
+                  id: 'welcome-' + u.consulado_id,
+                  type: 'SYSTEM',
+                  title: '¡Bienvenido al sistema de notificaciones!',
+                  message: `Aquí recibirás alertas sobre nuevos mensajes, habilitaciones, socios y transferencias${consuladoName ? ` para ${consuladoName}` : ''}.`,
+                  date: new Date().toISOString().split('T')[0],
+                  read: false,
+                  data: { welcome: true }
+              };
+              this.notifications.push(welcomeNotification);
+              this.notify();
+          }
           
           return this.notifications.filter(n => {
               // Notifications globales (sans target_consulado_id) - visibles par tous les présidents/référents
@@ -2221,6 +2237,11 @@ class DataService {
       
       // Par défaut, ne rien retourner
       return [];
+  }
+  
+  // Getter pour debug - retourne toutes les notifications
+  getAllNotifications() {
+      return this.notifications;
   }
   getNotificationById(id: string) { return this.notifications.find(n => n.id === id); }
   async addNotification(n: AppNotification) {
