@@ -918,10 +918,10 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                                 </div>
                                 <div className="space-y-0.5">
                                     <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Desde el</label>
-                                    <input 
-                                        type="text" 
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest" 
-                                        placeholder="jj-mm-aaaa" 
+                                    <input
+                                        type="text"
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg py-1.5 px-2.5 font-bold text-xs outline-none focus:bg-white focus:border-[#003B94]/30 text-[#001d4a] tracking-widest"
+                                        placeholder="jj-mm-aaaa"
                                         value={formatDateFromDB(formData.join_date || '')}
                                         onChange={e => {
                                             const formatted = formatDateInput(e.target.value);
@@ -933,10 +933,10 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                                 <div className="space-y-0.5">
                                     <label className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Último Pago</label>
                                     <div className="relative">
-                                        <input 
-                                            type="text" 
-                                            className="w-full bg-white border border-gray-200 rounded-lg py-1.5 px-2.5 pr-20 font-bold text-xs outline-none text-[#001d4a] tracking-widest" 
-                                            placeholder="jj-mm-aaaa" 
+                                        <input
+                                            type="text"
+                                            className="w-full bg-white border border-gray-200 rounded-lg py-1.5 px-2.5 pr-20 font-bold text-xs outline-none text-[#001d4a] tracking-widest"
+                                            placeholder="jj-mm-aaaa"
                                             value={formatDateFromDB(formData.last_month_paid || '')}
                                             onChange={e => {
                                                 const formatted = formatDateInput(e.target.value);
@@ -961,6 +961,84 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                                         })()}
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Numéro de Socio + Consulado sur la même ligne (50/50) */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#001d4a] p-3 rounded-lg border border-[#FCB131]/30 shadow-lg relative overflow-hidden">
+                            <div className="space-y-1 relative z-10">
+                                <label className="text-[8px] font-black text-[#FCB131] uppercase tracking-widest flex items-center gap-1"><BadgeCheck size={9} /> {getGenderLabel('Numéro de Socio', formData.gender)}</label>
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <input 
+                                            type="text" 
+                                            disabled={isIdLocked} 
+                                            maxLength={10} 
+                                            className={`w-full rounded-lg py-2 px-3 font-black text-xs outline-none transition-all border ${isIdLocked ? 'bg-white/10 text-white border-white/20' : idStatus === 'ERROR' ? 'bg-red-50 text-red-600 border-red-300' : 'bg-white text-[#001d4a] border-[#FCB131]'}`} 
+                                            value={tempId} 
+                                            onChange={e => checkId(e.target.value)} 
+                                        />
+                                        <button onClick={() => { setIsIdLocked(false); setIdStatus('IDLE'); setPendingIdChange(null); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-[#FCB131] transition-colors">{isIdLocked ? <Lock size={12} /> : <Unlock size={12} />}</button>
+                                    </div>
+                                    {idStatus === 'VALID' && !isIdLocked && (
+                                        <button 
+                                            onClick={() => { 
+                                                setPendingIdChange({ 
+                                                    old: selectedSocio?.numero_socio || selectedSocio?.id || '', 
+                                                    new: tempId 
+                                                }); 
+                                                setIdStatus('CONFIRMED'); 
+                                                setIsIdLocked(true); 
+                                            }} 
+                                            className="bg-[#FCB131] text-[#001d4a] px-2.5 rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-white transition-all shadow-lg"
+                                        >
+                                            Validar
+                                        </button>
+                                    )}
+                                    {idStatus === 'ERROR' && !isIdLocked && (
+                                        <button 
+                                            disabled
+                                            className="bg-gray-400 text-white px-2.5 rounded-lg font-black text-[8px] uppercase tracking-widest cursor-not-allowed opacity-50"
+                                        >
+                                            Ocupado
+                                        </button>
+                                    )}
+                                </div>
+                                {/* Alerte si le numéro est en cours de modification */}
+                                {!isIdLocked && tempId !== (selectedSocio?.numero_socio || selectedSocio?.id) && tempId.length > 0 && (
+                                    <div className={`mt-1.5 p-2 rounded-lg text-[7px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${idStatus === 'ERROR' ? 'bg-red-100 text-red-700 border border-red-200' : idStatus === 'VALID' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}>
+                                        {idStatus === 'ERROR' && <AlertTriangle size={10} />}
+                                        {idStatus === 'VALID' && <CheckCircle2 size={10} />}
+                                        {idStatus === 'ERROR' ? 'Número ya utilizado' : idStatus === 'VALID' ? 'Número disponible' : 'Verificando...'}
+                                    </div>
+                                )}
+                                {/* Message de confirmation intermédiaire */}
+                                {pendingIdChange && idStatus === 'CONFIRMED' && (
+                                    <div className="mt-1.5 bg-[#FFFCE4] border border-[#FCB131] rounded-lg p-2 flex items-center justify-between text-[8px] font-bold text-[#001d4a]">
+                                        <span className="flex items-center gap-1.5">
+                                            <CheckCircle2 size={10} className="text-[#FCB131]" />
+                                            Cambio: <span className="font-black">{pendingIdChange.old}</span> → <span className="font-black text-[#003B94]">{pendingIdChange.new}</span>
+                                        </span>
+                                        <button 
+                                            onClick={() => { 
+                                                setPendingIdChange(null); 
+                                                setIdStatus('IDLE'); 
+                                                setTempId(selectedSocio?.numero_socio || selectedSocio?.id || ''); 
+                                                setIsIdLocked(true);
+                                            }} 
+                                            className="text-red-500 hover:text-red-700 font-black uppercase text-[7px] tracking-widest"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="space-y-1 relative z-10">
+                                <label className="text-[8px] font-black text-white uppercase tracking-widest flex items-center gap-1"><Building2 size={9} /> Consulado</label>
+                                <div className="bg-white/10 rounded-lg py-2 px-3 border border-white/20">
+                                    <span className="text-white font-bold text-xs">{currentConsulado || 'SEDE CENTRAL'}</span>
+                                </div>
+                                <p className="text-white/50 text-[7px] mt-1">Para cambiar de consulado, use la sección de transferencia abajo.</p>
                             </div>
                         </div>
 
