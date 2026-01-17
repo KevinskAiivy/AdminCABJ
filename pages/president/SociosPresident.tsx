@@ -96,17 +96,25 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
 
   const calculateSocioStatus = (paymentStr: string) => {
     if (!paymentStr) return { label: 'EN DEUDA', color: 'text-amber-600 bg-amber-50', dot: 'bg-amber-500' };
-    
+
     let paymentDate: Date | null = null;
-    
+
+    // Format YYYY-MM-DD (format DB)
     if (paymentStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
         const [y, m, d] = paymentStr.split('-').map(Number);
         paymentDate = new Date(y, m - 1, d);
-    } 
+    }
+    // Format DD/MM/YYYY
     else if (paymentStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
         const [d, m, y] = paymentStr.split('/').map(Number);
         paymentDate = new Date(y, m - 1, d);
     }
+    // Format DD-MM-YYYY (format saisie)
+    else if (paymentStr.match(/^\d{2}-\d{2}-\d{4}$/)) {
+        const [d, m, y] = paymentStr.split('-').map(Number);
+        paymentDate = new Date(y, m - 1, d);
+    }
+    // Format MM/YYYY
     else if (paymentStr.length === 7 && paymentStr.includes('/')) {
         const [m, y] = paymentStr.split('/').map(Number);
         paymentDate = new Date(y, m - 1, 1);
@@ -120,7 +128,7 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
     const currentAbsMonth = now.getFullYear() * 12 + now.getMonth();
     const paymentAbsMonth = paymentDate.getFullYear() * 12 + paymentDate.getMonth();
     const diffMonths = currentAbsMonth - paymentAbsMonth;
-    
+
     if (diffMonths <= 0) return { label: 'AL DÍA', color: 'text-emerald-600 bg-emerald-50', dot: 'bg-emerald-500' };
     if (diffMonths <= 6) return { label: 'EN DEUDA', color: 'text-amber-600 bg-amber-50', dot: 'bg-amber-500' };
     return { label: 'DE BAJA', color: 'text-red-600 bg-red-50', dot: 'bg-red-500' };
