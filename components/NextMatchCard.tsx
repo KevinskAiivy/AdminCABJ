@@ -14,68 +14,83 @@ const getFlag = (code: string) => {
     return flags[code] || '🇦🇷';
 };
 
-// Flip Clock Unit - Style panneau d'affichage aéroport
-const FlipUnit = ({ value, label }: { value: number, label: string }) => {
-    const [displayValue, setDisplayValue] = useState(value);
-    const [isFlipping, setIsFlipping] = useState(false);
-    const prevValue = useRef(value);
-
-    useEffect(() => {
-        if (prevValue.current !== value) {
-            setIsFlipping(true);
-            const timeout = setTimeout(() => {
-                setDisplayValue(value);
-                setIsFlipping(false);
-            }, 300);
-            prevValue.current = value;
-            return () => clearTimeout(timeout);
-        }
-    }, [value]);
-
-    const formattedValue = displayValue.toString().padStart(2, '0');
-    const nextValue = value.toString().padStart(2, '0');
+// Circular Countdown Unit - Style moderne avec cercle de points animés
+const CircularCountdownUnit = ({ value, maxValue, label }: { value: number, maxValue: number, label: string }) => {
+    const totalDots = 60; // Nombre de points dans le cercle
+    const activeDots = Math.round((value / maxValue) * totalDots);
+    const radius = 38; // Rayon du cercle
+    const centerX = 45;
+    const centerY = 45;
 
     return (
-        <div className="flex flex-col items-center gap-1">
-            <div className="relative w-12 h-16 md:w-14 md:h-[72px]" style={{ perspective: '200px' }}>
-                {/* Panneau complet avec chiffre centré */}
-                <div className="absolute inset-0 flex flex-col rounded-lg overflow-hidden shadow-lg">
-                    {/* Partie haute */}
-                    <div className="flex-1 bg-[#FCB131] relative overflow-hidden border-t border-x border-[#FFD23F]">
-                        <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"></div>
-                    </div>
-                    {/* Ligne centrale */}
-                    <div className="h-[2px] bg-[#001d4a]/30 relative z-20"></div>
-                    {/* Partie basse */}
-                    <div className="flex-1 bg-[#E5A02D] relative overflow-hidden border-b border-x border-[#D4941F]">
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent"></div>
-                    </div>
-                </div>
+        <div className="flex flex-col items-center gap-2">
+            <div className="relative w-[90px] h-[90px] md:w-[100px] md:h-[100px]">
+                {/* SVG avec cercle de points */}
+                <svg className="w-full h-full" viewBox="0 0 90 90">
+                    {/* Points du cercle */}
+                    {Array.from({ length: totalDots }).map((_, i) => {
+                        const angle = (i / totalDots) * 2 * Math.PI - Math.PI / 2; // Commence en haut
+                        const x = centerX + radius * Math.cos(angle);
+                        const y = centerY + radius * Math.sin(angle);
+                        const isActive = i < activeDots;
+                        
+                        return (
+                            <circle
+                                key={i}
+                                cx={x}
+                                cy={y}
+                                r={isActive ? 2.5 : 1.5}
+                                className={`transition-all duration-300 ${
+                                    isActive 
+                                        ? 'fill-[#FCB131] drop-shadow-[0_0_4px_rgba(252,177,49,0.8)]' 
+                                        : 'fill-white/20'
+                                }`}
+                                style={{
+                                    filter: isActive ? 'drop-shadow(0 0 3px #FCB131)' : 'none',
+                                    transitionDelay: `${i * 5}ms`
+                                }}
+                            />
+                        );
+                    })}
+                    
+                    {/* Effet de lueur animé sur le dernier point actif */}
+                    {activeDots > 0 && (() => {
+                        const angle = ((activeDots - 1) / totalDots) * 2 * Math.PI - Math.PI / 2;
+                        const x = centerX + radius * Math.cos(angle);
+                        const y = centerY + radius * Math.sin(angle);
+                        return (
+                            <circle
+                                cx={x}
+                                cy={y}
+                                r={4}
+                                className="fill-[#FCB131] animate-ping opacity-75"
+                            />
+                        );
+                    })()}
+                </svg>
                 
-                {/* Chiffre centré par dessus */}
-                <div className="absolute inset-0 flex items-center justify-center z-10">
+                {/* Chiffre au centre */}
+                <div className="absolute inset-0 flex items-center justify-center">
                     <span 
-                        key={isFlipping ? 'flipping' : nextValue}
-                        className={`oswald text-2xl md:text-3xl font-black text-[#001d4a] leading-none tracking-tighter ${isFlipping ? 'animate-flip-number' : ''}`}
+                        key={value}
+                        className="oswald text-3xl md:text-4xl font-black text-white leading-none tracking-tight animate-count-change"
                     >
-                        {nextValue}
+                        {value.toString().padStart(2, '0')}
                     </span>
                 </div>
-
-                {/* Ombre portée */}
-                <div className="absolute -bottom-1 inset-x-1 h-2 bg-black/20 rounded-full blur-sm"></div>
             </div>
-            <span className="text-[7px] md:text-[8px] text-[#FCB131] font-black uppercase tracking-[0.15em] opacity-80">{label}</span>
+            
+            {/* Label */}
+            <span className="text-[9px] md:text-[10px] text-white/70 font-bold uppercase tracking-[0.2em]">{label}</span>
 
-            {/* CSS pour l'animation */}
+            {/* CSS pour les animations */}
             <style>{`
-                @keyframes flipNumber {
-                    0% { transform: scaleY(1); opacity: 1; }
-                    50% { transform: scaleY(0); opacity: 0.5; }
-                    100% { transform: scaleY(1); opacity: 1; }
+                @keyframes countChange {
+                    0% { transform: scale(1.1); opacity: 0.7; }
+                    100% { transform: scale(1); opacity: 1; }
                 }
-                .animate-flip-number {
-                    animation: flipNumber 0.3s ease-in-out;
+                .animate-count-change {
+                    animation: countChange 0.3s ease-out;
                 }
             `}</style>
         </div>
@@ -390,15 +405,12 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
                   {formatDateDisplay(match.date)}
               </span>
               
-              {/* Countdown - Style panneau d'affichage aéroport */}
-              <div className="flex items-center gap-2 bg-black/40 backdrop-blur-xl px-6 py-3 rounded-xl border border-white/10 shadow-lg">
-                  <FlipUnit value={timeLeft.days} label="DÍAS" />
-                  <span className="oswald text-lg text-[#FCB131] mt-[-12px] font-bold animate-pulse">:</span>
-                  <FlipUnit value={timeLeft.hours} label="HRS" />
-                  <span className="oswald text-lg text-[#FCB131] mt-[-12px] font-bold animate-pulse">:</span>
-                  <FlipUnit value={timeLeft.mins} label="MIN" />
-                  <span className="oswald text-lg text-[#FCB131] mt-[-12px] font-bold animate-pulse">:</span>
-                  <FlipUnit value={timeLeft.secs} label="SEG" />
+              {/* Countdown - Style cercles animés */}
+              <div className="flex items-center gap-4 md:gap-6">
+                  <CircularCountdownUnit value={timeLeft.days} maxValue={30} label="DÍAS" />
+                  <CircularCountdownUnit value={timeLeft.hours} maxValue={24} label="HORAS" />
+                  <CircularCountdownUnit value={timeLeft.mins} maxValue={60} label="MINUTOS" />
+                  <CircularCountdownUnit value={timeLeft.secs} maxValue={60} label="SEGUNDOS" />
               </div>
           </div>
 
