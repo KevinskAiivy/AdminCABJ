@@ -14,7 +14,7 @@ const getFlag = (code: string) => {
     return flags[code] || '🇦🇷';
 };
 
-// Flip Clock Unit - Style panneau d'affichage aéroport
+// Flip Clock Unit - Style panneau d'affichage aéroport (GRANDE TAILLE)
 const FlipUnit = ({ value, label }: { value: number, label: string }) => {
     const [displayValue, setDisplayValue] = useState(value);
     const [isFlipping, setIsFlipping] = useState(false);
@@ -23,7 +23,6 @@ const FlipUnit = ({ value, label }: { value: number, label: string }) => {
     useEffect(() => {
         if (prevValue.current !== value) {
             setIsFlipping(true);
-            // Après l'animation, mettre à jour la valeur
             const timeout = setTimeout(() => {
                 setDisplayValue(value);
                 setIsFlipping(false);
@@ -37,44 +36,44 @@ const FlipUnit = ({ value, label }: { value: number, label: string }) => {
     const nextValue = value.toString().padStart(2, '0');
 
     return (
-        <div className="flex flex-col items-center gap-1">
-            <div className="relative w-12 h-16 md:w-14 md:h-[72px]" style={{ perspective: '200px' }}>
+        <div className="flex flex-col items-center gap-2">
+            <div className="relative w-16 h-20 md:w-20 md:h-24" style={{ perspective: '300px' }}>
                 {/* Panneau statique du haut */}
-                <div className="absolute inset-x-0 top-0 h-1/2 bg-[#FCB131] rounded-t-lg overflow-hidden border-t border-x border-[#FFD23F] z-10">
-                    <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"></div>
+                <div className="absolute inset-x-0 top-0 h-1/2 bg-[#FCB131] rounded-t-xl overflow-hidden border-2 border-b-0 border-[#FFD23F] z-10 shadow-lg">
+                    <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent"></div>
                     <div className="absolute inset-0 flex items-end justify-center pb-0">
-                        <span className="oswald text-2xl md:text-3xl font-black text-[#001d4a] leading-none tracking-tighter" style={{ clipPath: 'inset(0 0 50% 0)' }}>
+                        <span className="oswald text-4xl md:text-5xl font-black text-[#001d4a] leading-none tracking-tighter drop-shadow-sm" style={{ clipPath: 'inset(0 0 50% 0)' }}>
                             {isFlipping ? formattedValue : nextValue}
                         </span>
                     </div>
                 </div>
 
                 {/* Panneau statique du bas */}
-                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[#E5A02D] rounded-b-lg overflow-hidden border-b border-x border-[#D4941F] z-10">
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent"></div>
+                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[#E5A02D] rounded-b-xl overflow-hidden border-2 border-t-0 border-[#CC8800] z-10 shadow-lg">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/15 to-transparent"></div>
                     <div className="absolute inset-0 flex items-start justify-center pt-0">
-                        <span className="oswald text-2xl md:text-3xl font-black text-[#001d4a] leading-none tracking-tighter" style={{ clipPath: 'inset(50% 0 0 0)' }}>
+                        <span className="oswald text-4xl md:text-5xl font-black text-[#001d4a] leading-none tracking-tighter drop-shadow-sm" style={{ clipPath: 'inset(50% 0 0 0)' }}>
                             {nextValue}
                         </span>
                     </div>
                 </div>
 
                 {/* Ligne centrale (séparation) */}
-                <div className="absolute inset-x-0 top-1/2 h-[2px] bg-[#001d4a]/30 z-30 transform -translate-y-1/2"></div>
+                <div className="absolute inset-x-0 top-1/2 h-[3px] bg-[#001d4a]/40 z-30 transform -translate-y-1/2 shadow-sm"></div>
 
                 {/* Panneau qui flip (haut vers bas) */}
                 {isFlipping && (
                     <div 
-                        className="absolute inset-x-0 top-0 h-1/2 bg-[#FCB131] rounded-t-lg overflow-hidden border-t border-x border-[#FFD23F] z-20 origin-bottom"
+                        className="absolute inset-x-0 top-0 h-1/2 bg-[#FCB131] rounded-t-xl overflow-hidden border-2 border-b-0 border-[#FFD23F] z-20 origin-bottom"
                         style={{ 
                             animation: 'flipTop 0.3s ease-in forwards',
                             transformStyle: 'preserve-3d',
                             backfaceVisibility: 'hidden'
                         }}
                     >
-                        <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"></div>
+                        <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent"></div>
                         <div className="absolute inset-0 flex items-end justify-center pb-0">
-                            <span className="oswald text-2xl md:text-3xl font-black text-[#001d4a] leading-none tracking-tighter" style={{ clipPath: 'inset(0 0 50% 0)' }}>
+                            <span className="oswald text-4xl md:text-5xl font-black text-[#001d4a] leading-none tracking-tighter drop-shadow-sm" style={{ clipPath: 'inset(0 0 50% 0)' }}>
                                 {formattedValue}
                             </span>
                         </div>
@@ -84,7 +83,7 @@ const FlipUnit = ({ value, label }: { value: number, label: string }) => {
                 {/* Panneau qui apparaît (bas) */}
                 {isFlipping && (
                     <div 
-                        className="absolute inset-x-0 bottom-0 h-1/2 bg-[#E5A02D] rounded-b-lg overflow-hidden border-b border-x border-[#D4941F] z-20 origin-top"
+                        className="absolute inset-x-0 bottom-0 h-1/2 bg-[#E5A02D] rounded-b-xl overflow-hidden border-2 border-t-0 border-[#CC8800] z-20 origin-top"
                         style={{ 
                             animation: 'flipBottom 0.3s ease-out 0.15s forwards',
                             transformStyle: 'preserve-3d',
@@ -92,19 +91,19 @@ const FlipUnit = ({ value, label }: { value: number, label: string }) => {
                             transform: 'rotateX(90deg)'
                         }}
                     >
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent"></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/15 to-transparent"></div>
                         <div className="absolute inset-0 flex items-start justify-center pt-0">
-                            <span className="oswald text-2xl md:text-3xl font-black text-[#001d4a] leading-none tracking-tighter" style={{ clipPath: 'inset(50% 0 0 0)' }}>
+                            <span className="oswald text-4xl md:text-5xl font-black text-[#001d4a] leading-none tracking-tighter drop-shadow-sm" style={{ clipPath: 'inset(50% 0 0 0)' }}>
                                 {nextValue}
                             </span>
                         </div>
                     </div>
                 )}
 
-                {/* Ombre portée */}
-                <div className="absolute -bottom-1 inset-x-1 h-2 bg-black/20 rounded-full blur-sm"></div>
+                {/* Ombre portée plus prononcée */}
+                <div className="absolute -bottom-2 inset-x-2 h-3 bg-black/30 rounded-full blur-md"></div>
             </div>
-            <span className="text-[7px] md:text-[8px] text-[#FCB131] font-black uppercase tracking-[0.15em] opacity-80">{label}</span>
+            <span className="text-[10px] md:text-xs text-[#FCB131] font-black uppercase tracking-[0.2em]">{label}</span>
 
             {/* CSS pour les animations flip */}
             <style>{`
@@ -430,13 +429,13 @@ export const NextMatchCard = ({ match, userTimezone, userCountryCode }: NextMatc
               </span>
               
               {/* Countdown - Style panneau d'affichage aéroport */}
-              <div className="flex items-center gap-3 bg-black/50 backdrop-blur-xl px-6 py-4 rounded-2xl border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+              <div className="flex items-center gap-4 md:gap-5 bg-gradient-to-b from-[#001d4a] to-[#000d24] backdrop-blur-xl px-8 py-6 rounded-2xl border-2 border-[#FCB131]/30 shadow-[0_20px_60px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.1)]">
                   <FlipUnit value={timeLeft.days} label="DÍAS" />
-                  <span className="oswald text-2xl text-[#FCB131] mt-[-16px] font-black">:</span>
+                  <span className="oswald text-4xl md:text-5xl text-[#FCB131] mt-[-24px] font-black drop-shadow-[0_0_10px_rgba(252,177,49,0.5)]">:</span>
                   <FlipUnit value={timeLeft.hours} label="HRS" />
-                  <span className="oswald text-2xl text-[#FCB131] mt-[-16px] font-black">:</span>
+                  <span className="oswald text-4xl md:text-5xl text-[#FCB131] mt-[-24px] font-black drop-shadow-[0_0_10px_rgba(252,177,49,0.5)]">:</span>
                   <FlipUnit value={timeLeft.mins} label="MIN" />
-                  <span className="oswald text-2xl text-[#FCB131] mt-[-16px] font-black">:</span>
+                  <span className="oswald text-4xl md:text-5xl text-[#FCB131] mt-[-24px] font-black drop-shadow-[0_0_10px_rgba(252,177,49,0.5)]">:</span>
                   <FlipUnit value={timeLeft.secs} label="SEG" />
               </div>
           </div>
