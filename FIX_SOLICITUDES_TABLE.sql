@@ -1,94 +1,109 @@
 -- =====================================================
--- SCRIPT RAPIDE: Corriger/Créer la table solicitudes
--- =====================================================
--- Exécutez ce script dans Supabase SQL Editor
+-- SCRIPT DE VÉRIFICATION ET CORRECTION DE LA TABLE SOLICITUDES
 -- =====================================================
 
--- 1. Créer la table si elle n'existe pas
-CREATE TABLE IF NOT EXISTS public.solicitudes (
+-- 1. Vérifier si la table existe
+SELECT EXISTS (
+    SELECT FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name = 'solicitudes'
+) AS table_exists;
+
+-- 2. Si la table n'existe pas, la créer
+CREATE TABLE IF NOT EXISTS solicitudes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    match_id BIGINT NOT NULL,
+    match_id TEXT NOT NULL,
     socio_id TEXT NOT NULL,
     socio_name TEXT NOT NULL,
     socio_dni TEXT,
     socio_category TEXT,
     consulado TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'PENDING',
-    cancellation_requested BOOLEAN NOT NULL DEFAULT FALSE,
-    cancellation_rejected BOOLEAN NOT NULL DEFAULT FALSE,
-    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    cancellation_requested BOOLEAN DEFAULT false,
+    cancellation_rejected BOOLEAN DEFAULT false,
+    timestamp TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Ajouter les colonnes manquantes si la table existe déjà
-DO $$
-BEGIN
-    -- cancellation_requested
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                   WHERE table_schema = 'public' 
-                   AND table_name = 'solicitudes' 
-                   AND column_name = 'cancellation_requested') THEN
-        ALTER TABLE public.solicitudes ADD COLUMN cancellation_requested BOOLEAN NOT NULL DEFAULT FALSE;
-        RAISE NOTICE '✅ Colonne cancellation_requested ajoutée';
-    ELSE
-        RAISE NOTICE 'ℹ️ Colonne cancellation_requested existe déjà';
-    END IF;
-    
-    -- cancellation_rejected
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                   WHERE table_schema = 'public' 
-                   AND table_name = 'solicitudes' 
-                   AND column_name = 'cancellation_rejected') THEN
-        ALTER TABLE public.solicitudes ADD COLUMN cancellation_rejected BOOLEAN NOT NULL DEFAULT FALSE;
-        RAISE NOTICE '✅ Colonne cancellation_rejected ajoutée';
-    ELSE
-        RAISE NOTICE 'ℹ️ Colonne cancellation_rejected existe déjà';
-    END IF;
-END $$;
-
--- 3. Créer les index
-CREATE INDEX IF NOT EXISTS idx_solicitudes_match_id ON public.solicitudes(match_id);
-CREATE INDEX IF NOT EXISTS idx_solicitudes_consulado ON public.solicitudes(consulado);
-CREATE INDEX IF NOT EXISTS idx_solicitudes_status ON public.solicitudes(status);
-CREATE INDEX IF NOT EXISTS idx_solicitudes_cancellation ON public.solicitudes(cancellation_requested);
-
--- 4. Désactiver RLS temporairement pour permettre l'accès (IMPORTANT pour le développement)
-ALTER TABLE public.solicitudes DISABLE ROW LEVEL SECURITY;
-
--- OU si vous voulez garder RLS activé, créez une politique permissive:
--- ALTER TABLE public.solicitudes ENABLE ROW LEVEL SECURITY;
--- DROP POLICY IF EXISTS "allow_all" ON public.solicitudes;
--- CREATE POLICY "allow_all" ON public.solicitudes FOR ALL USING (true) WITH CHECK (true);
-
--- 5. Vérification
+-- 3. Vérifier la structure de la table
 SELECT 
     column_name, 
     data_type, 
     is_nullable,
     column_default
 FROM information_schema.columns 
-WHERE table_schema = 'public' 
-AND table_name = 'solicitudes'
+WHERE table_name = 'solicitudes'
 ORDER BY ordinal_position;
 
--- Message final
-DO $$
+-- 4. Ajouter les colonnes manquantes si nécessaire
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS match_id TEXT;
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS socio_id TEXT;
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS socio_name TEXT;
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS socio_dni TEXT;
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS socio_category TEXT;
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS consulado TEXT;
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'PENDING';
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS cancellation_requested BOOLEAN DEFAULT false;
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS cancellation_rejected BOOLEAN DEFAULT false;
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS timestamp TIMESTAMPTZ DEFAULT NOW();
+
+-- 5. Activer RLS (Row Level Security)
+ALTER TABLE solicitudes ENABLE ROW LEVEL SECURITY;
+
+-- 6. Supprimer les anciennes politiques si elles existent
+DROP POLICY IF EXISTS "solicitudes_select_policy" ON solicitudes;
+DROP POLICY IF EXISTS "solicitudes_insert_policy" ON solicitudes;
+DROP POLICY IF EXISTS "solicitudes_update_policy" ON solicitudes;
+DROP POLICY IF EXISTS "solicitudes_delete_policy" ON solicitudes;
+DROP POLICY IF EXISTS "Enable read access for all users" ON solicitudes;
+DROP POLICY IF EXISTS "Enable insert for all users" ON solicitudes;
+DROP POLICY IF EXISTS "Enable update for all users" ON solicitudes;
+DROP POLICY IF EXISTS "Enable delete for all users" ON solicitudes;
+
+-- 7. Créer les politiques RLS permissives
+CREATE POLICY "solicitudes_select_policy" ON solicitudes
+    FOR SELECT USING (true);
+
+CREATE POLICY "solicitudes_insert_policy" ON solicitudes
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "solicitudes_update_policy" ON solicitudes
+    FOR UPDATE USING (true);
+
+CREATE POLICY "solicitudes_delete_policy" ON solicitudes
+    FOR DELETE USING (true);
+
+-- 8. Créer les index pour les performances
+CREATE INDEX IF NOT EXISTS idx_solicitudes_match_id ON solicitudes(match_id);
+CREATE INDEX IF NOT EXISTS idx_solicitudes_socio_id ON solicitudes(socio_id);
+CREATE INDEX IF NOT EXISTS idx_solicitudes_consulado ON solicitudes(consulado);
+CREATE INDEX IF NOT EXISTS idx_solicitudes_status ON solicitudes(status);
+
+-- 9. Trigger pour mettre à jour updated_at automatiquement
+CREATE OR REPLACE FUNCTION update_solicitudes_updated_at()
+RETURNS TRIGGER AS $$
 BEGIN
-    RAISE NOTICE '';
-    RAISE NOTICE '=====================================================';
-    RAISE NOTICE '✅ TABLE SOLICITUDES CONFIGURÉE AVEC SUCCÈS';
-    RAISE NOTICE '=====================================================';
-    RAISE NOTICE '';
-    RAISE NOTICE 'Colonnes importantes:';
-    RAISE NOTICE '  - status: PENDING / APPROVED / REJECTED';
-    RAISE NOTICE '  - cancellation_requested: TRUE quand annulation demandée';
-    RAISE NOTICE '  - cancellation_rejected: TRUE quand annulation refusée';
-    RAISE NOTICE '';
-    RAISE NOTICE 'Flux:';
-    RAISE NOTICE '  1. Président envoie liste -> status=PENDING';
-    RAISE NOTICE '  2. Président demande annulation -> cancellation_requested=TRUE';
-    RAISE NOTICE '  3a. Admin accepte -> solicitudes SUPPRIMÉES';
-    RAISE NOTICE '  3b. Admin refuse -> cancellation_rejected=TRUE, bouton grisé';
-    RAISE NOTICE '';
-END $$;
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_solicitudes_updated_at ON solicitudes;
+CREATE TRIGGER trigger_solicitudes_updated_at
+    BEFORE UPDATE ON solicitudes
+    FOR EACH ROW
+    EXECUTE FUNCTION update_solicitudes_updated_at();
+
+-- 10. Vérifier les données existantes
+SELECT COUNT(*) as total_solicitudes FROM solicitudes;
+
+-- 11. Test d'insertion
+/*
+INSERT INTO solicitudes (match_id, socio_id, socio_name, socio_dni, socio_category, consulado, status)
+VALUES ('test-match-id', 'test-socio-id', 'Test Socio', '12345678', 'ACTIVO', 'Test Consulado', 'PENDING')
+RETURNING *;
+*/
+
+-- 12. Commentaire sur la table
+COMMENT ON TABLE solicitudes IS 'Table des demandes d''habilitation pour les matchs';

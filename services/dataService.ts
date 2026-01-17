@@ -601,11 +601,24 @@ const mapSolicitudFromDB = (db: any): Solicitud => ({
 });
 
 const mapSolicitudToDB = (s: Partial<Solicitud>) => {
-    const payload: any = { ...s };
-    Object.keys(payload).forEach(key => {
-        if (payload[key] === undefined) payload[key] = null;
-    });
+    const payload: any = {};
+    
+    // Mapper explicitement chaque champ pour éviter les problèmes
+    if (s.id !== undefined) payload.id = s.id;
+    if (s.match_id !== undefined) payload.match_id = String(s.match_id); // Convertir en string pour UUID
+    if (s.socio_id !== undefined) payload.socio_id = s.socio_id;
+    if (s.socio_name !== undefined) payload.socio_name = s.socio_name;
+    if (s.socio_dni !== undefined) payload.socio_dni = s.socio_dni;
+    if (s.socio_category !== undefined) payload.socio_category = s.socio_category;
+    if (s.consulado !== undefined) payload.consulado = s.consulado;
+    if (s.status !== undefined) payload.status = s.status;
+    if (s.cancellation_requested !== undefined) payload.cancellation_requested = s.cancellation_requested;
+    if (s.cancellation_rejected !== undefined) payload.cancellation_rejected = s.cancellation_rejected;
+    if (s.timestamp !== undefined) payload.timestamp = s.timestamp;
+    
+    // S'assurer que timestamp est présent
     if (!payload.timestamp) payload.timestamp = new Date().toISOString();
+    
     return payload;
 };
 
@@ -2054,46 +2067,60 @@ async deleteConsulado(id: string) {
       return res;
   }
   getSolicitudById(id: string) { return this.solicitudes.find(s => s.id === id); }
-  async createSolicitud(s: Solicitud) { 
+  async createSolicitud(s: Solicitud) {
       try {
-          const payload = mapSolicitudToDB(s);
           // S'assurer que l'ID est présent
-          if (s.id) {
-              payload.id = s.id;
-          } else {
-              payload.id = crypto.randomUUID();
-          }
-          // Ajouter localement immédiatement
-          const solicitud: Solicitud = { ...s, id: payload.id };
-          this.solicitudes.push(solicitud);
-          this.notify();
+          const id = s.id || crypto.randomUUID();
+          const solicitudWithId: Solicitud = { ...s, id };
           
+          const payload = mapSolicitudToDB(solicitudWithId);
+          
+          console.log("📝 Création solicitud - Payload:", JSON.stringify(payload, null, 2));
+          
+          // Ajouter localement immédiatement
+          this.solicitudes.push(solicitudWithId);
+          this.notify();
+
           // Sauvegarder dans Supabase (si la table existe)
           try {
               const { data, error } = await supabase.from('solicitudes').insert([payload]).select().single();
               if (error) {
-                  console.error("❌ Erreur lors de la création de la solicitud:", error);
+                  console.error("❌ Erreur Supabase lors de la création de la solicitud:", error);
+                  console.error("❌ Code erreur:", error.code);
+                  console.error("❌ Message:", error.message);
+                  console.error("❌ Details:", error.details);
+                  console.error("❌ Hint:", error.hint);
                   // Ne pas bloquer si la table n'existe pas
                   if (error.code !== '42P01') { // Table doesn't exist
+                      // Retirer de la liste locale si erreur DB
+                      this.solicitudes = this.solicitudes.filter(x => x.id !== id);
+                      this.notify();
                       throw error;
                   }
               } else if (data) {
+                  console.log("✅ Solicitud créée dans Supabase:", data);
                   const mappedSolicitud = mapSolicitudFromDB(data);
                   // Mettre à jour avec les données de la DB
-                  this.solicitudes = this.solicitudes.map(x => x.id === solicitud.id ? mappedSolicitud : x);
+                  this.solicitudes = this.solicitudes.map(x => x.id === id ? mappedSolicitud : x);
                   this.notify();
                   return mappedSolicitud;
               }
           } catch (dbError: any) {
+              console.error("❌ Exception DB lors de la création de la solicitud:", dbError);
               // Si la table n'existe pas, continuer avec la version locale
               if (dbError.code === '42P01') {
                   console.log("ℹ️ Table solicitudes non disponible, utilisation du stockage local");
+              } else {
+                  // Retirer de la liste locale si erreur DB
+                  this.solicitudes = this.solicitudes.filter(x => x.id !== id);
+                  this.notify();
+                  throw dbError;
               }
           }
-          
-          return solicitud;
+
+          return solicitudWithId;
       } catch (error: any) {
-          console.error("❌ Erreur lors de la création de la solicitud:", error);
+          console.error("❌ Erreur générale lors de la création de la solicitud:", error);
           throw error;
       }
   }
