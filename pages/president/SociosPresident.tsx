@@ -2,9 +2,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { GlassCard } from '../../components/GlassCard';
 import { CustomSelect } from '../../components/CustomSelect';
-import { Users, Search, CheckCircle2, AlertTriangle, UserX, Edit2, Trash2, Star, X, ChevronLeft, ChevronRight, User, Save, Phone, Mail, Loader2, Building2, Lock, Unlock, ArrowRightLeft, CheckCircle, XCircle, Clock, Inbox, Send, BadgeCheck } from 'lucide-react';
+import { Users, Search, CheckCircle2, AlertTriangle, UserX, Edit2, Trash2, Star, X, ChevronLeft, ChevronRight, User, Save, Phone, Mail, Loader2, Building2, Lock, Unlock, ArrowRightLeft, CheckCircle, XCircle, Clock, Inbox, Send, BadgeCheck, Crown, MapPin, Award, Cake, History } from 'lucide-react';
 import { dataService } from '../../services/dataService';
-import { Socio, TransferRequest } from '../../types';
+import { Socio, TransferRequest, MatchAttendance, SocioMatchStats } from '../../types';
 import { getGenderRoleLabel, getGenderLabel as getGenderLabelUtil } from '../../utils/genderLabels';
 import { formatDateFromDB, formatDateToDB } from '../../utils/dateFormat';
 import { SOCIO_CATEGORIES } from '../../constants';
@@ -36,6 +36,13 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
   const [tempId, setTempId] = useState('');
   const [idStatus, setIdStatus] = useState<'IDLE' | 'ERROR' | 'VALID' | 'CONFIRMED'>('IDLE');
   const [pendingIdChange, setPendingIdChange] = useState<{old: string, new: string} | null>(null);
+  
+  // Carnet Digital states
+  const [viewSocio, setViewSocio] = useState<Socio | null>(null);
+  const [carnetTab, setCarnetTab] = useState<'INFO' | 'HISTORIAL'>('INFO');
+  const [socioHistory, setSocioHistory] = useState<MatchAttendance[]>([]);
+  const [socioStats, setSocioStats] = useState<SocioMatchStats | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   
   // Get current consulado name
   const currentConsulado = useMemo(() => {
@@ -205,6 +212,70 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
     return cleaned;
   };
 
+  // Fonction pour formater une date pour l'affichage (DD/MM/YYYY)
+  const formatDateDisplay = (dateStr?: string) => {
+    if (!dateStr) return '-';
+    // Format YYYY-MM-DD
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [y, m, d] = dateStr.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    // Format DD-MM-YYYY
+    if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) {
+      const [d, m, y] = dateStr.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    return dateStr;
+  };
+
+  // Charger l'historique d'un socio
+  const loadSocioHistory = async (socioId: string) => {
+    setIsLoadingHistory(true);
+    try {
+      const history = await dataService.getSocioHabilitacionesHistory(socioId);
+      // Convertir en MatchAttendance pour compatibilité
+      const attendanceHistory: MatchAttendance[] = history.map(h => ({
+        id: h.id,
+        match_id: h.match_id,
+        socio_id: h.socio_id,
+        status: h.attendance_status || 'PENDIENTE',
+        match_date: h.match_date,
+        match_rival: h.match_rival,
+        match_competition: h.match_competition,
+        request_status: h.request_status
+      } as MatchAttendance));
+      setSocioHistory(attendanceHistory);
+      
+      // Calculer les stats
+      const stats = await dataService.getSocioHabilitacionStats(socioId);
+      if (stats) {
+        setSocioStats({
+          total_attended: stats.total_presencias,
+          total_absent: stats.total_ausencias_sin_aviso + stats.total_ausencias_con_aviso,
+          total_cancelled: stats.total_canceladas,
+          attendance_rate: stats.tasa_asistencia || 0
+        } as SocioMatchStats);
+      }
+    } catch (error) {
+      console.error('Erreur chargement historique:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  // Ouvrir le carnet digital
+  const openCarnetDigital = (socio: Socio) => {
+    setViewSocio(socio);
+    setCarnetTab('INFO');
+    loadSocioHistory(socio.id);
+  };
+
+  // Calculer le statut DB basé sur last_month_paid
+  const getStatusForDB = (paymentStr: string): 'AL DÍA' | 'EN DEUDA' | 'DE BAJA' => {
+    const status = calculateSocioStatus(paymentStr);
+    return status.label as 'AL DÍA' | 'EN DEUDA' | 'DE BAJA';
+  };
+
   const handleEdit = (socio: Socio) => {
     setSelectedSocio(socio);
     // Convertir toutes les dates du format DB (YYYY-MM-DD) vers format affichage (DD/MM/YYYY)
@@ -309,12 +380,17 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                 const oldSocio = { ...selectedSocio };
                 try {
                     await dataService.deleteSocio(selectedSocio.id);
+                    // Calculer le statut basé sur last_month_paid
+                    const lastMonthPaidDB = formData.last_month_paid ? formatDateToDB(formData.last_month_paid) : selectedSocio.last_month_paid || null;
+                    const computedStatus = getStatusForDB(lastMonthPaidDB || '');
+                    
                     const newSocio: Socio = {
                         ...selectedSocio,
                         ...formData,
                         id: finalId,
                         numero_socio: finalNumeroSocio,
-                        last_month_paid: formData.last_month_paid ? formatDateToDB(formData.last_month_paid) : selectedSocio.last_month_paid || null,
+                        last_month_paid: lastMonthPaidDB,
+                        status: computedStatus, // Mettre à jour le statut dans la DB
                         birth_date: formData.birth_date ? formatDateToDB(formData.birth_date) : selectedSocio.birth_date || null,
                         join_date: formData.join_date ? formatDateToDB(formData.join_date) : selectedSocio.join_date || null,
                         expiration_date: formData.expiration_date ? formatDateToDB(formData.expiration_date) : selectedSocio.expiration_date || null,
@@ -329,11 +405,16 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                 }
             } else {
                 // Sinon, mettre à jour normalement le socio (sans changer le consulado)
+                // Calculer le statut basé sur last_month_paid
+                const lastMonthPaidDB = formData.last_month_paid ? formatDateToDB(formData.last_month_paid) : selectedSocio.last_month_paid || null;
+                const computedStatus = getStatusForDB(lastMonthPaidDB || '');
+                
                 const updatedSocio: Socio = {
                     ...selectedSocio,
                     ...formData,
                     numero_socio: tempId || selectedSocio.numero_socio,
-                    last_month_paid: formData.last_month_paid ? formatDateToDB(formData.last_month_paid) : selectedSocio.last_month_paid || null,
+                    last_month_paid: lastMonthPaidDB,
+                    status: computedStatus, // Mettre à jour le statut dans la DB
                     birth_date: formData.birth_date ? formatDateToDB(formData.birth_date) : selectedSocio.birth_date || null,
                     join_date: formData.join_date ? formatDateToDB(formData.join_date) : selectedSocio.join_date || null,
                     expiration_date: formData.expiration_date ? formatDateToDB(formData.expiration_date) : selectedSocio.expiration_date || null,
@@ -648,8 +729,9 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
 
                 return (
                 <GlassCard 
-                    key={socio.id} 
-                    className={`flex flex-col group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_-5px_rgba(0,29,74,0.2)] ${containerClass} p-0`}
+                    key={socio.id}
+                    onClick={() => openCarnetDigital(socio)}
+                    className={`flex flex-col group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_-5px_rgba(0,29,74,0.2)] ${containerClass} p-0 cursor-pointer`}
                     variant={variant}
                 >
                     {/* Action buttons - visibles uniquement au survol */}
@@ -1147,6 +1229,252 @@ export const SociosPresident = ({ consulado_id }: { consulado_id: string }) => {
                     </div>
                 </div>
             </div>
+        )}
+
+        {/* CARNET DIGITAL DE SOCIO */}
+        {viewSocio && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center px-2 bg-[#001d4a]/70 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="relative w-full max-w-md bg-gradient-to-br from-[#001d4a] via-[#003B94] to-[#001d4a] rounded-2xl shadow-[0_30px_60px_rgba(0,0,0,0.5)] overflow-hidden border-2 border-[#FCB131]/30 max-h-[85vh] flex flex-col">
+              {/* Header du carnet */}
+              <div className="relative p-4 pb-3 border-b border-[#FCB131]/30 bg-gradient-to-r from-[#001d4a] to-[#003B94]">
+                <button
+                  onClick={() => { setViewSocio(null); setCarnetTab('INFO'); }}
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all z-50"
+                >
+                  <X size={16} />
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-[#FCB131] flex items-center justify-center shadow-lg">
+                    <span className="text-[#001d4a] font-black text-[10px]">CABJ</span>
+                  </div>
+                  <span className="text-[#FCB131] text-[8px] font-black uppercase tracking-widest">Carnet Digital</span>
+                </div>
+
+                <div className="flex items-center gap-4 mt-3">
+                  <div className="flex-1 min-w-0">
+                    <h2 className="oswald text-lg font-black text-white uppercase tracking-tight truncate">
+                      {viewSocio.last_name}
+                    </h2>
+                    <p className="text-[#FCB131] text-sm font-bold capitalize">{viewSocio.first_name.toLowerCase()}</p>
+
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      <span className="px-2 py-0.5 rounded bg-[#FCB131] text-[#001d4a] text-[8px] font-black uppercase tracking-widest">
+                        N° {viewSocio.numero_socio || viewSocio.dni || viewSocio.id}
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-white/20 text-white text-[8px] font-black uppercase tracking-widest">
+                        {viewSocio.category}
+                      </span>
+                      {viewSocio.role && viewSocio.role !== 'SOCIO' && (
+                        <span className="px-2 py-0.5 rounded bg-green-500/80 text-white text-[8px] font-black uppercase tracking-widest flex items-center gap-0.5">
+                          {viewSocio.role === 'PRESIDENTE' && <Crown size={8} />}
+                          {viewSocio.role}
+                        </span>
+                      )}
+                    </div>
+
+                    {(() => {
+                      const status = calculateSocioStatus(viewSocio.last_month_paid || '');
+                      return (
+                        <div className={`mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded ${
+                          status.label === 'AL DÍA' ? 'bg-green-500/20 text-green-400' :
+                          status.label === 'EN DEUDA' ? 'bg-amber-500/20 text-amber-400' :
+                          'bg-red-500/20 text-red-400'
+                        }`}>
+                          {status.label === 'AL DÍA' ? <CheckCircle2 size={10} /> : <AlertTriangle size={10} />}
+                          <span className="text-[8px] font-black uppercase tracking-widest">{status.label}</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-[#FCB131]/20 bg-[#001d4a]/50">
+                <button
+                  onClick={() => setCarnetTab('INFO')}
+                  className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1 ${
+                    carnetTab === 'INFO' ? 'text-[#FCB131] border-b-2 border-[#FCB131]' : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  <User size={12} /> Información
+                </button>
+                <button
+                  onClick={() => setCarnetTab('HISTORIAL')}
+                  className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1 ${
+                    carnetTab === 'HISTORIAL' ? 'text-[#FCB131] border-b-2 border-[#FCB131]' : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  <History size={12} /> Historial
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {carnetTab === 'INFO' && (
+                  <div className="space-y-3">
+                    {/* Datos Personales */}
+                    <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                      <h3 className="text-[#FCB131] text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-1">
+                        <User size={12} /> Datos Personales
+                      </h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-white/50 text-[8px] uppercase tracking-widest block">DNI</span>
+                          <span className="text-white font-bold text-xs">{viewSocio.dni || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-white/50 text-[8px] uppercase tracking-widest block">Género</span>
+                          <span className="text-white font-bold text-xs">
+                            {viewSocio.gender === 'M' ? 'Masculino' : viewSocio.gender === 'F' ? 'Femenino' : 'No binario'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-white/50 text-[8px] uppercase tracking-widest block flex items-center gap-0.5">
+                            <Cake size={8} /> Nacimiento
+                          </span>
+                          <span className="text-white font-bold text-xs">{formatDateDisplay(viewSocio.birth_date) || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-white/50 text-[8px] uppercase tracking-widest block">Nacionalidad</span>
+                          <span className="text-white font-bold text-xs">{viewSocio.nationality || 'Argentina'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contacto */}
+                    <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                      <h3 className="text-[#FCB131] text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-1">
+                        <Phone size={12} /> Contacto
+                      </h3>
+                      <div className="space-y-1.5">
+                        {viewSocio.email && (
+                          <div className="flex items-center gap-2">
+                            <Mail size={12} className="text-[#FCB131]" />
+                            <span className="text-white font-bold text-xs truncate">{viewSocio.email}</span>
+                          </div>
+                        )}
+                        {viewSocio.phone && (
+                          <div className="flex items-center gap-2">
+                            <Phone size={12} className="text-[#FCB131]" />
+                            <span className="text-white font-bold text-xs">{viewSocio.phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Membresía */}
+                    <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                      <h3 className="text-[#FCB131] text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-1">
+                        <Award size={12} /> Membresía
+                      </h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-white/50 text-[8px] uppercase tracking-widest block">Consulado</span>
+                          <span className="text-white font-bold text-xs flex items-center gap-0.5">
+                            <MapPin size={10} className="text-[#FCB131]" />
+                            {viewSocio.consulado || 'SEDE CENTRAL'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-white/50 text-[8px] uppercase tracking-widest block">Fecha Alta</span>
+                          <span className="text-white font-bold text-xs">{formatDateDisplay(viewSocio.join_date) || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-white/50 text-[8px] uppercase tracking-widest block">Último Pago</span>
+                          <span className="text-white font-bold text-xs">{formatDateDisplay(viewSocio.last_month_paid) || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-white/50 text-[8px] uppercase tracking-widest block">Vencimiento</span>
+                          <span className="text-white font-bold text-xs">{formatDateDisplay(viewSocio.expiration_date) || '-'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {carnetTab === 'HISTORIAL' && (
+                  <div className="space-y-3">
+                    {/* Estadísticas */}
+                    {socioStats && (
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="bg-green-500/20 rounded-lg p-2 text-center border border-green-500/30">
+                          <div className="text-xl font-black text-green-400 oswald">{socioStats.total_attended}</div>
+                          <div className="text-[7px] font-bold text-green-300 uppercase tracking-widest">Presencias</div>
+                        </div>
+                        <div className="bg-red-500/20 rounded-lg p-2 text-center border border-red-500/30">
+                          <div className="text-xl font-black text-red-400 oswald">{socioStats.total_absent}</div>
+                          <div className="text-[7px] font-bold text-red-300 uppercase tracking-widest">Ausencias</div>
+                        </div>
+                        <div className="bg-amber-500/20 rounded-lg p-2 text-center border border-amber-500/30">
+                          <div className="text-xl font-black text-amber-400 oswald">{socioStats.total_cancelled}</div>
+                          <div className="text-[7px] font-bold text-amber-300 uppercase tracking-widest">Canceladas</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Historial */}
+                    <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                      <h3 className="text-[#FCB131] text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-1">
+                        <History size={12} /> Historial de Habilitaciones
+                      </h3>
+                      {isLoadingHistory ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 size={24} className="animate-spin text-[#FCB131]" />
+                        </div>
+                      ) : socioHistory.length === 0 ? (
+                        <div className="text-center py-6 text-white/50">
+                          <History size={32} className="mx-auto mb-2 opacity-30" />
+                          <p className="text-[10px] font-bold uppercase tracking-widest">Sin historial</p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-white/10 max-h-[200px] overflow-y-auto">
+                          {socioHistory.map((record) => (
+                            <div key={record.id} className="p-2 hover:bg-white/5 transition-all">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <span className="text-white font-bold text-xs">{record.match_rival}</span>
+                                  <span className="text-white/50 text-[8px] ml-2">{formatDateDisplay(record.match_date)}</span>
+                                </div>
+                                <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase ${
+                                  record.status === 'PRESENTE' ? 'bg-green-500/20 text-green-400' :
+                                  record.status === 'AUSENTE_SIN_AVISO' ? 'bg-red-500/20 text-red-400' :
+                                  record.status === 'AUSENTE_CON_AVISO' ? 'bg-amber-500/20 text-amber-400' :
+                                  'bg-gray-500/20 text-gray-400'
+                                }`}>
+                                  {record.status === 'PRESENTE' ? 'Presente' :
+                                   record.status === 'AUSENTE_SIN_AVISO' ? 'No Show' :
+                                   record.status === 'AUSENTE_CON_AVISO' ? 'Avisó' :
+                                   record.request_status || 'Pendiente'}
+                                </span>
+                              </div>
+                              {record.match_competition && (
+                                <span className="text-white/30 text-[8px]">{record.match_competition}</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-[#FCB131]/20 bg-[#001d4a]/80 flex justify-between items-center">
+                <div className="text-white/40 text-[9px]">
+                  ID: {viewSocio.id}
+                </div>
+                <button
+                  onClick={() => { handleEdit(viewSocio); setViewSocio(null); }}
+                  className="px-4 py-2 rounded-lg bg-[#FCB131] text-[#001d4a] text-[10px] font-black uppercase tracking-widest hover:bg-[#FFD23F] transition-all flex items-center gap-2"
+                >
+                  <Edit2 size={12} /> Editar Socio
+                </button>
+              </div>
+            </div>
+          </div>
         )}
     </div>
   );
