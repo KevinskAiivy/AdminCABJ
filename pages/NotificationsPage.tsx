@@ -1,11 +1,13 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { GlassCard } from '../components/GlassCard';
-import { Bell, Trash2, ArrowRightLeft, Mail, AlertCircle, Filter, Search, CheckCircle2, RotateCcw, MessageSquare, Ticket, UserPlus, Lock } from 'lucide-react';
+import { Bell, Trash2, ArrowRightLeft, Mail, AlertCircle, Filter, Search, CheckCircle2, RotateCcw, MessageSquare, Ticket, UserPlus, Lock, ExternalLink } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import { AppNotification, UserSession } from '../types';
 
 export const NotificationsPage = ({ user }: { user: UserSession }) => {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [filterType, setFilterType] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,6 +37,38 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
           setNotifications(prev => prev.map(n => n.id === id ? {...n, read: true} : n));
       } catch (error: any) {
           console.error('Error marking notification as read:', error);
+      }
+  };
+
+  // Fonction pour obtenir le lien de redirection selon le type de notification
+  const getNotificationLink = (notif: AppNotification): string | null => {
+      if (notif.link) return notif.link;
+      
+      switch (notif.type) {
+          case 'TRANSFER':
+              return null; // Reste sur la page des notifications
+          case 'MESSAGE':
+              return null; // Reste sur la page des notifications
+          case 'HABILITACION':
+              return '/habilitaciones';
+          case 'SOCIO':
+              return '/socios';
+          case 'ALERT':
+              return null;
+          default:
+              return null;
+      }
+  };
+
+  // Fonction pour gérer le clic sur une notification
+  const handleNotificationClick = (notif: AppNotification) => {
+      if (!notif.read) {
+          handleMarkAsRead(notif.id);
+      }
+      
+      const link = getNotificationLink(notif);
+      if (link) {
+          navigate(link);
       }
   };
   
@@ -127,11 +161,15 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
                 filteredNotifications.map(notif => {
                     // Déterminer si c'est un message important (ALERT ou HABILITACION automatique)
                     const isImportant = notif.type === 'ALERT' || notif.type === 'HABILITACION' || notif.data?.is_urgent;
+                    const hasLink = getNotificationLink(notif) !== null;
                     
                     return (
                         <div 
                             key={notif.id} 
+                            onClick={() => hasLink && handleNotificationClick(notif)}
                             className={`p-4 rounded-xl group transition-all relative ${
+                                hasLink ? 'cursor-pointer hover:scale-[1.01]' : ''
+                            } ${
                                 isImportant 
                                     ? 'bg-gradient-to-br from-[#001d4a] via-[#002d6a] to-[#001d4a] border-2 border-[#FCB131]/30 shadow-lg' 
                                     : `bg-white border ${notif.read ? 'border-gray-100 opacity-80 hover:opacity-100' : 'border-l-4 border-l-[#FCB131] shadow-md'}`
@@ -162,6 +200,9 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
                                             {isImportant && (
                                                 <Lock size={12} className="text-[#FCB131]/60" title="Mensaje importante - No eliminable" />
                                             )}
+                                            {hasLink && (
+                                                <ExternalLink size={12} className={isImportant ? 'text-[#FCB131]/40' : 'text-gray-300'} title="Clic para ir a la página" />
+                                            )}
                                         </div>
                                         <span className={`text-[9px] font-bold flex items-center gap-1 ${
                                             isImportant ? 'text-[#FCB131]/70' : 'text-gray-400'
@@ -177,7 +218,7 @@ export const NotificationsPage = ({ user }: { user: UserSession }) => {
                                     </p>
                                 </div>
 
-                                <div className="flex items-center gap-1 self-center ml-2">
+                                <div className="flex items-center gap-1 self-center ml-2" onClick={(e) => e.stopPropagation()}>
                                     {!notif.read && (
                                         <button 
                                             onClick={() => handleMarkAsRead(notif.id)}

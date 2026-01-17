@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, MapPin, Ticket, Settings, ChevronDown, LogOut, MessageSquare, Database, Calendar, Sword, Shield, Lock, Bell, ArrowRightLeft, AlertCircle, Mail, CheckCircle2, X, UserPlus } from 'lucide-react';
 import { BocaLogoSVG } from '../constants';
 import { UserSession, AppNotification } from '../types';
@@ -28,6 +28,7 @@ export const Navbar = ({
   user: UserSession
 }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [logoUrl, setLogoUrl] = useState<string>(dataService.getAssetUrl('navbar_logo_main'));
   const [logoError, setLogoError] = useState(false);
   const [logoSize, setLogoSize] = useState<number>(40);
@@ -37,6 +38,45 @@ export const Navbar = ({
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+
+  // Fonction pour obtenir le lien de redirection selon le type de notification
+  const getNotificationLink = (notif: AppNotification): string | null => {
+    // Si un lien explicite est défini, l'utiliser
+    if (notif.link) return notif.link;
+    
+    // Sinon, déterminer le lien selon le type
+    switch (notif.type) {
+      case 'TRANSFER':
+        return '/notificaciones'; // Page des notifications, onglet transferts
+      case 'MESSAGE':
+        return '/notificaciones'; // Page des notifications, onglet messages
+      case 'HABILITACION':
+        return '/habilitaciones'; // Page des habilitaciones
+      case 'SOCIO':
+        return '/socios'; // Page des socios
+      case 'ALERT':
+        return '/notificaciones'; // Page des notifications
+      default:
+        return '/notificaciones';
+    }
+  };
+
+  // Fonction pour gérer le clic sur une notification
+  const handleNotificationClick = (notif: AppNotification) => {
+    // Marquer comme lue si pas déjà lu
+    if (!notif.read) {
+      dataService.markNotificationAsRead(notif.id);
+    }
+    
+    // Fermer le dropdown
+    setIsNotificationsOpen(false);
+    
+    // Naviguer vers la page concernée
+    const link = getNotificationLink(notif);
+    if (link) {
+      navigate(link);
+    }
+  };
   
   // Charger les notifications
   useEffect(() => {
@@ -274,7 +314,8 @@ export const Navbar = ({
                       {recentNotifications.map(notif => (
                         <div
                           key={notif.id}
-                          className={`p-4 hover:bg-white/5 transition-all relative group ${
+                          onClick={() => handleNotificationClick(notif)}
+                          className={`p-4 hover:bg-white/5 transition-all relative group cursor-pointer ${
                             !notif.read ? 'bg-[#003B94]/10 border-l-2 border-l-[#FCB131]' : ''
                           }`}
                         >
@@ -311,7 +352,7 @@ export const Navbar = ({
                                 <span className="text-[8px] text-white/40 font-bold">
                                   {new Date(notif.date).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                                 </span>
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                                   {!notif.read && (
                                     <button
                                       onClick={() => handleMarkAsRead(notif.id)}
