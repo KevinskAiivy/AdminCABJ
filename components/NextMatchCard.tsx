@@ -27,46 +27,74 @@ const CircularCountdownUnit = ({ value, maxValue, label }: { value: number, maxV
             <div className="relative w-[72px] h-[72px] md:w-[80px] md:h-[80px]">
                 {/* SVG avec cercle de points */}
                 <svg className="w-full h-full" viewBox="0 0 72 72">
-                    {/* Points du cercle */}
+                    {/* Points du cercle - Sens anti-horaire (inversé) */}
                     {Array.from({ length: totalDots }).map((_, i) => {
-                        const angle = (i / totalDots) * 2 * Math.PI - Math.PI / 2; // Commence en haut
+                        // Sens anti-horaire: on inverse l'angle (- au lieu de +)
+                        const angle = -(i / totalDots) * 2 * Math.PI - Math.PI / 2; // Commence en haut, tourne à gauche
                         const x = centerX + radius * Math.cos(angle);
                         const y = centerY + radius * Math.sin(angle);
                         const isActive = i < activeDots;
+                        // Distance depuis le dernier point actif pour effet de dégradé
+                        const distanceFromActive = isActive ? (activeDots - 1 - i) : 0;
+                        const glowIntensity = isActive ? Math.max(0.4, 1 - distanceFromActive * 0.03) : 0;
                         
                         return (
                             <circle
                                 key={i}
                                 cx={x}
                                 cy={y}
-                                r={isActive ? 2.5 : 1.5}
-                                className={`transition-all duration-300 ${
+                                r={isActive ? (i === activeDots - 1 ? 3 : 2.5) : 1.5}
+                                className={`transition-all duration-500 ease-out ${
                                     isActive 
-                                        ? 'fill-[#FCB131] drop-shadow-[0_0_4px_rgba(252,177,49,0.8)]' 
-                                        : 'fill-white/20'
+                                        ? 'fill-[#FCB131]' 
+                                        : 'fill-white/15'
                                 }`}
                                 style={{
-                                    filter: isActive ? 'drop-shadow(0 0 3px #FCB131)' : 'none',
-                                    transitionDelay: `${i * 5}ms`
+                                    filter: isActive ? `drop-shadow(0 0 ${4 * glowIntensity}px rgba(252,177,49,${glowIntensity}))` : 'none',
+                                    opacity: isActive ? glowIntensity + 0.3 : 0.5,
+                                    transitionDelay: `${(totalDots - i) * 8}ms`,
+                                    transform: isActive && i === activeDots - 1 ? 'scale(1.2)' : 'scale(1)',
+                                    transformOrigin: 'center'
                                 }}
                             />
                         );
                     })}
                     
-                    {/* Effet de lueur animé sur le dernier point actif */}
+                    {/* Effet de lueur pulsante sur le dernier point actif */}
                     {activeDots > 0 && (() => {
-                        const angle = ((activeDots - 1) / totalDots) * 2 * Math.PI - Math.PI / 2;
+                        const angle = -((activeDots - 1) / totalDots) * 2 * Math.PI - Math.PI / 2;
                         const x = centerX + radius * Math.cos(angle);
                         const y = centerY + radius * Math.sin(angle);
                         return (
-                            <circle
-                                cx={x}
-                                cy={y}
-                                r={4}
-                                className="fill-[#FCB131] animate-ping opacity-75"
-                            />
+                            <>
+                                {/* Halo externe */}
+                                <circle
+                                    cx={x}
+                                    cy={y}
+                                    r={6}
+                                    className="fill-[#FCB131]/30 animate-pulse-glow"
+                                />
+                                {/* Point lumineux */}
+                                <circle
+                                    cx={x}
+                                    cy={y}
+                                    r={3.5}
+                                    className="fill-[#FCB131] animate-pulse-bright"
+                                    style={{ filter: 'drop-shadow(0 0 6px #FCB131) drop-shadow(0 0 12px rgba(252,177,49,0.5))' }}
+                                />
+                            </>
                         );
                     })()}
+                    
+                    {/* Cercle de fond subtil */}
+                    <circle
+                        cx={centerX}
+                        cy={centerY}
+                        r={radius}
+                        fill="none"
+                        stroke="rgba(255,255,255,0.05)"
+                        strokeWidth="1"
+                    />
                 </svg>
                 
                 {/* Chiffre au centre */}
@@ -74,6 +102,7 @@ const CircularCountdownUnit = ({ value, maxValue, label }: { value: number, maxV
                     <span 
                         key={value}
                         className="oswald text-2xl md:text-3xl font-black text-white leading-none tracking-tight animate-count-change"
+                        style={{ textShadow: '0 0 20px rgba(252,177,49,0.3)' }}
                     >
                         {value.toString().padStart(2, '0')}
                     </span>
@@ -83,14 +112,29 @@ const CircularCountdownUnit = ({ value, maxValue, label }: { value: number, maxV
             {/* Label */}
             <span className="text-[8px] md:text-[9px] text-white/70 font-bold uppercase tracking-[0.15em]">{label}</span>
 
-            {/* CSS pour les animations */}
+            {/* CSS pour les animations améliorées */}
             <style>{`
                 @keyframes countChange {
-                    0% { transform: scale(1.1); opacity: 0.7; }
+                    0% { transform: scale(1.15); opacity: 0.5; }
+                    50% { transform: scale(0.95); }
                     100% { transform: scale(1); opacity: 1; }
                 }
                 .animate-count-change {
-                    animation: countChange 0.3s ease-out;
+                    animation: countChange 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+                }
+                @keyframes pulseGlow {
+                    0%, 100% { opacity: 0.3; transform: scale(1); }
+                    50% { opacity: 0.6; transform: scale(1.5); }
+                }
+                .animate-pulse-glow {
+                    animation: pulseGlow 1.5s ease-in-out infinite;
+                }
+                @keyframes pulseBright {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.7; }
+                }
+                .animate-pulse-bright {
+                    animation: pulseBright 1s ease-in-out infinite;
                 }
             `}</style>
         </div>
